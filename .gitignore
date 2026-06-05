@@ -1,0 +1,25 @@
+# Build .NET
+[Bb]in/
+[Oo]bj/
+
+# Sortie du bundle d'extension Desktop
+dist/
+
+# IDE / éditeurs
+.vs/
+.idea/
+*.user
+
+# Divers
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# Zone de build natif macOS : clones tiers embarquant leur propre .git
+# (native/ooz ~617 Mo, native/ooz-rarten) + artefacts de build. Les scripts et
+# la doc propres (build-libkraken.sh, README.md) restent suivis.
+native/ooz/
+native/ooz-rarten/
+native/build/

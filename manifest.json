@@ -1,0 +1,49 @@
+{
+  "manifest_version": "0.1",
+  "name": "wolvenkit-mcp",
+  "display_name": "WolvenKit MCP",
+  "version": "0.2.0",
+  "description": "Serveur MCP pour le modding de Cyberpunk 2077 — expose le toolkit WolvenKit (archives .archive, CR2W/JSON, TweakDB, REDmod, scripts .reds, audio, mesh/texture/animation) comme outils utilisables par un agent.",
+  "long_description": "Serveur MCP C#/.NET 8 adossé à un daemon WolvenKit persistant (IPC pipeliné) avec repli cp77tools. 58 outils : lecture/écriture d'archives, conversion CR2W↔JSON, édition TweakDB structurée, packaging .archive et REDmod, génération de projets .cpmodproj, export mesh/texture/animation/morphtarget/mlmask, extraction audio opus, lint de scripts REDscript, backup/restore, et boucle d'itération en jeu (launch + tail logs). Windows uniquement (cp77tools natif).",
+  "author": {
+    "name": "wolvenkit-mcp"
+  },
+  "license": "GPL-3.0",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/WolvenKitMcp.dll",
+    "mcp_config": {
+      "command": "dotnet",
+      "args": [
+        "${__dirname}/server/WolvenKitMcp.dll"
+      ],
+      "env": {
+        "WOLVENKIT_DAEMON": "${__dirname}/daemon/WolvenKitDaemon.dll"
+      }
+    }
+  },
+  "compatibility": {
+    "platforms": [
+      "win32"
+    ],
+    "runtimes": {
+      "dotnet": ">=8.0"
+    }
+  },
+  "user_config": {
+    "cli_timeout_seconds": {
+      "type": "string",
+      "title": "Délai max par commande (s)",
+      "description": "Valeur de WOLVENKIT_CLI_TIMEOUT_SECONDS (défaut 300).",
+      "required": false,
+      "default": "300"
+    }
+  },
+  "keywords": [
+    "cyberpunk2077",
+    "wolvenkit",
+    "modding",
+    "redengine",
+    "tweakdb"
+  ]
+}

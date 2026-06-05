@@ -1,0 +1,62 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WolvenKit.Modkit" Version="8.18.0" />
+    <!-- WolvenKit.Core / WolvenKit.Common : dépendances transitives de Modkit,
+         référencées explicitement pour exposer $(PkgWolvenKit_Core/_Common) —
+         la cible DeployNativeWindows y puise les binaires natifs nécessaires au
+         daemon mais non copiés de façon fiable depuis une dépendance transitive. -->
+    <PackageReference Include="WolvenKit.Core" Version="8.18.0" GeneratePathProperty="true" />
+    <PackageReference Include="WolvenKit.Common" Version="8.18.0" GeneratePathProperty="true" />
+    <!-- YamlDotNet : parser pour les fichiers .tweak (format TweakXL, YAML).
+         Déjà tiré transitivement par WolvenKit ; référencé explicitement pour
+         garantir la disponibilité au compile et fixer la version. -->
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+  </ItemGroup>
+
+  <!-- Sur macOS, déploie automatiquement notre libkraken.dylib arm64 reconstruite
+       dans la sortie : le package NuGet n'en fournit pas d'utilisable sur Apple
+       Silicon. Lancer native/build-libkraken.sh au préalable. -->
+  <Target Name="DeployLibKraken" AfterTargets="Build"
+          Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <PropertyGroup>
+      <_LibKrakenSrc>$(MSBuildProjectDirectory)/../../native/build/libkraken.dylib</_LibKrakenSrc>
+    </PropertyGroup>
+    <Copy SourceFiles="$(_LibKrakenSrc)"
+          DestinationFolder="$(OutDir)runtimes/osx-arm64/native"
+          Condition="Exists('$(_LibKrakenSrc)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(_LibKrakenSrc)"
+          DestinationFolder="$(OutDir)"
+          Condition="Exists('$(_LibKrakenSrc)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Sur Windows, le daemon a besoin de binaires natifs que les packages
+       WolvenKit livrent comme contentFiles, non copiés de façon fiable depuis
+       une dépendance transitive :
+         kraken.dll         P/Invoke Oodle, requis au démarrage (Oodle.Load())
+         DirectXTexNet.dll  conversion de textures xbm <-> png (uncook / import)
+       On les déploie donc explicitement à côté de WolvenKitDaemon.dll. -->
+  <Target Name="DeployNativeWindows" AfterTargets="Build"
+          Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <Copy SourceFiles="$(PkgWolvenKit_Core)\content\kraken.dll"
+          DestinationFolder="$(OutDir)"
+          Condition="Exists('$(PkgWolvenKit_Core)\content\kraken.dll')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(PkgWolvenKit_Common)\content\DirectXTexNet.dll"
+          DestinationFolder="$(OutDir)"
+          Condition="Exists('$(PkgWolvenKit_Common)\content\DirectXTexNet.dll')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(PkgWolvenKit_Common)\content\lib\DirectXTexNetImpl.dll"
+          DestinationFolder="$(OutDir)lib"
+          Condition="Exists('$(PkgWolvenKit_Common)\content\lib\DirectXTexNetImpl.dll')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

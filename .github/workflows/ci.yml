@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & test (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Le daemon doit être compilé en premier : son build déploie les binaires
+      # natifs Windows (kraken.dll, DirectXTexNet.dll, opus-tools).
+      - name: Build daemon
+        run: dotnet build src/WolvenKitDaemon -c Release --nologo
+
+      - name: Build serveur MCP
+        run: dotnet build src/WolvenKitMcp -c Release --nologo
+
+      - name: Tests unitaires
+        run: dotnet test src/WolvenKitMcp.Tests -c Release --nologo --verbosity normal
+
+      # Vérifie que le bundle d'extension Desktop se construit sans erreur.
+      - name: Build .mcpb
+        run: pwsh ./build-mcpb.ps1 -Configuration Release
+
+      - name: Upload .mcpb
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolvenkit-mcp-mcpb
+          path: dist/wolvenkit-mcp.mcpb
+          if-no-files-found: error
