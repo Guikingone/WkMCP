@@ -19,14 +19,16 @@ Claude ─MCP/JSON-RPC (stdio)─▶ WolvenKitMcp ─IPC stdio JSON─▶ Wolven
 ```
 
 - **`src/WolvenKitMcp`** — l'hôte MCP. Il parle JSON-RPC MCP au client (Claude)
-  sur stdio, expose **69 outils**, **5 prompts** et **3 ressources**, et ne lie
-  *aucune* bibliothèque WolvenKit. Il pilote le daemon par IPC.
+  sur stdio (ou HTTP/Streamable opt-in), expose **123 outils** (63 de base +
+  25 workflow + 35 live), **8 prompts** et **4 ressources**, et ne lie *aucune*
+  bibliothèque WolvenKit. Il pilote le daemon par IPC.
 - **`src/WolvenKitDaemon`** — un processus persistant qui lie les bibliothèques
   WolvenKit (`WolvenKit.Modkit`, `WolvenKit.RED4.CR2W`, …) et `libkraken`/Oodle.
   Il charge les données de référence lourdes **une seule fois** puis traite des
   requêtes en boucle.
-- **`src/WolvenKitMcp.Tests`** — 29 tests xUnit (helpers purs : `Truncate`,
-  `MatchesGlob`, `BuildCpmodprojXml`, lint REDscript, etc.).
+- **`src/WolvenKitMcp.Tests`** — 129 tests xUnit (helpers purs : `Truncate`,
+  `MatchesGlob`, `BuildCpmodprojXml`, lint REDscript, histogramme d'archive,
+  validation REDmod, résumé `.app`, garde-fou doc, etc.).
 
 ---
 
@@ -215,10 +217,12 @@ calculer `produced`), `MatchesGlob`, `BuildCpmodprojXml`.
 ## 6. Guide : ajouter un nouvel outil MCP
 
 Un outil est une **méthode statique** dans une classe `[McpServerToolType]`
-(`WolvenKitTools.cs` pour les 60 outils de base, `ModdingTools.cs` pour les 9
-outils de workflow haut niveau). **L'enregistrement est automatique par
-réflexion** : `Program.cs` appelle `.WithToolsFromAssembly()`, donc il n'y a rien
-à enregistrer manuellement.
+(`WolvenKitTools.cs` pour les 62 outils de base, `ModdingTools.cs` pour les 23
+outils de workflow haut niveau, `LiveTools.cs` pour les 35 outils live).
+**L'enregistrement est automatique par réflexion** : `Program.cs` appelle
+`.WithToolsFromAssembly()`, donc il n'y a rien à enregistrer manuellement.
+Déclarer les hints sur l'attribut (`ReadOnly`/`Destructive`/`Idempotent`) — un
+test (`ConsistencyTests`) échoue s'ils manquent.
 
 ### 6.1 Squelette
 
@@ -397,15 +401,16 @@ surcharger).
 ### 9.2 Tests
 
 ```sh
-dotnet test                        # 29 tests xUnit (src/WolvenKitMcp.Tests)
+dotnet test                        # 129 tests xUnit (src/WolvenKitMcp.Tests)
 python3 test-daemon.py             # latence du daemon seul, par requête
 python3 test-mcp-server.py         # serveur MCP de bout en bout
+python  test-new-tools.py "<jeu>"  # validation jeu réel : archive_stats / validate_redmod / inspect_app
 ```
 
 ### 9.3 Validation de bout en bout sur de vrais assets (Windows)
 
 ```sh
-python3 validate-windows.py        # exerce les 69 outils + 5 prompts sur de vrais assets du jeu
+python3 validate-windows.py        # exerce les outils + prompts sur de vrais assets du jeu
 ```
 
 Voir `WINDOWS-VALIDATION.md` pour le détail et les prérequis (installation du jeu,
@@ -432,8 +437,10 @@ MCP — Claude Desktop relance le serveur, qui maintient le daemon vivant.
 |---------|------|
 | `src/WolvenKitMcp/Program.cs` | Hôte MCP, transport stdio, DI, warmup du daemon. |
 | `src/WolvenKitMcp/Cp77ToolsRunner.cs` | Pilote du daemon : IPC pipeliné, cache LRU, métriques p50/p95, repli cp77tools. |
-| `src/WolvenKitMcp/WolvenKitTools.cs` | 60 outils MCP de base + helpers (`Structured`, `Err`, `Truncate`, `MatchesGlob`, `Snapshot`/`ProducedIn`, `BuildCpmodprojXml`). |
-| `src/WolvenKitMcp/ModdingTools.cs` | 9 outils de workflow haut niveau + base de connaissance des frameworks. |
+| `src/WolvenKitMcp/WolvenKitTools.cs` | 62 outils MCP de base + helpers (`Structured`, `Err`, `Truncate`, `MatchesGlob`, `Snapshot`/`ProducedIn`, `BuildCpmodprojXml`). |
+| `src/WolvenKitMcp/ModdingTools.cs` | 23 outils de workflow haut niveau + base de connaissance des frameworks. |
+| `src/WolvenKitMcp/LiveTools.cs` | 35 outils `live_*` (jeu en cours d'exécution, via CetBridge). |
+| `src/WolvenKitMcp/CetBridge.cs` | Pont TCP/fichier vers le mod Lua CETBridge (jeu vivant). |
 | `src/WolvenKitMcp/RedscriptParser.cs` | Tokenizer + parser récursif REDscript (`lint_script`). |
 | `src/WolvenKitMcp/WolvenKitResources.cs` | Ressources MCP (`[McpServerResourceType]`). |
 | `src/WolvenKitMcp/WolvenKitPrompts.cs` | Prompts MCP (`[McpServerPromptType]`). |

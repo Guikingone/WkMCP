@@ -1,6 +1,6 @@
 # Pont live in-game (CETBridge)
 
-Les 85 outils « classiques » de WolvenKit MCP sont **hors-ligne** : ils opèrent sur des
+Les 88 outils « classiques » de WolvenKit MCP sont **hors-ligne** : ils opèrent sur des
 fichiers et des archives, jeu éteint. Les outils **`live_*`** font l'inverse : ils pilotent
 un Cyberpunk 2077 **en cours d'exécution** — exécuter du Lua, lire/écrire l'état du jeu,
 spawn, téléportation, météo, TweakDB en mémoire vive, observation d'événements.

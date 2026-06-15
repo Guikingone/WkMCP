@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Construit le bundle d'extension Desktop (.mcpb) du serveur WolvenKit MCP.
 

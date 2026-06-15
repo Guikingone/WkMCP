@@ -2,7 +2,7 @@
 
 Référence exhaustive des **outils**, **prompts** et **ressources** exposés par le serveur MCP WolvenKit pour le modding de Cyberpunk 2077.
 
-> **Note sur le décompte.** Le serveur expose **85 outils MCP** (62 dans `WolvenKitTools.cs`, 23 dans `ModdingTools.cs`), **5 prompts** (`WolvenKitPrompts.cs`) et **3 ressources** (`WolvenKitResources.cs`) — chiffre confirmé par `tools/list`. L'aide-mémoire interne (ressource `wolvenkit://reference`) évoque encore « 53 » : c'est historique. S'y ajoutent **35 outils `live_*`** (pont live in-game, `LiveTools.cs`), documentés dans [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — soit **120 outils** au total.
+> **Note sur le décompte.** Le serveur expose **88 outils MCP** (63 dans `WolvenKitTools.cs`, 25 dans `ModdingTools.cs`), **8 prompts** (`WolvenKitPrompts.cs`) et **4 ressources** (`WolvenKitResources.cs`) — chiffre confirmé par `tools/list`. L'aide-mémoire interne (ressource `wolvenkit://reference`) évoque encore « 53 » : c'est historique. S'y ajoutent **35 outils `live_*`** (pont live in-game, `LiveTools.cs`), documentés dans [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — soit **123 outils** au total.
 
 ## Convention de résultat
 
@@ -84,6 +84,14 @@ Affiche les informations d'une archive `.archive` : nombre de fichiers et liste 
 | `archivePath` | string | oui | Chemin absolu du fichier `.archive`. |
 | `list` | bool | non (défaut `false`) | Lister le contenu (sinon résumé seulement). |
 | `pattern` | string? | non | Filtre glob optionnel sur les noms, ex. `*.mesh`. |
+
+### `archive_stats`
+Donne la répartition du contenu d'une archive `.archive` par extension de fichier (combien de `.mesh`, `.ent`, `.xbm`, `.app`…). Vue d'ensemble rapide sans lister l'archive entière. Listing servi par le cache LRU. Renvoie `byExtension` (table extension → compte, triée), `categoryCount` (total réel de types) et `fileCount`.
+
+| Paramètre | Type | Requis | Description |
+|---|---|---|---|
+| `archivePath` | string | oui | Chemin absolu du fichier `.archive`. |
+| `maxCategories` | int | non (défaut `100`) | Nombre max de catégories d'extension renvoyées ; `categoryCount` donne toujours le total réel. |
 
 ### `find_in_archives`
 Recherche des fichiers à travers toutes les archives `.archive` d'un dossier. Indique dans quelle archive se trouve chaque fichier. Listings servis par cache LRU.
@@ -228,6 +236,14 @@ Inspecte un `.xbm` (texture) et renvoie ses métadonnées : résolution, format,
 | Paramètre | Type | Requis | Description |
 |---|---|---|---|
 | `xbmFile` | string | oui | Fichier `.xbm` REDengine déjà extrait. |
+
+### `inspect_app`
+Résumé structurel d'un fichier `.app` : nombre d'apparences, et pour chacune le nombre de composants mesh et les meshes référencés ; total de meshes distincts. Vue d'ensemble rapide **avant** `validate_appearance` (qui, lui, résout et valide chaque `.mesh`). Léger : une seule conversion CR2W→JSON, sans résolution de mesh. Renvoie `appearanceCount`, `meshComponentCount`, `distinctMeshCount` et `appearances` (détail par apparence).
+
+| Paramètre | Type | Requis | Description |
+|---|---|---|---|
+| `appFile` | string | oui | Fichier `.app` extrait. |
+| `maxAppearances` | int | non (défaut `100`) | Nombre max d'apparences détaillées renvoyées ; `appearanceCount` donne toujours le total réel. |
 
 ---
 
@@ -501,6 +517,13 @@ Empaquette un projet REDmod en `.zip` pour distribution. Valide la présence d'`
 |---|---|---|---|
 | `modSourceFolder` | string | oui | Dossier source du REDmod (avec info.json). |
 | `outputPath` | string | oui | Dossier de destination du `.zip`. |
+
+### `validate_redmod`
+Valide le `info.json` d'un projet REDmod : champs requis `name` / `version` (+ format numérique), et cohérence des entrées `customSounds` (chaque entrée doit avoir `name` + `type` ; un `file` est requis sauf pour le type `mod_skip`, et il doit exister dans `customSounds/`). Les autres outils REDmod ne vérifient que la **présence** du `info.json`, jamais son contenu. Complète `validate_xl` / `validate_tweak` / `validate_item_mod`. `status` = `error` / `partial` / `success`.
+
+| Paramètre | Type | Requis | Description |
+|---|---|---|---|
+| `modPath` | string | oui | Dossier racine du REDmod (contenant `info.json`) ou chemin direct vers le `info.json`. |
 
 ### `install_redmod`
 Installe un projet REDmod : copie récursive vers `<jeu>/mods/<nom>/`.
@@ -830,6 +853,30 @@ Recette : exporter un mesh en glTF pour l'inspecter (Blender / visualiseur), ave
 | `archivePath` | string | oui | Archive contenant le mesh. |
 | `meshInternalPath` | string | oui | Chemin interne du mesh. |
 
+### `create_archivexl_item`
+Recette : créer un mod d'item ArchiveXL de bout en bout, avec validation de la chaîne record → factory → localisation (`validate_item_mod`).
+
+| Paramètre | Type | Requis | Description |
+|---|---|---|---|
+| `modName` | string | oui | Nom du mod/item à créer. |
+| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+
+### `diagnose_broken_mod`
+Recette : diagnostiquer un mod cassé ou une install qui crashe — `mod_doctor` → `diagnose_logs` → `analyze_conflicts` → bissection `toggle_mods`.
+
+| Paramètre | Type | Requis | Description |
+|---|---|---|---|
+| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `symptom` | string | oui | Symptôme observé (crash, item absent, script sans effet…). |
+
+### `live_iteration_loop`
+Recette : itérer des valeurs TweakDB À CHAUD (jeu lancé + CETBridge) via `live_tweakdb_set`, puis figer le résultat en `.tweak`.
+
+| Paramètre | Type | Requis | Description |
+|---|---|---|---|
+| `tweakId` | string | oui | Identifiant TweakDB à itérer. |
+| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+
 ---
 
 ## Ressources MCP
@@ -838,6 +885,7 @@ Données lisibles exposées par URI.
 
 | Ressource | URI Template | MIME | Description |
 |---|---|---|---|
-| Référence WolvenKit | `wolvenkit://reference` | `text/markdown` | Aide-mémoire : commandes cp77tools, formats REDengine, workflow de modding. |
+| Référence WolvenKit | `wolvenkit://reference` | `text/markdown` | Aide-mémoire généré par réflexion depuis les outils réels : liste complète, formats REDengine, workflow de modding. |
+| Mods installés | `wolvenkit://mods/{+gamePath}` | `text/markdown` | Inventaire des mods d'une installation (archives, REDmods, tweaks, scripts), racine du jeu en chemin absolu après `wolvenkit://mods/`. |
 | Contenu d'archive | `wolvenkit://archive/{+path}` | `text/plain` | Liste le contenu d'une archive `.archive` identifiée par son chemin absolu après `wolvenkit://archive/`. |
 | Fichier REDengine en JSON | `wolvenkit://cr2w-json/{+path}` | `application/json` | Rend un fichier CR2W extrait (`.mesh`, `.ent`, `.app`...) sous forme JSON, identifié par son chemin absolu après `wolvenkit://cr2w-json/`. |

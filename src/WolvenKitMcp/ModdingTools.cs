@@ -98,7 +98,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     // analyze_dependencies
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "analyze_dependencies")]
+    [McpServerTool(Name = "analyze_dependencies", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Analyse un dossier de mod (ou un projet) et déduit ses frameworks/dépendances " +
                  "requis : redscript, RED4ext, ArchiveXL, TweakXL, Codeware, Audioware, Mod Settings, " +
                  "Cyber Engine Tweaks, etc. — en lisant les imports REDscript (via le parser), les " +
@@ -134,8 +134,40 @@ public static class ModdingTools
         var warnings = new List<string>();
         if (missing.Count > 0)
             warnings.Add($"Dépendances manquantes dans le jeu : {string.Join(", ", missing)}");
-        if (unknownImports.Count > 0)
-            warnings.Add($"Imports d'autres mods (dépendances inter-mods possibles) : {string.Join(", ", unknownImports.Take(15))}");
+
+        // Imports inter-mods : avec gamePath, on résout chaque import inconnu contre
+        // les modules REDscript réellement déclarés dans r6/scripts — on sait alors
+        // QUEL mod installé le fournit, ou qu'il manque (cause de crash au chargement).
+        List<object> crossMod;
+        if (checkInstalled && unknownImports.Count > 0)
+        {
+            var providers = ScanInstalledScriptModules(gamePath!);
+            crossMod = unknownImports.OrderBy(x => x).Select(imp =>
+            {
+                var mods = ResolveImportProvider(imp, providers);
+                return (object)new
+                {
+                    import = imp,
+                    providedBy = mods,
+                    installed = mods is not null,
+                };
+            }).ToList();
+            var unresolved = unknownImports
+                .Where(i => ResolveImportProvider(i, providers) is null)
+                .OrderBy(x => x).ToList();
+            if (unresolved.Count > 0)
+                warnings.Add("Imports non fournis par les mods installés (dépendance absente ?) : " +
+                             string.Join(", ", unresolved.Take(15)));
+        }
+        else
+        {
+            crossMod = unknownImports.OrderBy(x => x)
+                .Select(i => (object)new { import = i, providedBy = (List<string>?)null, installed = (bool?)null })
+                .ToList();
+            if (unknownImports.Count > 0)
+                warnings.Add($"Imports d'autres mods (dépendances inter-mods possibles) : " +
+                             $"{string.Join(", ", unknownImports.Take(15))} — passer gamePath pour les résoudre.");
+        }
 
         return JsonSerializer.Serialize(new
         {
@@ -145,17 +177,75 @@ public static class ModdingTools
                       (string.IsNullOrWhiteSpace(gamePath) ? "" : $" ({missing.Count} manquante(s))"),
             modPath,
             dependencies = deps,
-            crossModImports = unknownImports.OrderBy(x => x).ToList(),
+            crossModImports = crossMod,
             fileStats,
             warnings,
             errors = Array.Empty<string>(),
         }, JsonOpts);
     }
 
+    /// <summary>Scanne les modules REDscript déclarés dans &lt;jeu&gt;/r6/scripts :
+    /// nom de module → mods (dossiers de premier niveau) qui le déclarent.</summary>
+    internal static Dictionary<string, List<string>> ScanInstalledScriptModules(string gamePath)
+    {
+        var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var scripts = Path.Combine(gamePath, "r6", "scripts");
+        if (!Directory.Exists(scripts)) return result;
+        foreach (var file in Directory.EnumerateFiles(scripts, "*.reds", SearchOption.AllDirectories))
+        {
+            string? module = null;
+            try
+            {
+                // La déclaration `module X.Y` est en tête de fichier (après
+                // d'éventuels commentaires/annotations) — 40 lignes suffisent.
+                foreach (var line in File.ReadLines(file).Take(40))
+                {
+                    var t = line.TrimStart();
+                    if (t.StartsWith("module ", StringComparison.Ordinal))
+                    {
+                        module = t["module ".Length..].Trim().TrimEnd(';').Trim();
+                        break;
+                    }
+                }
+            }
+            catch (IOException) { continue; }
+            if (string.IsNullOrEmpty(module)) continue;
+
+            var rel = Path.GetRelativePath(scripts, file);
+            var top = rel.Split(Path.DirectorySeparatorChar, '/')[0];
+            if (!result.TryGetValue(module, out var l)) result[module] = l = new List<string>();
+            if (!l.Contains(top)) l.Add(top);
+        }
+        return result;
+    }
+
+    /// <summary>Mods fournissant un import REDscript : le module importé lui-même, un
+    /// module parent (import de classe `X.Y.Classe` → module `X.Y`), ou un sous-module
+    /// (import `X.Y.*` couvre `X.Y.Z`). Null si aucun mod installé ne le fournit.</summary>
+    internal static List<string>? ResolveImportProvider(string import, Dictionary<string, List<string>> providers)
+    {
+        var found = new List<string>();
+        var probe = import;
+        while (true)
+        {
+            if (providers.TryGetValue(probe, out var mods))
+                foreach (var m in mods)
+                    if (!found.Contains(m)) found.Add(m);
+            var i = probe.LastIndexOf('.');
+            if (i <= 0) break;
+            probe = probe[..i];
+        }
+        foreach (var kv in providers)
+            if (kv.Key.StartsWith(import + ".", StringComparison.OrdinalIgnoreCase))
+                foreach (var m in kv.Value)
+                    if (!found.Contains(m)) found.Add(m);
+        return found.Count > 0 ? found : null;
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     // check_requirements
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "check_requirements")]
+    [McpServerTool(Name = "check_requirements", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Inventorie les frameworks de modding INSTALLÉS dans une installation Cyberpunk 2077 " +
                  "(RED4ext, redscript, ArchiveXL, TweakXL, Codeware, Audioware, Mod Settings, CET...) " +
                  "avec leur version si détectable. Permet de savoir ce qui est disponible avant " +
@@ -189,7 +279,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     // mod_doctor
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "mod_doctor")]
+    [McpServerTool(Name = "mod_doctor", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Diagnostic de santé d'une installation Cyberpunk 2077 moddée, en un appel : " +
                  "frameworks installés/manquants, dépendances requises par les mods installés mais " +
                  "absentes (cause #1 de crashes), conflits entre archives, et inventaire des mods. " +
@@ -287,7 +377,7 @@ public static class ModdingTools
         "customSounds", "resource", "factories", "localization", "animations",
     };
 
-    [McpServerTool(Name = "validate_xl")]
+    [McpServerTool(Name = "validate_xl", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Valide un fichier ArchiveXL .xl (YAML) : YAML bien formé + sections de premier " +
                  "niveau reconnues (customSounds, resource, factories, localization, animations). " +
                  "Signale les erreurs de syntaxe YAML (ligne/colonne) et les sections inconnues. " +
@@ -357,10 +447,155 @@ public static class ModdingTools
         }, JsonOpts);
     }
 
+    [McpServerTool(Name = "validate_redmod", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Valide le info.json d'un projet REDmod : champs requis name / version (+ format), " +
+                 "et cohérence des entrées customSounds (name, type, et fichier référencé présent " +
+                 "dans customSounds/). Les outils REDmod (create_redmod_project, install_redmod, " +
+                 "pack_redmod) ne vérifient que la PRÉSENCE du info.json, jamais son contenu. " +
+                 "Complète validate_xl / validate_tweak / validate_item_mod.")]
+    public static string ValidateRedmod(
+        [Description("Dossier racine du REDmod (contenant info.json) ou chemin direct vers le " +
+                     "info.json.")] string modPath)
+    {
+        var infoPath = Directory.Exists(modPath) ? Path.Combine(modPath, "info.json") : modPath;
+        if (!File.Exists(infoPath))
+            return Err($"info.json introuvable : {infoPath}");
+
+        string json;
+        try { json = File.ReadAllText(infoPath); }
+        catch (Exception ex) { return Err($"Lecture impossible : {ex.Message}"); }
+
+        var modRoot = Path.GetDirectoryName(Path.GetFullPath(infoPath)) ?? ".";
+        var soundsDir = Path.Combine(modRoot, "customSounds");
+        var presentSounds = Directory.Exists(soundsDir)
+            ? Directory.EnumerateFiles(soundsDir, "*", SearchOption.AllDirectories)
+                .Select(Path.GetFileName).Where(n => n is not null).Select(n => n!).ToList()
+            : new List<string>();
+
+        var v = ValidateRedmodInfo(json, presentSounds);
+        var status = v.Errors.Count > 0 ? "error" : v.Warnings.Count > 0 ? "partial" : "success";
+        return JsonSerializer.Serialize(new
+        {
+            ok = v.Errors.Count == 0,
+            status,
+            summary = $"Validation REDmod : {Path.GetFileName(modRoot)} — " +
+                      $"{v.Errors.Count} erreur(s), {v.Warnings.Count} avertissement(s)",
+            infoPath,
+            name = v.Name,
+            version = v.Version,
+            customSoundCount = v.CustomSoundCount,
+            warnings = v.Warnings,
+            errors = v.Errors,
+        }, JsonOpts);
+    }
+
+    internal sealed record RedmodValidation(
+        string? Name, string? Version, int CustomSoundCount,
+        IReadOnlyList<string> Errors, IReadOnlyList<string> Warnings);
+
+    /// <summary>Valide le contenu d'un info.json REDmod. Logique pure (entrée = texte JSON +
+    /// noms de fichiers présents dans customSounds/), testée isolément. Règles : name et version
+    /// requis (version au format numérique sinon avertissement) ; chaque customSounds doit avoir
+    /// name + type, et un file (sauf type mod_skip) qui doit exister dans customSounds/.</summary>
+    internal static RedmodValidation ValidateRedmodInfo(
+        string infoJson, IReadOnlyCollection<string> presentSoundFiles)
+    {
+        var errors = new List<string>();
+        var warnings = new List<string>();
+        string? name = null, version = null;
+        var soundCount = 0;
+
+        JsonDocument doc;
+        try { doc = JsonDocument.Parse(infoJson); }
+        catch (Exception ex)
+        {
+            errors.Add($"info.json : JSON invalide — {ex.Message.Replace("\n", " ").Trim()}");
+            return new RedmodValidation(null, null, 0, errors, warnings);
+        }
+
+        using (doc)
+        {
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                errors.Add("info.json : la racine doit être un objet JSON.");
+                return new RedmodValidation(null, null, 0, errors, warnings);
+            }
+
+            if (root.TryGetProperty("name", out var nEl) && nEl.ValueKind == JsonValueKind.String)
+            {
+                name = nEl.GetString();
+                if (string.IsNullOrWhiteSpace(name)) errors.Add("info.json : « name » est vide.");
+            }
+            else errors.Add("info.json : champ requis « name » absent ou non-textuel.");
+
+            if (root.TryGetProperty("version", out var vEl) && vEl.ValueKind == JsonValueKind.String)
+            {
+                version = vEl.GetString();
+                if (string.IsNullOrWhiteSpace(version)) errors.Add("info.json : « version » est vide.");
+                else if (!LooksLikeVersion(version))
+                    warnings.Add($"info.json : « version » = « {version} » ne ressemble pas à un " +
+                                 "numéro de version (ex. 1.0.0).");
+            }
+            else errors.Add("info.json : champ requis « version » absent ou non-textuel.");
+
+            if (root.TryGetProperty("customSounds", out var csEl))
+            {
+                if (csEl.ValueKind != JsonValueKind.Array)
+                    errors.Add("info.json : « customSounds » doit être un tableau.");
+                else
+                {
+                    var i = 0;
+                    foreach (var s in csEl.EnumerateArray())
+                    {
+                        var where = $"customSounds[{i}]";
+                        i++;
+                        if (s.ValueKind != JsonValueKind.Object)
+                        { errors.Add($"{where} : doit être un objet."); continue; }
+                        soundCount++;
+
+                        var sName = s.TryGetProperty("name", out var snEl)
+                                    && snEl.ValueKind == JsonValueKind.String ? snEl.GetString() : null;
+                        if (string.IsNullOrWhiteSpace(sName)) errors.Add($"{where} : « name » requis.");
+
+                        var sType = s.TryGetProperty("type", out var stEl)
+                                    && stEl.ValueKind == JsonValueKind.String ? stEl.GetString() : null;
+                        if (string.IsNullOrWhiteSpace(sType))
+                            errors.Add($"{where} : « type » requis (ex. mod_sfx_2d, mod_skip).");
+
+                        var isSkip = string.Equals(sType, "mod_skip", StringComparison.OrdinalIgnoreCase);
+                        var file = s.TryGetProperty("file", out var fEl)
+                                   && fEl.ValueKind == JsonValueKind.String ? fEl.GetString() : null;
+                        if (!isSkip)
+                        {
+                            if (string.IsNullOrWhiteSpace(file))
+                                errors.Add($"{where} : « file » requis pour le type « {sType} ».");
+                            else if (presentSoundFiles.Count > 0)
+                            {
+                                var bare = file.Replace('\\', '/').TrimStart('/').Split('/').Last();
+                                if (!presentSoundFiles.Contains(bare, StringComparer.OrdinalIgnoreCase)
+                                    && !presentSoundFiles.Contains(file, StringComparer.OrdinalIgnoreCase))
+                                    warnings.Add($"{where} : fichier son « {file} » introuvable dans customSounds/.");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return new RedmodValidation(name, version, soundCount, errors, warnings);
+    }
+
+    private static bool LooksLikeVersion(string v)
+    {
+        var parts = v.Split('.');
+        return parts.Length >= 2 && parts.All(p => p.Length > 0 && p.All(char.IsDigit));
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     // scaffold_archivexl
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "scaffold_archivexl")]
+    [McpServerTool(Name = "scaffold_archivexl", ReadOnly = false, Destructive = false, Idempotent = false)]
     [Description("Génère un fichier ArchiveXL .xl de départ (YAML commenté) pour un type de mod " +
                  "donné : factory (enregistrer un record factory via CSV), customSounds (audio " +
                  "personnalisé), localization (textes), resource (patch de ressource). Scaffolding " +
@@ -423,7 +658,7 @@ public static class ModdingTools
     private static readonly string[] TextRefExtensions =
         { ".reds", ".script", ".swift", ".redscript", ".tweak", ".yaml", ".yml", ".xl", ".lua", ".json", ".csv" };
 
-    [McpServerTool(Name = "find_references")]
+    [McpServerTool(Name = "find_references", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Recherche toutes les références textuelles à une cible (TweakDBID, chemin de " +
                  "ressource, LocKey, CName, nom de classe/fonction...) dans les fichiers source d'un " +
                  "dossier de mod ou de projet (.reds, .tweak, .yaml, .xl, .lua, .json, .csv). " +
@@ -500,7 +735,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     // diff_mod_vs_base
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "diff_mod_vs_base")]
+    [McpServerTool(Name = "diff_mod_vs_base", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Diff sémantique d'UN fichier de jeu surchargé par un mod, contre sa version de " +
                  "base : extrait le fichier des deux côtés, les convertit en JSON et compare les " +
                  "champs (ajoutés / supprimés / modifiés). Répond à « qu'est-ce que ce mod change " +
@@ -548,6 +783,9 @@ public static class ModdingTools
             gameFilePath,
             modArchive,
             baseArchive,
+            addedCount = added.Count,
+            removedCount = removed.Count,
+            changedCount = changed.Count,
             added = added.Take(cap),
             removed = removed.Take(cap),
             changed = changed.Take(cap),
@@ -560,7 +798,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     // scaffold_mod
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "scaffold_mod")]
+    [McpServerTool(Name = "scaffold_mod", ReadOnly = false, Destructive = false, Idempotent = false)]
     [Description("Crée en UN appel un squelette de mod fonctionnel selon son type : archive " +
                  "(projet .cpmodproj + dossiers), redscript (starter .reds avec @wrapMethod), tweak " +
                  "(starter .tweak), redmod (info.json + dossiers). Écrit aussi un MOD_MANIFEST.json " +
@@ -656,7 +894,7 @@ public static class ModdingTools
     private static readonly string[] GameLayoutRoots =
         { "archive", "r6", "mods", "red4ext", "bin", "engine" };
 
-    [McpServerTool(Name = "package_mod")]
+    [McpServerTool(Name = "package_mod", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Empaquette un dossier au layout relatif au jeu (archive/pc/mod, r6/scripts, " +
                  "r6/tweaks, mods/, red4ext/...) en un .zip distribuable (Nexus / install manuel), " +
                  "avec séparateurs « / » conformes. Valide la présence d'au moins un dossier de jeu " +
@@ -740,7 +978,7 @@ public static class ModdingTools
     private static object JournalRefJson(JournalEntryRef e)
         => new { path = e.Path, type = e.Type, id = e.Id, title = e.Title, childCount = e.ChildCount };
 
-    [McpServerTool(Name = "inspect_journal")]
+    [McpServerTool(Name = "inspect_journal", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Résumé navigable d'un fichier .journal converti en JSON (par read_game_file) : " +
                  "nombre total d'entrées, profondeur, répartition par type ($type), et catégories de " +
                  "premier niveau (quêtes, codex, contacts, e-mails…). Évite de charger les ~70 Mo de " +
@@ -779,7 +1017,7 @@ public static class ModdingTools
         }, JsonOpts);
     }
 
-    [McpServerTool(Name = "find_journal_entry")]
+    [McpServerTool(Name = "find_journal_entry", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Localise des entrées dans un .journal (JSON de read_game_file) par id, type ou " +
                  "titre, et renvoie pour chacune son CHEMIN JSON exact (ex. " +
                  "Data.RootChunk.entry.Data.entries[2].Data.entries[7].Data) — pour éditer l'entrée " +
@@ -923,7 +1161,7 @@ public static class ModdingTools
 
     internal sealed record Cr2wNodeRef(string Path, string Type, string? Value);
 
-    [McpServerTool(Name = "inspect_cr2w")]
+    [McpServerTool(Name = "inspect_cr2w", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Résumé navigable de N'IMPORTE quel CR2W converti en JSON (par read_game_file / " +
                  "cr2w_to_json) : type racine, nombre d'objets typés, répartition par $type, " +
                  "profondeur. Pour les gros fichiers (quêtes, scènes, secteurs, UI) qu'on ne peut " +
@@ -957,7 +1195,7 @@ public static class ModdingTools
         catch (Exception ex) { return Err($"JSON illisible : {ex.Message}"); }
     }
 
-    [McpServerTool(Name = "find_in_cr2w")]
+    [McpServerTool(Name = "find_in_cr2w", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Recherche dans N'IMPORTE quel CR2W (JSON) les objets dont un champ correspond à " +
                  "une cible, et renvoie leur CHEMIN JSON exact — pour éditer le nœud ciblé puis " +
                  "réécrire via write_game_file. field = $type (défaut), un nom de champ précis, ou " +
@@ -1117,7 +1355,7 @@ public static class ModdingTools
             "Vider r6/cache/, vérifier les fichiers du jeu, réinstaller Codeware à jour."),
     };
 
-    [McpServerTool(Name = "diagnose_logs")]
+    [McpServerTool(Name = "diagnose_logs", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Lit et DIAGNOSTIQUE les logs de modding d'une install Cyberpunk 2077 (redscript, " +
                  "RED4ext, ArchiveXL, TweakXL, Codeware, CET, REDmod) : extrait les erreurs, les " +
                  "classe par source, mappe les erreurs connues à un correctif, et tente d'attribuer " +
@@ -1204,7 +1442,7 @@ public static class ModdingTools
     // LRU) et les records de tweaks.
     // ════════════════════════════════════════════════════════════════════════
 
-    [McpServerTool(Name = "analyze_conflicts")]
+    [McpServerTool(Name = "analyze_conflicts", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Détecte les conflits entre mods installés SANS le verbe WolvenKit buggé : " +
                  "fichiers de jeu fournis par plusieurs .archive (avec qui l'emporte selon l'ordre " +
                  "de chargement alphabétique = premier-gagne), et records TweakDB définis par " +
@@ -1276,6 +1514,21 @@ public static class ModdingTools
 
         var total = archiveConflicts.Count + tweakConflicts.Count;
         var status = total > 0 ? "partial" : "success";
+
+        // Conflits ≠ rapport mort : on dit quoi FAIRE. Les recettes générales suffisent
+        // (les répéter sur chacun des N conflits gonflerait la réponse pour rien).
+        var resolutionHints = total == 0 ? Array.Empty<string>() : new[]
+        {
+            "Pour qu'une archive perdante l'emporte : la renommer pour qu'elle se trie AVANT le " +
+            "winner (préfixe « ! » ou « 00_ »), puis vérifier avec un nouvel analyze_conflicts.",
+            "Pour neutraliser un mod en conflit sans le supprimer : toggle_mods (déplace ses " +
+            ".archive vers _disabled ; pratique aussi en bissection pour trouver le coupable).",
+            "Pour vérifier ce qui diffère réellement entre deux archives en conflit : " +
+            "diff_archives, puis diff_mod_vs_base sur le fichier précis.",
+            "Records TweakDB définis par plusieurs .tweak/.yaml : fusionner les valeurs dans un " +
+            "seul fichier, ou supprimer la définition redondante (lint_tweak pour vérifier).",
+        };
+
         return JsonSerializer.Serialize(new
         {
             ok = true,
@@ -1284,6 +1537,7 @@ public static class ModdingTools
                       $"{archiveConflicts.Count} conflit(s) d'archive, {tweakConflicts.Count} record(s) en conflit",
             gamePath,
             note = "Ordre de chargement alphabétique : le premier à fournir un fichier l'emporte (winner).",
+            resolutionHints,
             archivesScanned = archives.Count,
             archiveConflicts = archiveConflicts.Take(maxResults),
             archiveConflictCount = archiveConflicts.Count,
@@ -1326,7 +1580,7 @@ public static class ModdingTools
 
     internal sealed record ItemRecord(string Record, string? EntityName, string? AppearanceName, string? DisplayName, string File);
 
-    [McpServerTool(Name = "validate_item_mod")]
+    [McpServerTool(Name = "validate_item_mod", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Valide la chaîne de références d'un mod d'item ArchiveXL (la cause n°1 d'échec " +
                  "silencieux « l'item ne spawn pas / nom vide ») : pour chaque record TweakXL, " +
                  "vérifie que son entityName existe dans une factory .csv, que son displayName " +
@@ -1538,7 +1792,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     // lint_tweak — lint sémantique d'un .tweak/.yaml TweakXL
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "lint_tweak")]
+    [McpServerTool(Name = "lint_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Lint sémantique d'un fichier TweakXL (.tweak/.yaml) : TABS interdits (échec " +
                  "silencieux du chargement), indentation non multiple de 2, noms de record en " +
                  "double dans le fichier, et usage d'un record auto-généré `inlineN` comme `$base` " +
@@ -1605,7 +1859,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     // generate_manifest — manifeste de dépendances depuis l'analyse d'un mod
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "generate_manifest")]
+    [McpServerTool(Name = "generate_manifest", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Génère un manifeste de dépendances pour un mod en détectant ses frameworks requis " +
                  "(comme analyze_dependencies) et en écrivant un REQUIREMENTS.md (façon onglet " +
                  "« Requirements » Nexus) + un objet structuré. Comble l'absence totale de système " +
@@ -1670,7 +1924,7 @@ public static class ModdingTools
         ("{camera}", new[] { "fpp", "tpp" }),
     };
 
-    [McpServerTool(Name = "resolve_dynamic_appearance")]
+    [McpServerTool(Name = "resolve_dynamic_appearance", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Développe un chemin/pattern d'apparence dynamique ArchiveXL (préfixe `*`, " +
                  "interpolations {gender}→m/w et {camera}→fpp/tpp) en ses chemins concrets, et — si " +
                  "modPath est fourni — indique lesquels existent réellement. Cible le piège ArchiveXL " +
@@ -1736,7 +1990,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     // migration_check — un mod survit-il à la version actuelle du jeu ?
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "migration_check")]
+    [McpServerTool(Name = "migration_check", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Vérifie si un mod .archive est encore aligné sur la version ACTUELLE du jeu : " +
                  "pour chaque fichier que le mod fournit, indique s'il surcharge un fichier de base " +
                  "existant (override actif) ou non (ajout, OU surcharge devenue inerte après une MAJ " +
@@ -1799,7 +2053,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     // toggle_mods — activer/désactiver des .archive (pour bissection assistée)
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "toggle_mods")]
+    [McpServerTool(Name = "toggle_mods", ReadOnly = false, Destructive = false, Idempotent = false)]
     [Description("Active ou désactive des mods .archive en les déplaçant entre archive/pc/mod et " +
                  "archive/pc/mod/_disabled (réversible, non destructif). Primitive de la bissection " +
                  "de conflits : désactiver la moitié des mods → lancer → diagnostiquer → réduire. " +
@@ -1862,7 +2116,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     internal sealed record EntityAppearance(string Name, string? AppearanceName, string? AppResource);
 
-    [McpServerTool(Name = "list_entity_appearances")]
+    [McpServerTool(Name = "list_entity_appearances", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Liste les apparences d'une entité REDengine (.ent) : pour chacune, son nom " +
                  "d'entité (le `name` à passer à export_entity / dans le .yaml), le `appearanceName` " +
                  "côté .app, et la ressource .app référencée. Fiable et indispensable pour savoir " +
@@ -1917,7 +2171,7 @@ public static class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     internal sealed record AppMeshRef(string AppAppearance, string MeshPath, string? MeshAppearance);
 
-    [McpServerTool(Name = "validate_appearance")]
+    [McpServerTool(Name = "validate_appearance", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Validation PROFONDE de la chaîne d'apparence .app → .mesh : pour chaque apparence " +
                  "du .app et chaque composant mesh, vérifie que le meshAppearance référencé existe " +
                  "bien dans le .mesh (sinon mesh invisible) et que ses matériaux (chunkMaterials) " +
@@ -1985,6 +2239,110 @@ public static class ModdingTools
             limitation = "Vérifie meshAppearance ∈ .mesh.appearances. La cohérence fine des index de " +
                          "matériaux (chunkMaterials ↔ localMaterialBuffer) n'est pas encore couverte.",
         }, JsonOpts);
+    }
+
+    [McpServerTool(Name = "inspect_app", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Résumé structurel d'un fichier .app : nombre d'apparences, et pour chacune le " +
+                 "nombre de composants mesh et les meshes référencés ; total de meshes distincts. " +
+                 "Vue d'ensemble rapide AVANT validate_appearance (qui, lui, résout et valide " +
+                 "chaque .mesh). Léger : une seule conversion CR2W→JSON, sans résolution de mesh.")]
+    public static async Task<string> InspectApp(
+        Cp77ToolsRunner runner,
+        [Description("Chemin d'un fichier .app extrait.")] string appFile,
+        [Description("Nb max d'apparences détaillées renvoyées (défaut 100). appearanceCount donne " +
+                     "toujours le total réel.")] int maxAppearances = 100,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(appFile))
+            return Err($"Fichier .app introuvable : {appFile}");
+        var appJson = await ConvertCr2wToJsonText(runner, appFile, ct);
+        if (appJson is null) return Err("Conversion du .app échouée.");
+
+        var s = SummarizeApp(appJson);
+        var cap = Math.Max(1, maxAppearances);
+        var truncated = s.Appearances.Count > cap;
+        var shown = truncated ? s.Appearances.Take(cap).ToList() : s.Appearances;
+
+        return JsonSerializer.Serialize(new
+        {
+            ok = s.AppearanceCount > 0,
+            status = s.AppearanceCount > 0 ? "success" : "partial",
+            summary = s.AppearanceCount == 0
+                ? "Aucune apparence trouvée dans le .app."
+                : $"{s.AppearanceCount} apparence(s), {s.MeshComponentCount} composant(s) mesh, " +
+                  $"{s.DistinctMeshCount} mesh(es) distinct(s)",
+            appFile,
+            appearanceCount = s.AppearanceCount,
+            meshComponentCount = s.MeshComponentCount,
+            distinctMeshCount = s.DistinctMeshCount,
+            truncated,
+            appearances = shown.Select(a => new
+            {
+                name = a.Name,
+                meshComponents = a.MeshComponents,
+                meshes = a.Meshes,
+            }),
+            warnings = s.AppearanceCount == 0
+                ? new[] { "Le .app n'expose aucune apparence (fichier inattendu ou vide)." }
+                : Array.Empty<string>(),
+            errors = Array.Empty<string>(),
+        }, JsonOpts);
+    }
+
+    internal sealed record AppAppearanceSummary(string Name, int MeshComponents, IReadOnlyList<string> Meshes);
+
+    internal sealed record AppSummary(
+        int AppearanceCount, int MeshComponentCount, int DistinctMeshCount,
+        IReadOnlyList<AppAppearanceSummary> Appearances);
+
+    /// <summary>Résume un .app JSON : apparences + composants mesh par apparence + meshes
+    /// distincts. Réutilise ParseAppMeshRefs (composants mesh) et ParseAppearanceNames
+    /// (toutes les apparences, même sans composant mesh). Logique pure, testable.</summary>
+    internal static AppSummary SummarizeApp(string appJson)
+    {
+        var refs = ParseAppMeshRefs(appJson);
+        var names = ParseAppearanceNames(appJson);
+        var ordered = names.Count > 0
+            ? names
+            : refs.Select(r => r.AppAppearance).Distinct(StringComparer.Ordinal).ToList();
+
+        var byApp = refs.GroupBy(r => r.AppAppearance, StringComparer.Ordinal)
+                        .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+
+        var appSummaries = ordered.Select(n =>
+        {
+            byApp.TryGetValue(n, out var rs);
+            rs ??= new List<AppMeshRef>();
+            var meshes = rs.Select(r => r.MeshPath)
+                           .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            return new AppAppearanceSummary(n, rs.Count, meshes);
+        }).ToList();
+
+        var distinctMeshes = refs.Select(r => r.MeshPath)
+                                 .Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        return new AppSummary(ordered.Count, refs.Count, distinctMeshes, appSummaries);
+    }
+
+    /// <summary>Noms de toutes les apparences d'un .app JSON (y compris celles sans composant
+    /// mesh). Testable.</summary>
+    internal static List<string> ParseAppearanceNames(string appJson)
+    {
+        var names = new List<string>();
+        try
+        {
+            using var doc = JsonDocument.Parse(appJson);
+            var rc = doc.RootElement.TryGetProperty("Data", out var d)
+                     && d.TryGetProperty("RootChunk", out var r) ? r : doc.RootElement;
+            if (!rc.TryGetProperty("appearances", out var apps) || apps.ValueKind != JsonValueKind.Array)
+                return names;
+            foreach (var ae in apps.EnumerateArray())
+            {
+                var def = ae.TryGetProperty("Data", out var dd) && dd.ValueKind == JsonValueKind.Object ? dd : ae;
+                names.Add(CnameVal(def, "name") ?? "?");
+            }
+        }
+        catch { /* JSON inattendu */ }
+        return names;
     }
 
     /// <summary>Extrait les (apparence .app, chemin mesh, meshAppearance) des composants

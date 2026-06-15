@@ -71,7 +71,7 @@ services.AddLogging();
 
 // Implémentations maison (celles de WolvenKit.CLI sont internal).
 services.AddSingleton<ILoggerService>(logger);
-services.AddSingleton<IProgressService<double>, NoopProgressService>();
+services.AddSingleton<IProgressService<double>>(new BridgingProgressService(logger));
 
 // Données de référence — singletons gardés chauds (HashService = le coût ~6 s).
 services.AddSingleton<IHashService, HashService>();
@@ -117,6 +117,20 @@ channel.Flush();
 var execLock = new SemaphoreSlim(1, 1);
 var writeLock = new SemaphoreSlim(1, 1);
 
+// Émet un message de progression {"id":N,"progress":"…"} sur le canal protocole.
+// Appelé de façon synchrone par le sink du logger pendant Dispatch.
+void EmitProgress(int id, string message)
+{
+    if (message.Length > 300) message = message[..300] + "…";
+    writeLock.Wait();
+    try
+    {
+        channel.WriteLine(JsonSerializer.Serialize(new DaemonProgress(id, message), json));
+        channel.Flush();
+    }
+    finally { writeLock.Release(); }
+}
+
 async Task HandleRequest(DaemonRequest req)
 {
     int exit;
@@ -127,7 +141,20 @@ async Task HandleRequest(DaemonRequest req)
         try
         {
             logger.Drain();
-            exit = await Dispatch(provider, logger, req.argv);
+            // Pendant l'exécution (sérialisée par execLock), chaque ligne de log
+            // est relayée au client en message de progression, throttlée à 2/s —
+            // les verbes rapides ne produisent donc rien, les longs (uncook, build)
+            // remontent leur avancement au lieu de rester muets des minutes.
+            var lastEmit = Environment.TickCount64;
+            logger.ProgressSink = msg =>
+            {
+                var now = Environment.TickCount64;
+                if (now - lastEmit < 500) return;
+                lastEmit = now;
+                EmitProgress(req.id, msg);
+            };
+            try { exit = await Dispatch(provider, logger, req.argv); }
+            finally { logger.ProgressSink = null; }
             output = logger.Drain().Trim();
         }
         finally { execLock.Release(); }
@@ -177,6 +204,21 @@ while ((line = Console.In.ReadLine()) != null)
         continue;
     }
     if (req is null) continue;
+
+    // ping : liveness check du watchdog côté serveur MCP — répond immédiatement
+    // SANS prendre execLock (sinon un uncook long ferait passer le daemon pour mort).
+    if (req.argv is ["ping"])
+    {
+        await writeLock.WaitAsync();
+        try
+        {
+            await channel.WriteLineAsync(
+                JsonSerializer.Serialize(new DaemonResponse(req.id, 0, "pong"), json));
+            await channel.FlushAsync();
+        }
+        finally { writeLock.Release(); }
+        continue;
+    }
 
     pending.Add(Task.Run(() => HandleRequest(req)));
 
@@ -449,29 +491,25 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         var recordId = rest[1];
         var prefix = recordId + ".";
 
-        // Cherche le record par nom résolu (parcours O(N) — < 100K records).
-        WolvenKit.RED4.Types.TweakDBID? recordTdbId = null;
-        foreach (var rec in TweakDBService.GetRecords())
-        {
-            if (rec.GetResolvedText() == recordId)
-            {
-                recordTdbId = rec;
-                break;
-            }
-        }
-        if (recordTdbId is null)
+        // Lookups O(1) via l'index par record (construit à la première requête).
+        EnsureTweakDbIndex();
+        if (DaemonState.RecordsByName is null
+            || !DaemonState.RecordsByName.TryGetValue(recordId, out var recordTdbId))
         {
             logger.Warning($"record inconnu dans TweakDB : {recordId}");
             return 0;
         }
 
         string? recordType = null;
-        if (TweakDBService.TryGetType(recordTdbId.Value, out var t))
+        if (TweakDBService.TryGetType(recordTdbId, out var t))
             recordType = t?.Name;
         logger.Info($"record {recordId} ({recordType ?? "?"})");
 
         int found = 0;
-        foreach (var flat in TweakDBService.GetFlats())
+        var recordFlats = DaemonState.FlatsByRecord is not null
+            && DaemonState.FlatsByRecord.TryGetValue(recordId, out var rf)
+            ? rf : new List<WolvenKit.RED4.Types.TweakDBID>();
+        foreach (var flat in recordFlats)
         {
             var text = flat.GetResolvedText();
             if (text is null || !text.StartsWith(prefix, StringComparison.Ordinal))
@@ -1055,14 +1093,63 @@ static FileInfo ResolveGameExe(string path)
 // TweakDBService est un singleton gardé chaud (sa TweakDB vit dans un champ
 // statique). Sans suivi du chemin, un premier chargement « collait » : interroger
 // une AUTRE tweakdb.bin renvoyait les données de la première. On mémorise donc le
-// chemin canonique chargé (DaemonState) et on recharge quand il change.
+// chemin canonique chargé (DaemonState) et on recharge quand il change — ou quand
+// le fichier lui-même a été modifié (mod qui régénère tweakdb.bin) : sans le mtime,
+// le daemon servirait des données périmées.
 static async Task EnsureTweakDbAsync(ITweakDBService tdb, string path)
 {
     var canon = Path.GetFullPath(path);
-    if (tdb.IsLoaded && string.Equals(DaemonState.LoadedTweakDbPath, canon, StringComparison.OrdinalIgnoreCase))
+    var mtime = File.GetLastWriteTimeUtc(canon);
+    if (tdb.IsLoaded
+        && string.Equals(DaemonState.LoadedTweakDbPath, canon, StringComparison.OrdinalIgnoreCase)
+        && DaemonState.LoadedTweakDbMtime == mtime)
         return;
     await tdb.LoadDB(canon);
-    if (tdb.IsLoaded) DaemonState.LoadedTweakDbPath = canon;
+    if (tdb.IsLoaded)
+    {
+        DaemonState.LoadedTweakDbPath = canon;
+        DaemonState.LoadedTweakDbMtime = mtime;
+        // L'index par record appartient à l'ancienne base : il sera reconstruit
+        // paresseusement au prochain tweakdb-describe.
+        DaemonState.IndexedTweakDbPath = null;
+        DaemonState.RecordsByName = null;
+        DaemonState.FlatsByRecord = null;
+    }
+}
+
+// Index TweakDB par record, construit paresseusement (une passe O(N) sur les flats
+// au premier tweakdb-describe, puis lookups O(1)). Sans lui, chaque describe
+// re-scannait TOUS les flats (~500 ms sur une tweakdb.bin complète).
+static void EnsureTweakDbIndex()
+{
+    if (DaemonState.IndexedTweakDbPath is not null
+        && string.Equals(DaemonState.IndexedTweakDbPath, DaemonState.LoadedTweakDbPath,
+                         StringComparison.OrdinalIgnoreCase))
+        return;
+
+    var records = new Dictionary<string, WolvenKit.RED4.Types.TweakDBID>(StringComparer.Ordinal);
+    foreach (var rec in TweakDBService.GetRecords())
+    {
+        var text = rec.GetResolvedText();
+        if (!string.IsNullOrEmpty(text)) records[text] = rec;
+    }
+
+    var flats = new Dictionary<string, List<WolvenKit.RED4.Types.TweakDBID>>(StringComparer.Ordinal);
+    foreach (var flat in TweakDBService.GetFlats())
+    {
+        var text = flat.GetResolvedText();
+        if (string.IsNullOrEmpty(text)) continue;
+        var idx = text.LastIndexOf('.');
+        if (idx <= 0) continue;
+        var recordId = text[..idx];
+        if (!flats.TryGetValue(recordId, out var list))
+            flats[recordId] = list = new List<WolvenKit.RED4.Types.TweakDBID>();
+        list.Add(flat);
+    }
+
+    DaemonState.RecordsByName = records;
+    DaemonState.FlatsByRecord = flats;
+    DaemonState.IndexedTweakDbPath = DaemonState.LoadedTweakDbPath;
 }
 
 static EUncookExtension? ParseUext(string? s)
@@ -1082,9 +1169,16 @@ static List<uint> ParseUintList(string? s)
 // de champs statiques au niveau racine — on les regroupe ici).
 static class DaemonState
 {
-    // Chemin canonique de la dernière tweakdb.bin chargée (le service est un
-    // singleton chaud ; on recharge quand le chemin change).
+    // Chemin canonique + mtime de la dernière tweakdb.bin chargée (le service est
+    // un singleton chaud ; on recharge quand le chemin OU le fichier change).
     public static string? LoadedTweakDbPath;
+    public static DateTime LoadedTweakDbMtime;
+
+    // Index par record (construit paresseusement par EnsureTweakDbIndex, invalidé
+    // au rechargement de la base).
+    public static string? IndexedTweakDbPath;
+    public static Dictionary<string, WolvenKit.RED4.Types.TweakDBID>? RecordsByName;
+    public static Dictionary<string, List<WolvenKit.RED4.Types.TweakDBID>>? FlatsByRecord;
 
     // Flags booléens (sans valeur) — immuable, partagé entre requêtes.
     public static readonly HashSet<string> BoolFlags = new()
@@ -1097,6 +1191,7 @@ static class DaemonState
 
 sealed record DaemonRequest(int id, string[] argv);
 sealed record DaemonResponse(int id, int exit, string output);
+sealed record DaemonProgress(int id, string progress);
 
 // ════════════════════════════════════════════════════════════════════════
 // Shims — implémentations minimales des interfaces de service de WolvenKit.
@@ -1117,12 +1212,22 @@ sealed class CapturingLoggerService : ILoggerService
     public void Debug(string msg) => Append("Debug", msg);
     public void Error(Exception exception) => Append("Error", exception.Message);
 
+    /// <summary>Relais de progression vers le client IPC. Positionné par requête
+    /// (sous execLock) ; les lignes de log de l'exécution en cours y sont relayées.</summary>
+    public Action<string>? ProgressSink;
+
     private void Append(string level, string s)
     {
         // Même format que le logger de cp77tools : "[ 0: Level ] - message".
         // Le Format() du serveur MCP se fie aux marqueurs ": Success" / ": Error".
         lock (_sb) _sb.AppendLine($"[ 0: {level} ] - {s}");
+        ProgressSink?.Invoke(s);
     }
+
+    /// <summary>Progression « pourcentage » (IProgressService de WolvenKit) :
+    /// relayée au client sans polluer le tampon de sortie.</summary>
+    public void EmitPercent(double value)
+        => ProgressSink?.Invoke(value <= 1.0 ? $"{value * 100:F0} %" : $"{value:F0}");
 
     /// <summary>Ajoute du texte brut (sortie Console capturée) au même tampon.</summary>
     public void AppendRaw(string s)
@@ -1158,10 +1263,14 @@ sealed class CapturingTextWriter : TextWriter
     public override void WriteLine(string? value) => _sink.AppendRaw((value ?? "") + Environment.NewLine);
 }
 
-#pragma warning disable CS0067 // événements jamais déclenchés — service no-op
-/// <summary>IProgressService no-op (le daemon ne rend pas de progression).</summary>
-sealed class NoopProgressService : IProgressService<double>
+#pragma warning disable CS0067 // événements jamais déclenchés — relais minimal
+/// <summary>IProgressService qui relaie les pourcentages WolvenKit vers le sink
+/// de progression du logger (→ messages {"id":N,"progress":"42 %"} côté client).</summary>
+sealed class BridgingProgressService : IProgressService<double>
 {
+    private readonly CapturingLoggerService _logger;
+    public BridgingProgressService(CapturingLoggerService logger) => _logger = logger;
+
     public event EventHandler<double>? ProgressChanged;
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -1169,6 +1278,6 @@ sealed class NoopProgressService : IProgressService<double>
     public EStatus Status { get; set; }
 
     public void Completed() { }
-    public void Report(double value) { }
+    public void Report(double value) => _logger.EmitPercent(value);
 }
 #pragma warning restore CS0067

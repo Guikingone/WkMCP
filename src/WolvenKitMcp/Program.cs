@@ -18,6 +18,9 @@ var transport = (Environment.GetEnvironmentVariable(HttpBridgeSecurity.Transport
 // Préchauffe le daemon WolvenKit (HashService ~6 s) dès le démarrage, quel que soit le transport.
 _ = Task.Run(() => Cp77ToolsRunner.Shared.RunAsync(new[] { "--version" }, CancellationToken.None));
 
+// Purge les dossiers temp des sessions précédentes (> 24 h) — best-effort, hors chemin critique.
+_ = Task.Run(Cp77ToolsRunner.PurgeStaleTempDirs);
+
 // Enregistrement commun aux deux transports : DI + outils/ressources/prompts par réflexion.
 static void RegisterMcp(IServiceCollection services, bool http)
 {

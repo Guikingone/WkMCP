@@ -2,9 +2,9 @@
   "manifest_version": "0.1",
   "name": "wolvenkit-mcp",
   "display_name": "WolvenKit MCP",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "description": "Serveur MCP pour le modding de Cyberpunk 2077 — expose le toolkit WolvenKit (archives .archive, CR2W/JSON, TweakDB, REDmod, scripts .reds, audio, mesh/texture/animation) comme outils utilisables par un agent.",
-  "long_description": "Serveur MCP C#/.NET 8 adossé à un daemon WolvenKit persistant (IPC pipeliné) avec repli cp77tools. 58 outils : lecture/écriture d'archives, conversion CR2W↔JSON, édition TweakDB structurée, packaging .archive et REDmod, génération de projets .cpmodproj, export mesh/texture/animation/morphtarget/mlmask, extraction audio opus, lint de scripts REDscript, backup/restore, et boucle d'itération en jeu (launch + tail logs). Windows uniquement (cp77tools natif).",
+  "long_description": "Serveur MCP C#/.NET 8 adossé à un daemon WolvenKit persistant (IPC pipeliné) avec repli cp77tools. 123 outils : lecture/écriture d'archives, conversion CR2W↔JSON, édition TweakDB structurée, packaging .archive et REDmod, génération de projets .cpmodproj, export mesh/texture/animation/morphtarget/mlmask, extraction audio opus, lint REDscript (parser dédié) et TweakXL, diagnostic de mods (mod_doctor, diagnose_logs, analyze_conflicts, validate_item_mod), backup/restore, boucle d'itération en jeu (launch + tail logs) et pont live in-game via le mod CETBridge (35 outils live_* : état joueur, inventaire, téléport, TweakDB à chaud, quest facts, observation d'événements). Windows uniquement (cp77tools natif).",
   "author": {
     "name": "wolvenkit-mcp"
   },
@@ -18,7 +18,10 @@
         "${__dirname}/server/WolvenKitMcp.dll"
       ],
       "env": {
-        "WOLVENKIT_DAEMON": "${__dirname}/daemon/WolvenKitDaemon.dll"
+        "WOLVENKIT_DAEMON": "${__dirname}/daemon/WolvenKitDaemon.dll",
+        "WOLVENKIT_CLI_TIMEOUT_SECONDS": "${user_config.cli_timeout_seconds}",
+        "CET_TCP_PORT": "${user_config.cet_tcp_port}",
+        "CET_BRIDGE_TIMEOUT_MS": "${user_config.cet_bridge_timeout_ms}"
       }
     }
   },
@@ -32,11 +35,25 @@
   },
   "user_config": {
     "cli_timeout_seconds": {
-      "type": "string",
+      "type": "number",
       "title": "Délai max par commande (s)",
-      "description": "Valeur de WOLVENKIT_CLI_TIMEOUT_SECONDS (défaut 300).",
+      "description": "Valeur de WOLVENKIT_CLI_TIMEOUT_SECONDS (défaut 300). Les verbes longs (uncook, build) ont leur propre plafond plus élevé.",
       "required": false,
-      "default": "300"
+      "default": 300
+    },
+    "cet_tcp_port": {
+      "type": "number",
+      "title": "Port TCP du pont CETBridge",
+      "description": "Port d'écoute local pour le mod CETBridge (outils live_*, défaut 27010).",
+      "required": false,
+      "default": 27010
+    },
+    "cet_bridge_timeout_ms": {
+      "type": "number",
+      "title": "Timeout du pont live (ms)",
+      "description": "Délai max d'une requête live_* vers le jeu (défaut 5000 ms).",
+      "required": false,
+      "default": 5000
     }
   },
   "keywords": [
@@ -44,6 +61,9 @@
     "wolvenkit",
     "modding",
     "redengine",
-    "tweakdb"
+    "tweakdb",
+    "cet",
+    "archivexl",
+    "tweakxl"
   ]
 }

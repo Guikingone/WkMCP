@@ -137,7 +137,14 @@ public sealed class CetBridge : IDisposable
 
             // Une seule connexion à la fois : la nouvelle remplace l'ancienne (comme l'upstream).
             var old = Interlocked.Exchange(ref _client, client);
-            old?.Dispose();
+            if (old is not null)
+            {
+                // Les requêtes en vol appartiennent à l'ancienne connexion : on les échoue
+                // ICI, avec une erreur explicite — l'appelant sait que c'est une reconnexion
+                // (jeu relancé / mod rechargé) et qu'un simple réessai suffit.
+                FailAllPending("Connexion CETBridge remplacée (jeu relancé ou mod rechargé) — réessayer l'appel.");
+                old.Dispose();
+            }
             _stream = client.GetStream();
             Volatile.Write(ref _lastHeartbeatTicks, DateTime.UtcNow.Ticks);
             _log?.LogInformation("[CetBridge] CETBridge connecté (TCP).");
@@ -167,12 +174,15 @@ public sealed class CetBridge : IDisposable
         {
             if (Interlocked.CompareExchange(ref _client, null, client) == client)
             {
+                // Déconnexion réelle (le jeu/mod a fermé) : les requêtes en vol ne
+                // recevront jamais de réponse. Si la connexion a été REMPLACÉE,
+                // AcceptLoopAsync a déjà échoué les requêtes de l'ancienne connexion —
+                // ne pas toucher ici à celles de la nouvelle.
                 _stream = null;
                 _log?.LogInformation("[CetBridge] CETBridge déconnecté.");
+                FailAllPending("Pont déconnecté (le jeu/mod a fermé la connexion).");
             }
             client.Dispose();
-            // Toute requête encore en vol sur cette connexion ne recevra jamais de réponse.
-            FailAllPending("Pont déconnecté (le jeu/mod a fermé la connexion).");
         }
     }
 
@@ -418,8 +428,10 @@ internal static class BridgeProtocol
     }
 
     /// <summary>Transport fichier : écrit la requête dans <c>command.json</c> (tmp +
-    /// rename atomique), purge l'ancienne <c>response.json</c>, puis poll la réponse.
-    /// Calque <c>file-bridge.ts</c> de l'upstream.</summary>
+    /// rename atomique), purge l'ancienne <c>response.json</c>, puis attend la réponse.
+    /// L'attente est pilotée par un <see cref="FileSystemWatcher"/> (latence ~ms) avec
+    /// un poll de filet toutes les 250 ms ; si le watcher ne peut pas s'installer
+    /// (répertoire réseau exotique), on retombe sur le poll pur à 50 ms de l'upstream.</summary>
     internal static async Task<BridgeResponse> FileSendAsync(
         string id, string requestJson, string bridgeDir, TimeSpan timeout, CancellationToken ct)
     {
@@ -428,35 +440,64 @@ internal static class BridgeProtocol
         var res = Path.Combine(bridgeDir, "response.json");
 
         SafeDelete(res);
-        await File.WriteAllTextAsync(tmp, requestJson, ct);
-        File.Move(tmp, cmd, overwrite: true);
 
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
+        using var responseReady = new SemaphoreSlim(0);
+        FileSystemWatcher? watcher = null;
+        try
         {
-            ct.ThrowIfCancellationRequested();
             try
             {
-                if (File.Exists(res))
+                watcher = new FileSystemWatcher(bridgeDir, "response.json")
                 {
-                    var data = await File.ReadAllTextAsync(res, ct);
-                    SafeDelete(res);
-                    if (!string.IsNullOrWhiteSpace(data))
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
+                };
+                void Signal() { try { responseReady.Release(); } catch { /* sémaphore saturé */ } }
+                watcher.Created += (_, _) => Signal();
+                watcher.Changed += (_, _) => Signal();
+                watcher.Renamed += (_, _) => Signal();
+                watcher.EnableRaisingEvents = true;
+            }
+            catch
+            {
+                watcher?.Dispose();
+                watcher = null; // poll pur
+            }
+
+            await File.WriteAllTextAsync(tmp, requestJson, ct);
+            File.Move(tmp, cmd, overwrite: true);
+
+            var pollInterval = TimeSpan.FromMilliseconds(watcher is null ? 50 : 250);
+            var deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    if (File.Exists(res))
                     {
-                        var resp = ParseResponse(data, "file");
-                        if (resp.Id == id) return resp;
-                        // Réponse périmée d'une autre requête — on continue à poller.
+                        var data = await File.ReadAllTextAsync(res, ct);
+                        SafeDelete(res);
+                        if (!string.IsNullOrWhiteSpace(data))
+                        {
+                            var resp = ParseResponse(data, "file");
+                            if (resp.Id == id) return resp;
+                            // Réponse périmée d'une autre requête — on continue d'attendre.
+                        }
                     }
                 }
+                catch (IOException) { /* fichier en cours d'écriture : on retente */ }
+                await responseReady.WaitAsync(pollInterval, ct);
             }
-            catch (IOException) { /* fichier en cours d'écriture : on retente */ }
-            await Task.Delay(50, ct);
-        }
 
-        SafeDelete(cmd);
-        return new BridgeResponse(id, false, null,
-            $"Timeout du pont : aucune réponse en {timeout.TotalMilliseconds:n0} ms (transport fichier). " +
-            "Le jeu tourne-t-il avec le mod CETBridge chargé ?", true, "file");
+            SafeDelete(cmd);
+            return new BridgeResponse(id, false, null,
+                $"Timeout du pont : aucune réponse en {timeout.TotalMilliseconds:n0} ms (transport fichier). " +
+                "Le jeu tourne-t-il avec le mod CETBridge chargé ?", true, "file");
+        }
+        finally
+        {
+            watcher?.Dispose();
+        }
     }
 
     private static void SafeDelete(string path)

@@ -1,7 +1,26 @@
 # Checklist de validation Windows — WolvenKit MCP
 
-Le serveur expose 85 outils, 5 prompts et 3 ressources. Cette checklist les
-valide sur Windows avec une vraie installation de Cyberpunk 2077.
+Le serveur expose 123 outils, 8 prompts et 4 ressources (compte vérifié à chaque
+build par le test E2E de `WolvenKitMcp.Tests`). Cette checklist les valide sur
+Windows avec une vraie installation de Cyberpunk 2077 ; les comptes cités dans
+les résultats ci-dessous sont ceux de la date de chaque passe.
+
+## Résultat de la validation — 0.4.0 — 15/06/2026
+
+Les trois outils ajoutés en 0.4.0 ont été validés sur **Windows 11** avec une vraie
+installation de Cyberpunk 2077, via `python test-new-tools.py "<jeu>"` (pilote le
+serveur MCP en stdio). **Bilan : 6 PASS · 0 FAIL.**
+
+| Outil | Résultat |
+| --- | --- |
+| `archive_stats` | ✅ `basegame_1_engine.archive` : 4114 fichiers, 58 types (top `.xbm`=1135, `.particle`=365, `.effect`=352…) ; 2ᵉ appel servi par le cache LRU (`fromCache=true`). |
+| `validate_redmod` | ✅ projet scaffoldé → `status=success`, 0 erreur ; `info.json` sans `version` → erreur détectée ; REDmod installé réel (« (2k) Immersive Bullet Holes ») → `status=partial`, 0 erreur. |
+| `inspect_app` | ✅ `.app` extrait du jeu (`a0_006_ma__launcher_fragment.app`) → 6 apparences, 24 composants mesh, 4 meshes distincts. |
+
+> Note : un bug de casse JSON (clés `byExtension`/`appearances` imbriquées en
+> PascalCase au lieu du camelCase de l'enveloppe) a été détecté par ce test et corrigé
+> avant ce résultat. La passe de validation complète ci-dessous reste celle de la
+> version antérieure (120 outils).
 
 ## Résultat de la validation — 29/05/2026
 

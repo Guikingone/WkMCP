@@ -46,10 +46,19 @@ public sealed class Cp77ToolsRunner : IDisposable
     private int _nextId;
 
     // Requêtes en vol, indexées par id ; renseignées par SendToDaemonAsync,
-    // complétées par la boucle de lecture quand la réponse arrive.
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<CliResult>> _outstanding = new();
+    // complétées par la boucle de lecture quand la réponse arrive. LastActivity
+    // est rafraîchi à chaque message de progression (timeout d'inactivité).
+    private sealed class Outstanding
+    {
+        public required TaskCompletionSource<CliResult> Tcs { get; init; }
+        public IProgress<string>? Progress;
+        public long LastActivity = Environment.TickCount64;
+    }
 
-    // Cache des listings d'archives (clé = chemin absolu). Invalidé par mtime.
+    private readonly ConcurrentDictionary<int, Outstanding> _outstanding = new();
+
+    // Cache des listings d'archives (clé = chemin absolu). Invalidé par mtime + taille
+    // (le mtime seul peut survivre à un repack très rapide).
     private readonly ConcurrentDictionary<string, ArchiveListing> _archiveCache = new();
     private long _cacheHits;
     private long _cacheMisses;
@@ -57,7 +66,31 @@ public sealed class Cp77ToolsRunner : IDisposable
     // Métriques par verbe (count + percentiles via anneau circulaire des 100 dernières durées).
     private readonly ConcurrentDictionary<string, RunnerMetrics> _metrics = new();
 
-    private sealed record ArchiveListing(DateTime Mtime, IReadOnlyList<string> Entries);
+    private sealed record ArchiveListing(DateTime Mtime, long Size, IReadOnlyList<string> Entries);
+
+    // Plafonds d'inactivité par verbe : les verbes lourds (uncook d'une grosse archive,
+    // build d'un projet complet) dépassent légitimement le délai par défaut. Le délai
+    // est ré-armé par la progression du daemon — c'est un timeout d'INACTIVITÉ, pas de
+    // durée totale. La variable WOLVENKIT_CLI_TIMEOUT_SECONDS reste le plancher.
+    private static readonly Dictionary<string, int> LongVerbSeconds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["uncook"] = 900,
+        ["unbundle"] = 600,
+        ["export"] = 600,
+        ["import"] = 600,
+        ["pack"] = 600,
+        ["build"] = 900,
+        ["wwise"] = 600,
+        ["opus-import"] = 900,
+        ["export-entity"] = 600,
+        ["export-materials"] = 600,
+        ["conflicts"] = 600,
+    };
+
+    private TimeSpan TimeoutFor(string verb)
+        => LongVerbSeconds.TryGetValue(verb, out var s)
+            ? TimeSpan.FromSeconds(Math.Max(s, _timeout.TotalSeconds))
+            : _timeout;
 
     private sealed class RunnerMetrics
     {
@@ -153,8 +186,11 @@ public sealed class Cp77ToolsRunner : IDisposable
         if (!File.Exists(archivePath))
             return (Array.Empty<string>(), false, new CliResult(-1, "", $"Archive introuvable : {archivePath}", false));
 
-        var mtime = File.GetLastWriteTimeUtc(archivePath);
-        if (_archiveCache.TryGetValue(archivePath, out var cached) && cached.Mtime == mtime)
+        var fi = new FileInfo(archivePath);
+        var mtime = fi.LastWriteTimeUtc;
+        var size = fi.Length;
+        if (_archiveCache.TryGetValue(archivePath, out var cached)
+            && cached.Mtime == mtime && cached.Size == size)
         {
             Interlocked.Increment(ref _cacheHits);
             return (cached.Entries, true, new CliResult(0, "", "", false));
@@ -164,7 +200,7 @@ public sealed class Cp77ToolsRunner : IDisposable
         var r = await RunAsync(new[] { "archive", archivePath, "--list" }, ct);
         var entries = ExtractListingEntries(r.Stdout + r.Stderr);
         if (entries.Count > 0)
-            _archiveCache[archivePath] = new ArchiveListing(mtime, entries);
+            _archiveCache[archivePath] = new ArchiveListing(mtime, size, entries);
         return (entries, false, r);
     }
 
@@ -197,7 +233,8 @@ public sealed class Cp77ToolsRunner : IDisposable
     /// le daemon et ré-appariés par ID. Le daemon, côté exécution, reste sérialisé
     /// (les bibliothèques WolvenKit ne sont pas thread-safe), mais l'IPC ne bloque
     /// plus l'enchaînement.</summary>
-    public async Task<CliResult> RunAsync(IEnumerable<string> args, CancellationToken ct)
+    public async Task<CliResult> RunAsync(IEnumerable<string> args, CancellationToken ct,
+        IProgress<string>? progress = null)
     {
         var argv = args as string[] ?? args.ToArray();
         var verb = argv.Length > 0 ? argv[0] : "(empty)";
@@ -209,7 +246,7 @@ public sealed class Cp77ToolsRunner : IDisposable
                 try
                 {
                     await EnsureDaemonAsync(ct);
-                    return await SendToDaemonAsync(argv, ct);
+                    return await SendToDaemonAsync(argv, ct, progress);
                 }
                 catch (Exception) when (!ct.IsCancellationRequested)
                 {
@@ -289,10 +326,79 @@ public sealed class Cp77ToolsRunner : IDisposable
             // Démarre la boucle de lecture : aiguille chaque réponse par ID
             // vers le TaskCompletionSource correspondant.
             _readLoop = Task.Run(ReadResponseLoopAsync);
+            StartWatchdog(proc);
         }
         finally
         {
             _initLock.Release();
+        }
+    }
+
+    /// <summary>Watchdog : ping périodique du daemon quand il est inactif. Un daemon
+    /// figé (process vivant mais bloqué) ne se détectait qu'à la requête suivante,
+    /// qui partait en timeout complet ; ici on le tue proactivement pour que le
+    /// prochain appel reparte sur un daemon frais. Le verbe « ping » est traité par
+    /// le daemon hors execLock, donc un uncook long ne déclenche pas de faux positif.</summary>
+    private void StartWatchdog(Process proc)
+    {
+        _ = Task.Run(async () =>
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(60));
+                if (!ReferenceEquals(_daemon, proc) || proc.HasExited)
+                    return; // daemon remplacé ou déjà mort : le watchdog suit ce process-ci
+                if (!_outstanding.IsEmpty)
+                    continue; // des requêtes en vol attestent déjà de la liveness
+
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    var r = await SendToDaemonAsync(new[] { "ping" }, cts.Token);
+                    if (r.TimedOut && ReferenceEquals(_daemon, proc))
+                    {
+                        KillDaemon();
+                        return;
+                    }
+                }
+                catch
+                {
+                    if (ReferenceEquals(_daemon, proc))
+                        KillDaemon();
+                    return;
+                }
+            }
+        });
+    }
+
+    /// <summary>Purge les dossiers temporaires du serveur (wolvenkit-mcp-*, wkmcp-*)
+    /// plus vieux que 24 h. Les dossiers déterministes (read/write/inspect) ne sont
+    /// jamais nettoyés en cours de session ; sans cette purge au démarrage, ils
+    /// s'accumulent indéfiniment entre les sessions.</summary>
+    public static void PurgeStaleTempDirs()
+    {
+        var cutoff = DateTime.UtcNow - TimeSpan.FromHours(24);
+        var temp = Path.GetTempPath();
+        foreach (var pattern in new[] { "wolvenkit-mcp-*", "wkmcp-*" })
+        {
+            string[] roots;
+            try { roots = Directory.GetDirectories(temp, pattern); }
+            catch { continue; }
+            foreach (var root in roots)
+            {
+                try
+                {
+                    if (Directory.GetLastWriteTimeUtc(root) < cutoff)
+                        Directory.Delete(root, recursive: true);
+                    else
+                        // Racine récente : purger ses sous-dossiers anciens (les
+                        // dossiers déterministes par hash s'accumulent dedans).
+                        foreach (var child in Directory.GetDirectories(root))
+                            if (Directory.GetLastWriteTimeUtc(child) < cutoff)
+                                Directory.Delete(child, recursive: true);
+                }
+                catch { /* verrouillé ou déjà supprimé : au prochain démarrage */ }
+            }
         }
     }
 
@@ -309,15 +415,25 @@ public sealed class Cp77ToolsRunner : IDisposable
             while ((line = await reader.ReadLineAsync()) is not null)
             {
                 int id;
-                CliResult result;
+                CliResult? result;
+                string? progressMsg;
                 try
                 {
                     using var doc = JsonDocument.Parse(line);
                     var root = doc.RootElement;
                     id = root.TryGetProperty("id", out var i) ? i.GetInt32() : 0;
-                    var exit = root.TryGetProperty("exit", out var e) ? e.GetInt32() : -1;
-                    var output = root.TryGetProperty("output", out var o) ? o.GetString() ?? "" : "";
-                    result = new CliResult(exit, output, "", false);
+                    if (root.TryGetProperty("progress", out var p))
+                    {
+                        progressMsg = p.GetString();
+                        result = null;
+                    }
+                    else
+                    {
+                        progressMsg = null;
+                        var exit = root.TryGetProperty("exit", out var e) ? e.GetInt32() : -1;
+                        var output = root.TryGetProperty("output", out var o) ? o.GetString() ?? "" : "";
+                        result = new CliResult(exit, output, "", false);
+                    }
                 }
                 catch
                 {
@@ -326,23 +442,38 @@ public sealed class Cp77ToolsRunner : IDisposable
                     continue;
                 }
 
-                if (_outstanding.TryRemove(id, out var tcs))
-                    tcs.TrySetResult(result);
+                if (result is null)
+                {
+                    // Message de progression : ré-arme le timeout d'inactivité et
+                    // relaie au client MCP si l'outil a fourni un IProgress.
+                    if (_outstanding.TryGetValue(id, out var inflight))
+                    {
+                        inflight.LastActivity = Environment.TickCount64;
+                        if (progressMsg is not null)
+                            inflight.Progress?.Report(progressMsg);
+                    }
+                    continue;
+                }
+
+                if (_outstanding.TryRemove(id, out var entry))
+                    entry.Tcs.TrySetResult(result);
             }
         }
         catch { /* daemon est mort */ }
 
         // Daemon fermé : on échoue toutes les requêtes en vol.
         foreach (var kvp in _outstanding)
-            kvp.Value.TrySetException(new IOException("le daemon a fermé sa sortie"));
+            kvp.Value.Tcs.TrySetException(new IOException("le daemon a fermé sa sortie"));
         _outstanding.Clear();
     }
 
-    private async Task<CliResult> SendToDaemonAsync(string[] argv, CancellationToken ct)
+    private async Task<CliResult> SendToDaemonAsync(string[] argv, CancellationToken ct,
+        IProgress<string>? progress = null)
     {
         var id = Interlocked.Increment(ref _nextId);
         var tcs = new TaskCompletionSource<CliResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _outstanding[id] = tcs;
+        var entry = new Outstanding { Tcs = tcs, Progress = progress };
+        _outstanding[id] = entry;
 
         // Sérialise les écritures stdin : un seul writer à la fois pour ne pas
         // entrelacer deux JSON-lines.
@@ -357,17 +488,29 @@ public sealed class Cp77ToolsRunner : IDisposable
             _writeLock.Release();
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(_timeout);
-        try
+        // Timeout d'INACTIVITÉ : tant que le daemon émet de la progression, le verbe
+        // travaille — on ré-arme le délai au lieu de tuer un uncook long mais vivant.
+        var timeout = TimeoutFor(argv.Length > 0 ? argv[0] : "");
+        while (true)
         {
-            return await tcs.Task.WaitAsync(cts.Token);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            _outstanding.TryRemove(id, out _);
-            KillDaemon();
-            return new CliResult(-1, "", "Délai dépassé — daemon interrompu.", true);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeout);
+            try
+            {
+                return await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                var idle = Environment.TickCount64 - entry.LastActivity;
+                if (idle < timeout.TotalMilliseconds)
+                    continue; // de la progression est arrivée : on laisse travailler
+
+                _outstanding.TryRemove(id, out _);
+                KillDaemon();
+                return new CliResult(-1, "",
+                    $"Délai d'inactivité dépassé ({timeout.TotalSeconds:F0} s sans réponse " +
+                    "ni progression) — daemon interrompu.", true);
+            }
         }
     }
 

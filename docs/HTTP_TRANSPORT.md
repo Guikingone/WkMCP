@@ -12,7 +12,7 @@ web), via `ModelContextProtocol.AspNetCore`. C'est **opt-in** et **sécurisé pa
 | `WOLVENKIT_MCP_HTTP_URL` | `http://127.0.0.1:3001` | Adresse de bind du serveur HTTP. |
 | `WOLVENKIT_MCP_HTTP_TOKEN` | — | Bearer token exigé sur les requêtes (fortement recommandé). |
 
-Endpoint MCP : **`/`** (Streamable HTTP, mode *stateless*). Le daemon WolvenKit, les 120 outils
+Endpoint MCP : **`/`** (Streamable HTTP, mode *stateless*). Le daemon WolvenKit, les 123 outils
 et le pont live `CetBridge` sont identiques en stdio et en HTTP.
 
 ## Lancer en HTTP (local)

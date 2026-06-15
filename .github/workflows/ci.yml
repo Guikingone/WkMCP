@@ -34,6 +34,30 @@ jobs:
       - name: Build .mcpb
         run: pwsh ./build-mcpb.ps1 -Configuration Release
 
+      # Un bundle qui se construit n'est pas forcément un bundle valide : on le
+      # dézippe et on vérifie manifest + entry points + binaires natifs + mod Lua.
+      - name: Valider le bundle .mcpb
+        shell: pwsh
+        run: |
+          $zip  = "dist/wolvenkit-mcp.mcpb"
+          $dest = "obj/mcpb-verify"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::ExtractToDirectory((Resolve-Path $zip), $dest)
+          $manifest = Get-Content "$dest/manifest.json" -Raw | ConvertFrom-Json
+          if (-not $manifest.name)    { throw "manifest.json : champ name absent" }
+          if (-not $manifest.version) { throw "manifest.json : champ version absent" }
+          $required = @(
+            $manifest.server.entry_point,
+            "daemon/WolvenKitDaemon.dll",
+            "daemon/kraken.dll",
+            "live-bridge/CETBridge/init.lua"
+          )
+          foreach ($p in $required) {
+            if (-not (Test-Path (Join-Path $dest $p))) { throw "manquant dans le bundle : $p" }
+          }
+          $sizeMb = [Math]::Round((Get-Item $zip).Length / 1MB, 1)
+          Write-Host "Bundle valide : v$($manifest.version), $sizeMb Mo"
+
       - name: Upload .mcpb
         uses: actions/upload-artifact@v4
         with:

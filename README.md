@@ -38,7 +38,7 @@ replie sur un sous-processus `cp77tools` (fonctionnel, mais ~6 s/appel).
 Documentation détaillée dans [`docs/`](docs/) :
 
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — guide du moddeur : installation, branchement sur Claude, et workflows pas-à-pas (lire un fichier, éditer un tweak, créer/empaqueter/installer un mod, vérifier les dépendances, packager).
-- **[docs/TOOLS.md](docs/TOOLS.md)** — référence exhaustive des 69 outils + 5 prompts + 3 ressources (paramètres compris).
+- **[docs/TOOLS.md](docs/TOOLS.md)** — référence exhaustive des 123 outils + 8 prompts + 4 ressources (paramètres compris).
 - **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — recettes copier-coller par type de mod (tweak, redscript, ArchiveXL, REDmod, localisation, texture, analyse).
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — pour contribuer : IPC, cache, parser, et comment ajouter un outil MCP ou un verbe daemon.
 - **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — pont **live in-game** : 35 outils `live_*` pour piloter un jeu **en cours d'exécution** (exécution Lua, état, spawn, téléportation, météo, TweakDB en mémoire vive, observation) via le mod CETBridge / Cyber Engine Tweaks. Optionnel, prérequis à part.
@@ -132,7 +132,7 @@ Sur Windows, `cp77tools` fonctionne nativement — le dossier `native/`
 Aucune variable `DOTNET_ROOT` n'est nécessaire sur Windows. `cp77tools` y gère
 aussi les textures et l'audio (binaires natifs Windows présents).
 
-## Outils exposés (85)
+## Outils exposés (88 « classiques » : 63 de base + 25 de workflow — +35 `live_*` = 123 au total)
 
 Chaque outil renvoie un résultat **JSON structuré** (`ok`, `status`, `summary`,
 `produced`, `warnings`, `errors`, `log`) — fiable à analyser pour un agent. Le
@@ -144,6 +144,7 @@ log volumineux est tronqué en préservant tête + erreurs + queue.
 | `compute_hash` | diagnostic | Hash FNV1a64 de chaînes (chemins de fichiers) |
 | `resolve_hash` | diagnostic | Recherche inverse : hash FNV1a64 → chemin de fichier de jeu |
 | `archive_info` | lecture | Informations / listing d'une archive `.archive` (cache LRU) |
+| `archive_stats` | lecture | Répartition du contenu d'une `.archive` par extension (combien de `.mesh`, `.ent`, `.xbm`…) sans tout lister (cache LRU) |
 | `find_in_archives` | lecture | Recherche un fichier à travers toutes les archives d'un dossier (cache LRU, ×6 plus rapide sur appels successifs) |
 | `diff_archives` | lecture | Compare deux archives `.archive` (ajouts / suppressions internes) |
 | `extract_files` | lecture | Extraction de fichiers d'une archive (glob/regex) |
@@ -203,7 +204,7 @@ log volumineux est tronqué en préservant tête + erreurs + queue.
 | `build_localization` | localisation | Construit un `.tweak` de traduction depuis un JSON `{recordId: {field: value}}` |
 | `clear_cache` | maintenance | Vide manuellement le cache LRU ou les métriques (`scope` ∈ archives / metrics / all) |
 
-### Outils de workflow haut-niveau (23)
+### Outils de workflow haut-niveau (25)
 
 Composent les primitives ci-dessus + la connaissance de l'écosystème pour simplifier
 la **création / évolution / maintenance** des mods.
@@ -232,9 +233,11 @@ la **création / évolution / maintenance** des mods.
 | `migration_check` | maintenance | Un mod `.archive` est-il encore aligné sur la version du jeu ? (surcharges actives vs devenues inertes après une MAJ) |
 | `toggle_mods` | maintenance | Active/désactive des `.archive` (déplacement réversible vers `_disabled`) — primitive de bissection de conflits |
 | `list_entity_appearances` | création | Liste les apparences d'une entité `.ent` (`name` + `appearanceName` + `.app`) — pour savoir ce qu'elle expose avant d'éditer/exporter |
+| `inspect_app` | inspection | Résumé d'un `.app` (apparences, composants mesh par apparence, meshes distincts) — vue d'ensemble avant `validate_appearance` |
 | `validate_appearance` | création | **Validation profonde** `.app`→`.mesh` : le `meshAppearance` référencé existe-t-il dans le `.mesh` ? (sinon mesh invisible) — résout les meshes mod ou base (`gamePath`) |
+| `validate_redmod` | maintenance | Valide le `info.json` d'un REDmod (champs requis `name`/`version` + format, cohérence des entrées `customSounds`) |
 
-### Prompts MCP (5)
+### Prompts MCP (8)
 
 Recettes prêtes à l'emploi qu'un agent peut invoquer pour démarrer un workflow.
 
@@ -244,9 +247,12 @@ Recettes prêtes à l'emploi qu'un agent peut invoquer pour démarrer un workflo
 | `edit_tweakdb_item` | Modifier un item TweakDB via `.tweak` (TweakXL) |
 | `pack_and_install_mod` | Empaqueter et installer un mod `.archive` |
 | `recolor_texture` | Extraire / éditer / réimporter une texture |
+| `create_archivexl_item` | Créer un mod d'item ArchiveXL de bout en bout |
+| `diagnose_broken_mod` | Diagnostic global → logs → bissection d'un mod cassé |
+| `live_iteration_loop` | Itérer sur TweakDB à chaud, jeu lancé |
 | `inspect_mesh` | Exporter un mesh en glTF pour inspection |
 
-## Ressources MCP (3)
+## Ressources MCP (4)
 
 En plus des outils, le serveur expose des **resources** — données lisibles
 adressées par URI, que le client peut consulter ou attacher au contexte.
@@ -256,6 +262,7 @@ adressées par URI, que le client peut consulter ou attacher au contexte.
 | `wolvenkit://reference` | directe | Aide-mémoire : commandes, formats REDengine, workflow de modding |
 | `wolvenkit://archive/{+path}` | template | Listing du contenu de l'archive `.archive` au chemin donné |
 | `wolvenkit://cr2w-json/{+path}` | template | Fichier REDengine CR2W rendu en JSON |
+| `wolvenkit://mods/{+gamePath}` | template | Inventaire des mods installés (archives `.archive` + REDmod) |
 
 ## Configuration (variables d'environnement)
 
@@ -268,14 +275,15 @@ adressées par URI, que le client peut consulter ou attacher au contexte.
 
 ## État de validation
 
-Validé de bout en bout sur **Windows 11 avec Cyberpunk 2077 installé** : les
-**69 outils, 5 prompts et 3 ressources** ont été exercés sur de vrais assets du
-jeu via le serveur MCP (script `validate-windows.py`). Bilan
-**78 OK · 2 réserves · 0 échec** — détail et bugs corrigés dans
-`WINDOWS-VALIDATION.md`.
+Le serveur expose aujourd'hui **123 outils, 8 prompts et 4 ressources** ; le
+handshake MCP, l'enregistrement complet des outils, leurs annotations et leurs
+schémas sont vérifiés à chaque build par un **test E2E automatique** (129 tests
+xUnit, CI Windows). La dernière validation **sur jeu réel** (Windows 11 +
+Cyberpunk 2077, script `validate-windows.py`) a exercé les 69 outils de
+l'époque sur de vrais assets : bilan **78 OK · 2 réserves · 0 échec** — détail
+et bugs corrigés dans `WINDOWS-VALIDATION.md`.
 
-- ✅ Handshake MCP, `tools/list` (69 outils), `prompts/list` (5 prompts),
-  `tools/call`, les 3 ressources
+- ✅ Handshake MCP, `tools/list`, `prompts/list`, `tools/call`, ressources
 - ✅ **Outils de workflow** : `check_requirements` (10/10 frameworks détectés),
   `analyze_dependencies`, `mod_doctor` (santé du setup), `validate_xl` +
   `scaffold_archivexl`, `find_references`, `diff_mod_vs_base` (bruit `$.Header`
@@ -299,7 +307,7 @@ jeu via le serveur MCP (script `validate-windows.py`). Bilan
   **`import_audio`** (WAV→opus, câblage vérifié)
 - ✅ **`build_project`** : compile désormais le `.cpmodproj` généré par
   `create_mod_project` → `packed/archive/pc/mod/<mod>.archive`
-- ✅ **Tests unitaires C#** (`WolvenKitMcp.Tests`, xUnit) : 26 tests verts (helpers purs
+- ✅ **Tests unitaires C#** (`WolvenKitMcp.Tests`, xUnit) : 129 tests verts (helpers purs
   `Truncate`/`MatchesGlob`/`BuildCpmodprojXml` + parser REDscript : acceptation du corpus
   réaliste, détection d'erreurs de syntaxe, extraction module/déclarations)
 - ✅ **Parser REDscript** (`lint_script`) : 0 erreur sur les 1374 `.reds` de `r6/scripts`,
@@ -364,11 +372,12 @@ wolvenkit-mcp/
 ├── src/WolvenKitMcp/        Serveur MCP C# / .NET 8
 │   ├── Program.cs           Hôte + transport stdio
 │   ├── Cp77ToolsRunner.cs   Pilote le daemon (IPC pipeliné, cache d'archives, repli cp77tools)
-│   ├── WolvenKitTools.cs    Les 60 outils MCP de base
-│   ├── ModdingTools.cs      Les 9 outils de workflow (deps, santé, scaffolding, refs, diff)
+│   ├── WolvenKitTools.cs    Les 62 outils MCP de base
+│   ├── ModdingTools.cs      Les 23 outils de workflow (deps, santé, scaffolding, refs, diff)
+│   ├── LiveTools.cs         Les 35 outils live_* (jeu en cours, via CetBridge.cs)
 │   ├── RedscriptParser.cs   Parser de grammaire REDscript (lint_script)
-│   ├── WolvenKitPrompts.cs  Les 5 prompts MCP (recettes)
-│   └── WolvenKitResources.cs  Les 3 ressources MCP
+│   ├── WolvenKitPrompts.cs  Les 8 prompts MCP (recettes)
+│   └── WolvenKitResources.cs  Les 4 ressources MCP (référence générée par réflexion)
 ├── docs/                    USER_GUIDE · TOOLS · MODDING_RECIPES · ARCHITECTURE
 ├── src/WolvenKitMcp.Tests/  Tests unitaires xUnit des helpers purs
 ├── src/WolvenKitDaemon/     Daemon persistant — hôte des bibliothèques WolvenKit
@@ -378,7 +387,7 @@ wolvenkit-mcp/
 ├── .github/workflows/ci.yml CI : build daemon + serveur + tests + bundle .mcpb
 ├── test-mcp-server.py       Client de test du serveur MCP
 ├── test-daemon.py           Client de test du daemon seul
-├── validate-windows.py      Valide les 69 outils + 5 prompts sur de vrais assets
+├── validate-windows.py      Valide les outils + prompts sur de vrais assets du jeu
 ├── WINDOWS-VALIDATION.md    Checklist + résultats de validation Windows
 └── README.md
 ```

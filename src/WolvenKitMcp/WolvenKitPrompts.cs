@@ -55,19 +55,23 @@ public static class WolvenKitPrompts
                - tweakdbPath = {{gamePath}}\r6\cache\tweakdb.bin
                - filter = "{{tweakId}}"
                → vérifie l'existence et liste les flats de cet identifiant.
+               Au besoin, `describe_tweak_record` détaille les flats du record.
 
-            2. Créer un fichier .tweak (format TweakXL — YAML) avec les champs à surcharger.
-               Exemple minimal :
+            2. Écrire le fichier .tweak (format TweakXL — YAML) via `write_tweak` avec les
+               champs à surcharger. Exemple minimal de contenu :
 
                    {{tweakId}}:
                      damage: 200
                      attacksPerSecond: 2.5
 
-            3. Installer le .tweak dans {{gamePath}}\r6\tweaks\<mod-name>.tweak puis relancer
-               le jeu. Le .tweak n'a pas besoin d'être empaqueté en .archive.
+            3. Valider avec `validate_tweak` (et `lint_tweak` pour les pièges d'indentation),
+               puis installer avec `install_tweak` :
+               - gamePath = "{{gamePath}}"
+               → dépose le fichier dans {{gamePath}}\r6\tweaks\ (TweakXL requis).
+               Le .tweak n'a pas besoin d'être empaqueté en .archive.
 
-            NOTE : L'outillage .tweak structuré (`read_tweak`, `write_tweak`, `validate_tweak`,
-            `install_tweak`) arrive en Phase 5 — d'ici là, l'édition reste manuelle.
+            4. Relancer le jeu (ou, si le jeu tourne avec le mod CETBridge,
+               vérifier la valeur à chaud via `live_tweakdb_get`).
             """;
     }
 
@@ -131,6 +135,112 @@ public static class WolvenKitPrompts
 
             4. Appeler `pack_archive` puis `install_mod` (voir le prompt
                `pack_and_install_mod` pour les détails).
+            """;
+    }
+
+    [McpServerPrompt(Name = "create_archivexl_item")]
+    [Description("Recette : créer un mod d'item ArchiveXL (vêtement, arme) de bout en bout, avec " +
+                 "la validation de la chaîne record → factory → localisation — la cause n°1 " +
+                 "d'item qui ne spawn pas.")]
+    public static string CreateArchiveXlItem(
+        [Description("Nom du mod/item à créer.")] string modName,
+        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+    {
+        return $$"""
+            Procédure pour créer un mod d'item ArchiveXL « {{modName}} » :
+
+            1. Vérifier les prérequis : `check_requirements` sur "{{gamePath}}" —
+               ArchiveXL ET TweakXL doivent être installés.
+
+            2. Générer le squelette : `scaffold_archivexl` (modName = "{{modName}}").
+               → produit le .yaml (records TweakXL), la factory .csv, la localisation
+               .json et le fichier .xl qui les relie.
+
+            3. Éditer les fichiers générés : records (entityName, appearanceName,
+               displayName), factory (entityName → chemin .ent), localisation
+               (secondaryKey → texte affiché).
+
+            4. Valider la chaîne AVANT d'empaqueter : `validate_item_mod` sur le dossier
+               du mod. C'est l'étape qui attrape les typos entre yaml/csv/json —
+               un seul caractère d'écart = item invisible sans message d'erreur.
+               Avec deep=true, le .ent est aussi converti pour vérifier l'appearanceName.
+
+            5. Empaqueter et installer : `package_mod` puis `install_mod`
+               (gamePath = "{{gamePath}}").
+
+            6. Tester en jeu : lancer le jeu, puis si le mod CETBridge est installé,
+               `live_add_item` avec l'ID du record pour obtenir l'item directement.
+               Sinon `Game.AddToInventory(...)` dans la console CET.
+
+            En cas d'échec silencieux : `diagnose_logs` (ArchiveXL/TweakXL loggent les
+            records rejetés) puis re-`validate_item_mod`.
+            """;
+    }
+
+    [McpServerPrompt(Name = "diagnose_broken_mod")]
+    [Description("Recette : diagnostiquer un mod qui ne marche pas ou une install moddée qui " +
+                 "crashe — du diagnostic global à la bissection.")]
+    public static string DiagnoseBrokenMod(
+        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
+        [Description("Symptôme observé (crash au lancement, item absent, script sans effet…).")]
+        string symptom)
+    {
+        return $$"""
+            Procédure de diagnostic ({{symptom}}) sur "{{gamePath}}" :
+
+            1. Vue d'ensemble en un appel : `mod_doctor` — frameworks manquants,
+               dépendances non satisfaites, conflits, inventaire. Beaucoup de cas
+               s'arrêtent ici (framework absent = cause n°1 de crash).
+
+            2. Lire les logs du jeu : `diagnose_logs` — analyse les 6 logs (redscript,
+               RED4ext, ArchiveXL, TweakXL…) avec une base d'erreurs connues qui
+               mappe chaque erreur à sa cause et son correctif.
+
+            3. Si le symptôme est « un mod en écrase un autre » : `analyze_conflicts`
+               — recouvrements d'archives (premier-gagne alphabétique) et records
+               TweakDB définis en double, avec les pistes de résolution.
+
+            4. Si le mod a des dépendances : `analyze_dependencies` sur son dossier,
+               avec gamePath pour vérifier ce qui est installé (y compris les
+               dépendances inter-mods via les imports REDscript).
+
+            5. Scripts : `lint_script` sur les .reds du mod (erreurs ligne:colonne) ;
+               tweaks : `lint_tweak` + `validate_tweak`.
+
+            6. Dernier recours — bissection : `toggle_mods` pour désactiver la moitié
+               des archives, relancer, et réduire jusqu'au coupable. `backup_mods`
+               d'abord pour pouvoir tout restaurer (`restore_mods`).
+            """;
+    }
+
+    [McpServerPrompt(Name = "live_iteration_loop")]
+    [Description("Recette : boucle d'itération avec le jeu LANCÉ (mod CETBridge) — tester des " +
+                 "valeurs TweakDB à chaud avant de les figer dans un .tweak.")]
+    public static string LiveIterationLoop(
+        [Description("Identifiant TweakDB à itérer (ex. Items.Preset_Katana_Saburo).")] string tweakId,
+        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+    {
+        return $$"""
+            Boucle d'itération à chaud sur {{tweakId}} (jeu lancé + mod CETBridge) :
+
+            1. Vérifier le pont : `live_status` (gamePath = "{{gamePath}}").
+               Si non connecté : le jeu tourne-t-il avec CET + CETBridge ? (le mod est
+               livré dans le bundle, dossier live-bridge/CETBridge à copier dans
+               <jeu>/bin/x64/plugins/cyber_engine_tweaks/mods/).
+
+            2. Lire la valeur actuelle : `live_tweakdb_get` (flatPath =
+               "{{tweakId}}.<champ>", ex. ".damage").
+
+            3. Itérer À CHAUD sans relancer le jeu : `live_tweakdb_set` avec une
+               nouvelle valeur → tester immédiatement en jeu (spawn de l'item via
+               `live_add_item` au besoin). Répéter jusqu'à la bonne valeur.
+               ⚠ Ces changements sont volatils : perdus au prochain lancement.
+
+            4. Figer le résultat dans un mod : `write_tweak` avec les valeurs retenues,
+               `validate_tweak`, puis `install_tweak` (gamePath = "{{gamePath}}").
+
+            5. Vérifier la persistance : relancer le jeu (TweakXL applique le .tweak)
+               puis `live_tweakdb_get` à nouveau — la valeur doit être celle du mod.
             """;
     }
 
