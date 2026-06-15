@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Applique les tool annotations MCP (ReadOnly/Destructive/Idempotent) aux 120 outils.
+"""Applies the MCP tool annotations (ReadOnly/Destructive/Idempotent) to the 120 tools.
 
-Usage : python tools/annotate_tools.py
-Réécrit chaque ligne `[McpServerTool(Name = "x")]` avec les hints de la table
-ci-dessous. Idempotent : une ligne déjà annotée n'est pas retouchée.
+Usage: python tools/annotate_tools.py
+Rewrites each `[McpServerTool(Name = "x")]` line with the hints from the table
+below. Idempotent: a line that is already annotated is left untouched.
 """
 import re
 import sys
@@ -12,11 +12,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent / "src" / "WolvenKitMcp"
 
 # name: (ReadOnly, Destructive, Idempotent)
-# ReadOnly    : ne modifie ni les fichiers utilisateur/jeu ni l'état du jeu
-#               (écrire uniquement dans un dossier temp compte comme lecture seule).
-# Destructive : peut écraser/supprimer des données existantes (fichiers du jeu,
-#               état de la partie en cours) de façon non triviale à annuler.
-# Idempotent  : un second appel identique n'a pas d'effet supplémentaire.
+# ReadOnly    : modifies neither user/game files nor game state
+#               (writing only to a temp folder counts as read-only).
+# Destructive : may overwrite/delete existing data (game files,
+#               current save state) in a way that is non-trivial to undo.
+# Idempotent  : an identical second call has no additional effect.
 TABLE = {
     # ── WolvenKitTools ──────────────────────────────────────────────
     "wolvenkit_status": (True, False, True),
@@ -105,7 +105,7 @@ TABLE = {
     "toggle_mods": (False, False, False),
     "list_entity_appearances": (True, False, True),
     "validate_appearance": (True, False, True),
-    # ── LiveTools (jeu en cours d'exécution) ────────────────────────
+    # ── LiveTools (game running) ────────────────────────────────────
     "live_status": (True, False, True),
     "live_execute_lua": (False, True, False),
     "live_eval": (False, False, False),
@@ -158,7 +158,7 @@ def main() -> int:
         def repl(m: re.Match) -> str:
             name = m.group(1)
             if name not in TABLE:
-                print(f"!! outil sans classification : {name} ({path.name})")
+                print(f"!! tool without classification: {name} ({path.name})")
                 return m.group(0)
             seen.add(name)
             ro, dest, idem = TABLE[name]
@@ -168,13 +168,13 @@ def main() -> int:
         new = PATTERN.sub(repl, text)
         if new != text:
             path.write_text(new, encoding="utf-8")
-            print(f"annoté : {path.name}")
+            print(f"annotated: {path.name}")
 
     missing = set(TABLE) - seen
     if missing:
-        print(f"!! classifications sans outil correspondant : {sorted(missing)}")
+        print(f"!! classifications with no matching tool: {sorted(missing)}")
         return 1
-    print(f"OK : {len(seen)}/{len(TABLE)} outils annotés")
+    print(f"OK: {len(seen)}/{len(TABLE)} tools annotated")
     return 0
 
 

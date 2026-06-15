@@ -1,120 +1,120 @@
-# Pont live in-game (CETBridge)
+# Live in-game bridge (CETBridge)
 
-Les 88 outils « classiques » de WolvenKit MCP sont **hors-ligne** : ils opèrent sur des
-fichiers et des archives, jeu éteint. Les outils **`live_*`** font l'inverse : ils pilotent
-un Cyberpunk 2077 **en cours d'exécution** — exécuter du Lua, lire/écrire l'état du jeu,
-spawn, téléportation, météo, TweakDB en mémoire vive, observation d'événements.
+WolvenKit MCP's 88 "classic" tools are **offline**: they operate on
+files and archives, with the game shut down. The **`live_*`** tools do the opposite: they drive
+a **running** Cyberpunk 2077 — executing Lua, reading/writing game state,
+spawning, teleportation, weather, the in-memory TweakDB, observing events.
 
-> Préfixe `live_` = mémoire vive du jeu. Sans préfixe = fichiers. Ex. `tweakdb_query`
-> (offline, lit `tweakdb.bin`) vs `live_tweakdb_get` (lit la DB du jeu en cours).
+> Prefix `live_` = the game's live memory. Without the prefix = files. E.g. `tweakdb_query`
+> (offline, reads `tweakdb.bin`) vs `live_tweakdb_get` (reads the running game's DB).
 
-## Comment ça marche
+## How it works
 
-On ne peut pas injecter dans la VM Lua du jeu depuis l'extérieur : il faut un **mod
-in-game**. Le serveur MCP parle à un petit mod Lua (**CETBridge**, chargé par Cyber Engine
-Tweaks) qui exécute les commandes dans le moteur et renvoie le résultat.
+You cannot inject into the game's Lua VM from the outside: you need an **in-game
+mod**. The MCP server talks to a small Lua mod (**CETBridge**, loaded by Cyber Engine
+Tweaks) which runs the commands in the engine and returns the result.
 
 ```
-Claude ─MCP/JSON-RPC─▶ WolvenKitMcp ──TCP 127.0.0.1:27010──▶ mod CETBridge (Lua/CET) ─▶ jeu
-                          (CetBridge.cs)  └─repli fichier──▶  (command.json / response.json)
+Claude ─MCP/JSON-RPC─▶ WolvenKitMcp ──TCP 127.0.0.1:27010──▶ CETBridge mod (Lua/CET) ─▶ game
+                          (CetBridge.cs)  └─file fallback──▶  (command.json / response.json)
 ```
 
-Deux transports, bascule automatique :
+Two transports, automatic switching:
 
-| Transport | Latence | Dépendance | Détail |
+| Transport | Latency | Dependency | Detail |
 |---|---|---|---|
-| **TCP** (recommandé) | ~1 ms | RedSocket | Le serveur écoute sur `127.0.0.1:27010` ; le mod s'y connecte. |
-| **Fichier** (repli) | ~16-33 ms | aucune | Le serveur écrit `command.json`, le mod répond via `response.json`. |
+| **TCP** (recommended) | ~1 ms | RedSocket | The server listens on `127.0.0.1:27010`; the mod connects to it. |
+| **File** (fallback) | ~16-33 ms | none | The server writes `command.json`, the mod replies via `response.json`. |
 
-Le serveur tente TCP ; si le port est pris (une autre session) ou si RedSocket est absent,
-il retombe sur le transport fichier. Le mod, lui, écoute **toujours** les deux.
+The server tries TCP; if the port is taken (another session) or if RedSocket is absent,
+it falls back to the file transport. The mod, for its part, **always** listens on both.
 
-## Prérequis
+## Prerequisites
 
-- **Cyberpunk 2077** lancé (le live agit sur le jeu en cours).
-- **Cyber Engine Tweaks (CET)** 1.32+ — charge le mod Lua.
+- **Cyberpunk 2077** running (the live layer acts on the running game).
+- **Cyber Engine Tweaks (CET)** 1.32+ — loads the Lua mod.
 - **RED4ext** 1.25+.
-- **RedSocket** (optionnel mais recommandé, pour le TCP ~1 ms). Sans lui : transport fichier.
+- **RedSocket** (optional but recommended, for the ~1 ms TCP). Without it: file transport.
 
 ## Installation
 
-1. **Copier le mod** `live-bridge/CETBridge/` (inclus dans le dépôt et dans le bundle `.mcpb`)
-   dans le dossier des mods CET :
+1. **Copy the mod** `live-bridge/CETBridge/` (included in the repo and in the `.mcpb` bundle)
+   into the CET mods folder:
    ```
-   <jeu>/bin/x64/plugins/cyber_engine_tweaks/mods/CETBridge/
+   <game>/bin/x64/plugins/cyber_engine_tweaks/mods/CETBridge/
    ```
-2. *(Optionnel, pour le TCP)* installer **RedSocket** (plugin RED4ext).
-3. **Lancer le jeu** (ou via l'outil offline `launch_game`).
-4. Vérifier depuis Claude : **`live_status`** → doit indiquer `connected: true` et le transport.
+2. *(Optional, for TCP)* install **RedSocket** (RED4ext plugin).
+3. **Launch the game** (or via the offline tool `launch_game`).
+4. Verify from Claude: **`live_status`** → should report `connected: true` and the transport.
 
-Le serveur MCP n'a **aucune** dépendance supplémentaire (pur réseau + JSON, dans le process
-serveur ; le daemon WolvenKit n'est pas concerné).
+The MCP server has **no** additional dependency (pure network + JSON, in the server
+process; the WolvenKit daemon is not involved).
 
-## Configuration (variables d'environnement, toutes optionnelles)
+## Configuration (environment variables, all optional)
 
-| Variable | Défaut | Rôle |
+| Variable | Default | Role |
 |---|---|---|
-| `CET_TRANSPORT` | `tcp` | `tcp` ou `file` (force le repli, n'ouvre pas le port). |
-| `CET_TCP_PORT` | `27010` | Port du listener TCP. |
-| `CET_BRIDGE_DIR` | — | Dossier du mod CETBridge (sinon dérivé du `gamePath` passé aux outils). |
-| `CET_BRIDGE_TIMEOUT_MS` | `5000` | Délai max d'une requête. |
+| `CET_TRANSPORT` | `tcp` | `tcp` or `file` (forces the fallback, does not open the port). |
+| `CET_TCP_PORT` | `27010` | Port of the TCP listener. |
+| `CET_BRIDGE_DIR` | — | CETBridge mod folder (otherwise derived from the `gamePath` passed to the tools). |
+| `CET_BRIDGE_TIMEOUT_MS` | `5000` | Maximum delay of a request. |
 
-Le paramètre `gamePath` des outils sert au repli fichier (localiser le mod) ; il est inutile
-en TCP. En TCP pur, on peut donc l'omettre.
+The tools' `gamePath` parameter serves the file fallback (locating the mod); it is useless
+in TCP. In pure TCP, you can therefore omit it.
 
-## Outils (35)
+## Tools (35)
 
-### Fondation (débloque tout)
-| Outil | Rôle |
+### Foundation (unlocks everything)
+| Tool | Role |
 |---|---|
-| `live_status` | Connectivité du pont (transport, heartbeat, dossier). Marche jeu éteint. |
-| `live_execute_lua` | Exécute du Lua (effets de bord ; sortie `print()` capturée). |
-| `live_eval` | Évalue une expression Lua et renvoie sa valeur (types CET sérialisés). |
-| `live_batch` | Plusieurs instructions Lua en un aller-retour. |
+| `live_status` | Bridge connectivity (transport, heartbeat, folder). Works with the game shut down. |
+| `live_execute_lua` | Executes Lua (side effects; `print()` output captured). |
+| `live_eval` | Evaluates a Lua expression and returns its value (CET types serialized). |
+| `live_batch` | Several Lua statements in one round trip. |
 
-### Lecture d'état
+### State reading
 `live_player_info`, `live_game_state`, `live_inventory`, `live_equipped`,
 `live_active_effects`, `live_appearance`, `live_vehicles`, `live_nearby_entities`,
 `live_scanner`.
 
-### Mutation joueur & monde
+### Player & world mutation
 `live_add_item`, `live_remove_item`, `live_teleport`, `live_set_stat`, `live_apply_effect`,
 `live_remove_effect`, `live_god_mode`, `live_set_level`, `live_spawn_vehicle`,
 `live_set_time`, `live_set_weather`, `live_kill_nearby`, `live_notify`, `live_play_sound`.
 
-### TweakDB en mémoire vive + RTTI
+### TweakDB in live memory + RTTI
 `live_tweakdb_get`, `live_tweakdb_set`, `live_dump_type`, `live_tweakdb_search`.
 
-### Quêtes & événements
+### Quests & events
 `live_get_quest_fact`, `live_set_quest_fact`, `live_observe`, `live_observations`.
 
-Tout passe par les mêmes 3 verbes de protocole (`exec`/`eval`/`query`) : les outils de 1re
-classe ci-dessus ne sont que des raccourcis ergonomiques au-dessus de handlers Lua nommés.
-N'importe quoi d'autre est faisable via `live_execute_lua` / `live_eval`.
+Everything goes through the same 3 protocol verbs (`exec`/`eval`/`query`): the first-class
+tools above are merely ergonomic shortcuts on top of named Lua handlers.
+Anything else is doable via `live_execute_lua` / `live_eval`.
 
-## Sécurité & limites (sans détour)
+## Security & limits (no beating around the bush)
 
-- **Exécuter du Lua dans le jeu vivant est puissant et risqué** : une boucle infinie peut
-  **figer** le jeu. Côté Lua chaque exécution est protégée par `pcall` ; côté serveur un
-  **timeout** (5 s) protège l'agent — **pas** le jeu.
-- Le listener TCP est restreint à **127.0.0.1** (pas de réseau public, pas d'auth — outil de
-  développement local).
-- Les écritures `live_tweakdb_set` persistent **jusqu'au redémarrage** du jeu.
-- **Non testable en CI** : seule la couche protocole l'est (cf. `CetBridgeProtocolTests`). Le
-  bout-en-bout exige le jeu lancé — voir `test-live-bridge.py`.
+- **Executing Lua in the live game is powerful and risky**: an infinite loop can
+  **freeze** the game. On the Lua side, each execution is protected by `pcall`; on the server side a
+  **timeout** (5 s) protects the agent — **not** the game.
+- The TCP listener is restricted to **127.0.0.1** (no public network, no auth — a local
+  development tool).
+- `live_tweakdb_set` writes persist **until the game restarts**.
+- **Not testable in CI**: only the protocol layer is (see `CetBridgeProtocolTests`). The
+  end-to-end path requires the game running — see `test-live-bridge.py`.
 
-## Dépannage
+## Troubleshooting
 
-`live_status` renvoie `connected: false` :
-- Le jeu tourne-t-il, hors menu de chargement ?
-- Le mod est-il dans `…/cyber_engine_tweaks/mods/CETBridge/` ? (vérifier l'overlay CET → mod chargé)
-- En TCP : RedSocket est-il installé ? Sinon forcer `CET_TRANSPORT=file` (+ `gamePath` ou `CET_BRIDGE_DIR`).
-- Port 27010 déjà pris (autre session / cyber-engine-tweak-mcp) → le serveur bascule en fichier ;
-  vérifier `bridgeDir` dans la sortie de `live_status`.
+`live_status` returns `connected: false`:
+- Is the game running, out of the loading screen?
+- Is the mod in `…/cyber_engine_tweaks/mods/CETBridge/`? (check the CET overlay → mod loaded)
+- In TCP: is RedSocket installed? Otherwise force `CET_TRANSPORT=file` (+ `gamePath` or `CET_BRIDGE_DIR`).
+- Port 27010 already taken (another session / cyber-engine-tweak-mcp) → the server switches to file;
+  check `bridgeDir` in the `live_status` output.
 
-## Provenance & licence
+## Provenance & license
 
-Le mod Lua `CETBridge/` est repris tel quel du projet **Y4rd13/cyber-engine-tweak-mcp**
-(licence **MIT**, voir `live-bridge/CETBridge/LICENSE.upstream` ; `json.lua` = rxi, MIT). Le
-protocole de fil (trames JSON `\r\n`, `exec`/`eval`/`query`, repli fichier) est volontairement
-identique pour réutiliser ce mod sans le modifier.
+The Lua mod `CETBridge/` is taken as-is from the **Y4rd13/cyber-engine-tweak-mcp** project
+(**MIT** license, see `live-bridge/CETBridge/LICENSE.upstream`; `json.lua` = rxi, MIT). The
+wire protocol (JSON `\r\n` frames, `exec`/`eval`/`query`, file fallback) is deliberately
+identical, to reuse this mod without modifying it.

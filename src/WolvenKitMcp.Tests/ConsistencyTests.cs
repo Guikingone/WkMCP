@@ -7,10 +7,10 @@ using Xunit;
 namespace WolvenKitMcp.Tests;
 
 /// <summary>
-/// Anti-régression documentaire : les prompts et la ressource de référence sont du
-/// texte rédigé à la main qui cite des outils par leur nom. Ces tests garantissent
-/// que chaque nom cité existe réellement dans l'assembly — un prompt qui recommande
-/// un outil inexistant (ou renommé) désinforme l'agent qui le lit.
+/// Documentation anti-regression: the prompts and the reference resource are
+/// hand-written text that cites tools by name. These tests guarantee that every
+/// cited name really exists in the assembly — a prompt that recommends a
+/// nonexistent (or renamed) tool misinforms the agent that reads it.
 /// </summary>
 public class ConsistencyTests
 {
@@ -25,10 +25,10 @@ public class ConsistencyTests
         WolvenKitResources.PromptInfos().Select(p => p.Name)
                           .ToHashSet(StringComparer.Ordinal);
 
-    /// <summary>Tokens backtickés entièrement en snake_case : candidats noms d'outils.</summary>
+    /// <summary>Backticked tokens entirely in snake_case: tool-name candidates.</summary>
     private static readonly Regex Backticked = new("`([a-z][a-z0-9_]{2,})`", RegexOptions.Compiled);
 
-    /// <summary>Jargon backtické légitime qui n'est pas un nom d'outil ni de prompt.</summary>
+    /// <summary>Legitimate backticked jargon that is neither a tool nor a prompt name.</summary>
     private static readonly HashSet<string> NonToolJargon = new(StringComparer.Ordinal)
     {
         "content", "jsonfile", "truncated", "verbose", "deep", "ok", "status",
@@ -57,12 +57,12 @@ public class ConsistencyTests
             .Distinct()
             .ToList();
         Assert.True(unknown.Count == 0,
-            $"{source} cite des noms inconnus (outil renommé ou supprimé ?) : " +
+            $"{source} cites unknown names (renamed or removed tool?): " +
             string.Join(", ", unknown));
     }
 
     [Fact]
-    public void Chaque_prompt_ne_cite_que_des_outils_existants()
+    public void Every_prompt_only_cites_existing_tools()
     {
         var prompts = PromptTexts().ToList();
         Assert.NotEmpty(prompts);
@@ -71,32 +71,32 @@ public class ConsistencyTests
     }
 
     [Fact]
-    public void La_reference_ne_cite_que_des_outils_existants()
+    public void The_reference_only_cites_existing_tools()
         => AssertCitationsExist("wolvenkit://reference", WolvenKitResources.BuildReference());
 
     [Fact]
-    public void La_reference_annonce_le_bon_total_outils()
+    public void The_reference_announces_the_correct_total_tools()
     {
         var total = AllToolNames().Count;
-        Assert.Contains($"({total} au total)", WolvenKitResources.BuildReference());
+        Assert.Contains($"({total} total)", WolvenKitResources.BuildReference());
     }
 
     [Fact]
-    public void Les_noms_outils_sont_uniques_entre_classes()
+    public void Tool_names_are_unique_across_classes()
     {
         var all = ToolClasses.SelectMany(WolvenKitResources.ToolNames).ToList();
         var dupes = all.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-        Assert.True(dupes.Count == 0, "Noms d'outils dupliqués : " + string.Join(", ", dupes));
+        Assert.True(dupes.Count == 0, "Duplicate tool names: " + string.Join(", ", dupes));
     }
 
     // ── Tool annotations ──────────────────────────────────────────────────
-    // Les hints (readOnlyHint/destructiveHint/idempotentHint) guident les clients
-    // MCP (auto-approbation des lectures, confirmation des outils destructifs).
-    // L'attribut ne distingue pas « non défini » de « false », donc l'exhaustivité
-    // se vérifie sur le source ; la cohérence se vérifie par réflexion.
+    // The hints (readOnlyHint/destructiveHint/idempotentHint) guide the MCP
+    // clients (auto-approval of reads, confirmation of destructive tools).
+    // The attribute does not distinguish "unset" from "false", so completeness
+    // is checked against the source; consistency is checked by reflection.
 
     [Fact]
-    public void Chaque_outil_declare_ses_annotations_explicitement()
+    public void Every_tool_declares_its_annotations_explicitly()
     {
         var srcDir = Path.Combine(TestsDir(), "..", "WolvenKitMcp");
         var missing = new List<string>();
@@ -109,11 +109,11 @@ public class ConsistencyTests
                     missing.Add($"{file} : {line.Trim()}");
             }
         Assert.True(missing.Count == 0,
-            "Outils sans annotations explicites :\n" + string.Join("\n", missing));
+            "Tools without explicit annotations:\n" + string.Join("\n", missing));
     }
 
     [Fact]
-    public void Les_annotations_sont_coherentes()
+    public void The_annotations_are_consistent()
     {
         var attrs = ToolClasses
             .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Static))
@@ -121,13 +121,13 @@ public class ConsistencyTests
             .Where(a => a?.Name is not null)
             .ToDictionary(a => a!.Name!, a => a!);
 
-        // Un outil en lecture seule ne peut pas être destructif.
+        // A read-only tool cannot be destructive.
         var contradictions = attrs.Values.Where(a => a.ReadOnly && a.Destructive)
                                   .Select(a => a.Name).ToList();
         Assert.True(contradictions.Count == 0,
-            "ReadOnly + Destructive simultanés : " + string.Join(", ", contradictions!));
+            "ReadOnly + Destructive at the same time: " + string.Join(", ", contradictions!));
 
-        // Spot-checks de classification.
+        // Classification spot-checks.
         Assert.True(attrs["find_in_archives"].ReadOnly);
         Assert.True(attrs["uninstall_mod"].Destructive);
         Assert.False(attrs["uninstall_mod"].ReadOnly);
@@ -136,15 +136,15 @@ public class ConsistencyTests
         Assert.True(attrs["wolvenkit_status"].ReadOnly);
     }
 
-    // ── Garde-fou code → README ───────────────────────────────────────────
-    // ConsistencyTests vérifie déjà le sens doc → code (les noms cités existent).
-    // Ces tests vérifient l'INVERSE : que les prompts et ressources du code sont
-    // bien documentés dans le README, et que les comptes annoncés correspondent au
-    // code. C'est ce sens qui manquait et qui a laissé le README dériver (5 prompts
-    // / 3 ressources documentés au lieu de 8 / 4).
+    // ── Code → README safeguard ───────────────────────────────────────────
+    // ConsistencyTests already checks the doc → code direction (cited names
+    // exist). These tests check the REVERSE: that the prompts and resources in
+    // the code are documented in the README, and that the announced counts match
+    // the code. That is the direction that was missing and that let the README
+    // drift (5 prompts / 3 resources documented instead of 8 / 4).
 
     [Fact]
-    public void Le_README_documente_tous_les_prompts_et_ressources()
+    public void The_README_documents_all_prompts_and_resources()
     {
         var readme = File.ReadAllText(ReadmePath());
         var missing = new List<string>();
@@ -155,28 +155,28 @@ public class ConsistencyTests
 
         foreach (var (_, uri) in WolvenKitResources.ResourceInfos())
         {
-            // Partie stable avant un éventuel {+path} (le README cite l'URI template).
+            // Stable part before a possible {+path} (the README cites the URI template).
             var stem = uri.Split('{')[0];
             if (!readme.Contains(stem, StringComparison.Ordinal))
-                missing.Add($"ressource `{uri}`");
+                missing.Add($"resource `{uri}`");
         }
 
         Assert.True(missing.Count == 0,
-            "README.md ne documente pas : " + string.Join(", ", missing) +
-            " — synchroniser les tableaux Prompts/Ressources.");
+            "README.md does not document: " + string.Join(", ", missing) +
+            " — synchronize the Prompts/Resources tables.");
     }
 
     [Fact]
-    public void Le_README_annonce_les_bons_comptes()
+    public void The_README_announces_the_correct_counts()
     {
         var readme = File.ReadAllText(ReadmePath());
         var tools = AllToolNames().Count;
         var prompts = WolvenKitResources.PromptInfos().Count;
         var resources = WolvenKitResources.ResourceInfos().Count;
 
-        Assert.Contains($"{tools} outils", readme);
+        Assert.Contains($"{tools} tools", readme);
         Assert.Contains($"{prompts} prompts", readme);
-        Assert.Contains($"{resources} ressources", readme);
+        Assert.Contains($"{resources} resources", readme);
     }
 
     private static string ReadmePath()

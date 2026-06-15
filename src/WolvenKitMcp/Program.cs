@@ -5,28 +5,28 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using WolvenKitMcp;
 
-// Serveur MCP pour WolvenKit. Transport choisi au démarrage via WOLVENKIT_MCP_TRANSPORT :
-//   stdio (défaut) — Claude Desktop/Code local ; stdout réservé au JSON-RPC, logs sur stderr.
-//   http           — serveur HTTP/Streamable (ModelContextProtocol.AspNetCore), sécurisé par
-//                    défaut (bind loopback + bearer token + fail-closed). Cf. docs/HTTP_TRANSPORT.md.
-// Les outils (120, dont les live_*), le daemon et le pont CetBridge sont identiques quel que soit
-// le transport — seule la construction de l'hôte diffère.
+// MCP server for WolvenKit. Transport chosen at startup via WOLVENKIT_MCP_TRANSPORT:
+//   stdio (default) — local Claude Desktop/Code; stdout reserved for JSON-RPC, logs on stderr.
+//   http           — HTTP/Streamable server (ModelContextProtocol.AspNetCore), secure by
+//                    default (loopback bind + bearer token + fail-closed). See docs/HTTP_TRANSPORT.md.
+// The tools (120, including the live_*), the daemon and the CetBridge bridge are identical regardless
+// of the transport — only the host construction differs.
 
 var transport = (Environment.GetEnvironmentVariable(HttpBridgeSecurity.TransportEnv) ?? "stdio")
     .Trim().ToLowerInvariant();
 
-// Préchauffe le daemon WolvenKit (HashService ~6 s) dès le démarrage, quel que soit le transport.
+// Pre-warms the WolvenKit daemon (HashService ~6 s) at startup, regardless of the transport.
 _ = Task.Run(() => Cp77ToolsRunner.Shared.RunAsync(new[] { "--version" }, CancellationToken.None));
 
-// Purge les dossiers temp des sessions précédentes (> 24 h) — best-effort, hors chemin critique.
+// Purges temp folders from previous sessions (> 24 h) — best-effort, off the critical path.
 _ = Task.Run(Cp77ToolsRunner.PurgeStaleTempDirs);
 
-// Enregistrement commun aux deux transports : DI + outils/ressources/prompts par réflexion.
+// Registration common to both transports: DI + tools/resources/prompts by reflection.
 static void RegisterMcp(IServiceCollection services, bool http)
 {
-    // Une seule instance partagée du runner → un seul daemon WolvenKit.
+    // A single shared instance of the runner → a single WolvenKit daemon.
     services.AddSingleton<Cp77ToolsRunner>(_ => Cp77ToolsRunner.Shared);
-    // Pont « live » vers le jeu en cours (mod CETBridge). Injecté dans les outils live_*.
+    // "Live" bridge to the running game (CETBridge mod). Injected into the live_* tools.
     services.AddSingleton<CetBridge>();
 
     var mcp = services.AddMcpServer();
@@ -43,7 +43,7 @@ if (transport == "http")
     if (string.IsNullOrWhiteSpace(url)) url = HttpBridgeSecurity.DefaultUrl;
     var token = Environment.GetEnvironmentVariable(HttpBridgeSecurity.TokenEnv);
 
-    // Fail-closed : pas d'exposition hors loopback sans token.
+    // Fail-closed: no exposure outside loopback without a token.
     var (okStart, error) = HttpBridgeSecurity.CheckStartup(url, token);
     if (!okStart)
     {
@@ -55,16 +55,16 @@ if (transport == "http")
     RegisterMcp(builder.Services, http: true);
 
     var app = builder.Build();
-    // Amorce le listener TCP du pont live (idempotent) — coexiste avec le serveur HTTP.
+    // Boots the live bridge's TCP listener (idempotent) — coexists with the HTTP server.
     app.Services.GetRequiredService<CetBridge>().EnsureStarted();
-    app.UseWolvenKitBearerAuth(token); // no-op si aucun token (dev loopback)
+    app.UseWolvenKitBearerAuth(token); // no-op if no token (dev loopback)
     app.MapMcp();
 
     if (string.IsNullOrWhiteSpace(token))
-        app.Logger.LogWarning("[WolvenKitMcp] MCP HTTP sur {Url} SANS auth (loopback). N'expose pas " +
-            "ce port ; définis {Env} pour activer le bearer token.", url, HttpBridgeSecurity.TokenEnv);
+        app.Logger.LogWarning("[WolvenKitMcp] MCP HTTP on {Url} WITHOUT auth (loopback). Do not expose " +
+            "this port; set {Env} to enable the bearer token.", url, HttpBridgeSecurity.TokenEnv);
     else
-        app.Logger.LogInformation("[WolvenKitMcp] MCP HTTP sur {Url} (auth bearer activée).", url);
+        app.Logger.LogInformation("[WolvenKitMcp] MCP HTTP on {Url} (bearer auth enabled).", url);
 
     await app.RunAsync(url);
     return 0;
@@ -76,7 +76,7 @@ else
     RegisterMcp(builder.Services, http: false);
 
     var app = builder.Build();
-    // Amorce le listener TCP du pont live (idempotent) pour que CETBridge puisse se connecter.
+    // Boots the live bridge's TCP listener (idempotent) so CETBridge can connect.
     app.Services.GetRequiredService<CetBridge>().EnsureStarted();
     await app.RunAsync();
     return 0;

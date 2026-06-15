@@ -1,15 +1,15 @@
 ﻿<#
 .SYNOPSIS
-  Construit le bundle d'extension Desktop (.mcpb) du serveur WolvenKit MCP.
+  Builds the Desktop Extension bundle (.mcpb) of the WolvenKit MCP server.
 
 .DESCRIPTION
-  Compile le daemon puis le serveur MCP en Release, assemble le contenu attendu
-  par le format MCPB (manifest.json + server/ + daemon/) et produit
-  dist/wolvenkit-mcp.mcpb (une archive ZIP).
+  Compiles the daemon then the MCP server in Release, assembles the content
+  expected by the MCPB format (manifest.json + server/ + daemon/) and produces
+  dist/wolvenkit-mcp.mcpb (a ZIP archive).
 
-  Le .mcpb suppose un runtime .NET 8+ et `dotnet` sur le PATH de la machine
-  cible (Windows). Les binaires natifs Windows (kraken.dll, DirectXTexNet.dll,
-  opus-tools) sont déployés par le build du daemon et inclus tels quels.
+  The .mcpb assumes a .NET 8+ runtime and `dotnet` on the PATH of the target
+  machine (Windows). The Windows native binaries (kraken.dll, DirectXTexNet.dll,
+  opus-tools) are deployed by the daemon build and included as-is.
 
 .EXAMPLE
   ./build-mcpb.ps1
@@ -26,11 +26,11 @@ $tfm = "net8.0"
 
 Write-Host "==> Build daemon ($Configuration)..."
 dotnet build (Join-Path $root "src\WolvenKitDaemon") -c $Configuration --nologo
-if ($LASTEXITCODE -ne 0) { throw "build daemon a échoué" }
+if ($LASTEXITCODE -ne 0) { throw "daemon build failed" }
 
-Write-Host "==> Build serveur MCP ($Configuration)..."
+Write-Host "==> Build MCP server ($Configuration)..."
 dotnet build (Join-Path $root "src\WolvenKitMcp") -c $Configuration --nologo
-if ($LASTEXITCODE -ne 0) { throw "build serveur MCP a échoué" }
+if ($LASTEXITCODE -ne 0) { throw "MCP server build failed" }
 
 $stage = Join-Path $root "obj\mcpb-stage"
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
@@ -42,22 +42,22 @@ New-Item -ItemType Directory -Path $daemonStage -Force | Out-Null
 $serverBin = Join-Path $root "src\WolvenKitMcp\bin\$Configuration\$tfm"
 $daemonBin = Join-Path $root "src\WolvenKitDaemon\bin\$Configuration\$tfm"
 
-Write-Host "==> Assemblage du bundle..."
+Write-Host "==> Assembling the bundle..."
 Copy-Item (Join-Path $serverBin "*") $serverStage -Recurse -Force
 Copy-Item (Join-Path $daemonBin "*") $daemonStage -Recurse -Force
 Copy-Item (Join-Path $root "manifest.json") $stage -Force
 
-# Mod Lua CETBridge (pont live in-game). Inclus tel quel dans le bundle pour que
-# l'utilisateur puisse le copier dans <jeu>/bin/x64/plugins/cyber_engine_tweaks/mods/.
-# Provenance MIT (Y4rd13/cyber-engine-tweak-mcp), cf. live-bridge/CETBridge/LICENSE.upstream.
+# CETBridge Lua mod (live in-game bridge). Included as-is in the bundle so that
+# the user can copy it into <game>/bin/x64/plugins/cyber_engine_tweaks/mods/.
+# MIT provenance (Y4rd13/cyber-engine-tweak-mcp), cf. live-bridge/CETBridge/LICENSE.upstream.
 $liveSrc = Join-Path $root "live-bridge\CETBridge"
 if (Test-Path $liveSrc) {
     $liveStage = Join-Path $stage "live-bridge\CETBridge"
     New-Item -ItemType Directory -Path $liveStage -Force | Out-Null
     Copy-Item (Join-Path $liveSrc "*") $liveStage -Recurse -Force
-    Write-Host "==> Mod CETBridge (live) inclus dans le bundle."
+    Write-Host "==> CETBridge mod (live) included in the bundle."
 } else {
-    Write-Warning "live-bridge/CETBridge introuvable — bundle sans le mod live."
+    Write-Warning "live-bridge/CETBridge not found — bundle without the live mod."
 }
 
 $dist = Join-Path $root $OutputDir
@@ -66,9 +66,9 @@ $mcpb = Join-Path $dist "wolvenkit-mcp.mcpb"
 if (Test-Path $mcpb) { Remove-Item $mcpb -Force }
 
 Write-Host "==> Compression -> $mcpb"
-# Un .mcpb EST une archive ZIP, mais le format ZIP impose des séparateurs '/'.
-# Compress-Archive sous Windows PowerShell 5.1 écrit des '\' (non conformes),
-# donc on construit l'archive à la main en normalisant les chemins d'entrée.
+# A .mcpb IS a ZIP archive, but the ZIP format requires '/' separators.
+# Compress-Archive under Windows PowerShell 5.1 writes '\' (non-compliant),
+# so we build the archive by hand, normalizing the entry paths.
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $stageFull = (Resolve-Path $stage).Path
@@ -86,4 +86,4 @@ try {
 } finally { $zipStream.Dispose() }
 
 $sizeMb = [Math]::Round((Get-Item $mcpb).Length / 1MB, 1)
-Write-Host "OK : $mcpb ($sizeMb Mo)"
+Write-Host "OK: $mcpb ($sizeMb MB)"

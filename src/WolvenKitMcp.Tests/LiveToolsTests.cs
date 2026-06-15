@@ -3,7 +3,7 @@ using Xunit;
 
 namespace WolvenKitMcp.Tests;
 
-/// <summary>Helpers purs de LiveTools (le pont live lui-même exige le jeu).</summary>
+/// <summary>Pure helpers of LiveTools (the live bridge itself requires the game).</summary>
 public class LiveToolsTests
 {
     [Theory]
@@ -13,7 +13,7 @@ public class LiveToolsTests
     [InlineData("\"nu-id\"", "nu-id")]
     [InlineData("plain-id", "plain-id")]
     [InlineData("12345", "12345")]
-    public void TryExtractSubscriptionId_reconnait_les_formats(string result, string expected)
+    public void TryExtractSubscriptionId_recognizes_the_formats(string result, string expected)
         => Assert.Equal(expected, LiveTools.TryExtractSubscriptionId(result));
 
     [Theory]
@@ -22,6 +22,6 @@ public class LiveToolsTests
     [InlineData("   ")]
     [InlineData("""{"autre":"champ"}""")]
     [InlineData("pas un id car espaces")]
-    public void TryExtractSubscriptionId_rejette_le_bruit(string? result)
+    public void TryExtractSubscriptionId_rejects_the_noise(string? result)
         => Assert.Null(LiveTools.TryExtractSubscriptionId(result));
 }

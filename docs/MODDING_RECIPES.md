@@ -1,308 +1,308 @@
-# Recettes de modding — WolvenKit MCP
+# Modding recipes — WolvenKit MCP
 
-Recettes concrètes, prêtes à copier-coller, pour les types de mods Cyberpunk 2077 les
-plus courants. Chaque recette enchaîne des **appels d'outils MCP** (avec des exemples
-d'arguments) et se termine par une **vérification**.
+Concrete, copy-paste-ready recipes for the most common Cyberpunk 2077 mod
+types. Each recipe chains **MCP tool calls** (with example
+arguments) and ends with a **verification**.
 
 ## Conventions
 
-- Tous les outils renvoient un JSON `{ ok, status, summary, produced, warnings, errors, log }`.
-  Le **succès se juge sur `produced`/`ok`**, pas sur le contenu du `log`.
-- Les chemins doivent être **absolus** (Windows : `C:\...`). Dans les exemples, on note
-  le dossier du jeu `<JEU>` (ex. `C:\Program Files (x86)\Steam\steamapps\common\Cyberpunk 2077`).
-- Avant toute recette, vérifier que le CLI est opérationnel avec **`wolvenkit_status`**.
-- Les outils dont les arguments comportent des valeurs par défaut (ex. `pattern`,
-  `verbose`) peuvent être omis.
+- All tools return a JSON `{ ok, status, summary, produced, warnings, errors, log }`.
+  **Success is judged on `produced`/`ok`**, not on the content of the `log`.
+- Paths must be **absolute** (Windows: `C:\...`). In the examples, the game
+  folder is written `<GAME>` (e.g. `C:\Program Files (x86)\Steam\steamapps\common\Cyberpunk 2077`).
+- Before any recipe, verify that the CLI is operational with **`wolvenkit_status`**.
+- Tools whose arguments carry default values (e.g. `pattern`,
+  `verbose`) may be omitted.
 
 ---
 
-## 1. Tweak d'arme / d'item (TweakXL)
+## 1. Weapon / item tweak (TweakXL)
 
-**Objectif** : modifier une stat d'une arme existante (ici : la capacité de chargeur du
-Lexington) sans toucher aux fichiers de jeu, via un `.tweak` chargé à chaud par TweakXL.
+**Goal**: modify a stat of an existing weapon (here: the magazine capacity of the
+Lexington) without touching the game files, via a `.tweak` hot-loaded by TweakXL.
 
-1. **`generate_tweak_template`** — générer le `.tweak`.
+1. **`generate_tweak_template`** — generate the `.tweak`.
    - `pattern`: `"override_field"`
    - `parametersJson`: `{"recordId":"Items.Preset_Lexington_Default","field":"magazineCapacity","value":24}`
    - `outputFile`: `C:\mods\lexington_mag\lexington.tweak`
 
-   Variante « augmenter une stat numérique » : `pattern` = `"boost_stat"` avec
+   "Increase a numeric stat" variant: `pattern` = `"boost_stat"` with
    `{"recordId":"Items.Preset_Lexington_Default","stat":"damage","value":150}`.
 
-   Variante « nouvel item dérivé d'un existant » : `pattern` = `"new_record"` avec
+   "New item derived from an existing one" variant: `pattern` = `"new_record"` with
    `{"newId":"MyMod.SuperLexington","baseId":"Items.Preset_Lexington_Default","overrides":"{\"magazineCapacity\":48}"}`.
 
-2. **`validate_tweak`** — vérifier que chaque clé existe bien dans la TweakDB (sauf
+2. **`validate_tweak`** — verify that each key actually exists in the TweakDB (except
    `$instanceOf`).
    - `tweakFile`: `C:\mods\lexington_mag\lexington.tweak`
-   - `tweakdbBin`: `<JEU>\r6\cache\tweakdb.bin`
+   - `tweakdbBin`: `<GAME>\r6\cache\tweakdb.bin`
 
-3. **`install_tweak`** — copier vers `<JEU>\r6\tweaks\`.
+3. **`install_tweak`** — copy to `<GAME>\r6\tweaks\`.
    - `tweakFile`: `C:\mods\lexington_mag\lexington.tweak`
-   - `gamePath`: `<JEU>`
+   - `gamePath`: `<GAME>`
 
-**Vérification** : `validate_tweak` renvoie `status: "success"` et une liste de clés
-inconnues vide ; `install_tweak` renvoie `installedPath` pointant dans `r6\tweaks`.
-TweakXL charge le fichier au prochain lancement, sans rebuild.
+**Verification**: `validate_tweak` returns `status: "success"` and an empty list of
+unknown keys; `install_tweak` returns `installedPath` pointing into `r6\tweaks`.
+TweakXL loads the file at the next launch, with no rebuild.
 
 ---
 
-## 2. Mod REDscript avec `@wrapMethod`
+## 2. REDscript mod with `@wrapMethod`
 
-**Objectif** : étendre une méthode du jeu (ex. `PlayerPuppet.OnGameAttached`) sans la
-remplacer, via un starter REDscript généré puis vérifié syntaxiquement.
+**Goal**: extend a game method (e.g. `PlayerPuppet.OnGameAttached`) without
+replacing it, via a generated REDscript starter then syntactically verified.
 
-1. **`scaffold_mod`** — créer le squelette REDscript.
+1. **`scaffold_mod`** — create the REDscript skeleton.
    - `parentFolder`: `C:\mods`
    - `modName`: `MyHook`
    - `kind`: `"redscript"`
-   - `dependencies` (optionnel) : `"redscript"`
+   - `dependencies` (optional): `"redscript"`
 
-   Produit `C:\mods\MyHook\r6\scripts\MyHook\MyHook.reds` contenant déjà un
-   `@wrapMethod(PlayerPuppet)` sur `OnGameAttached` qui appelle `wrappedMethod()`, plus
-   un `MOD_MANIFEST.json`.
+   Produces `C:\mods\MyHook\r6\scripts\MyHook\MyHook.reds` already containing a
+   `@wrapMethod(PlayerPuppet)` on `OnGameAttached` that calls `wrappedMethod()`, plus
+   a `MOD_MANIFEST.json`.
 
-   Alternative ciblée : **`generate_redscript_template`** avec `pattern` = `"wrap_method"`
-   pour produire un seul `.reds` paramétré.
+   Targeted alternative: **`generate_redscript_template`** with `pattern` = `"wrap_method"`
+   to produce a single parameterized `.reds`.
 
-2. *(édition)* — adapter le corps de la méthode dans le `.reds`.
+2. *(edit)* — adapt the body of the method in the `.reds`.
 
-3. **`lint_script`** — analyse syntaxique + sémantique (parser réel, 0 faux positif
-   calibré).
+3. **`lint_script`** — syntactic + semantic analysis (real parser, 0 false positives
+   calibrated).
    - `scriptFile`: `C:\mods\MyHook\r6\scripts\MyHook\MyHook.reds`
 
-   Vérifie notamment que l'annotation cible bien une classe et qu'un `@wrapMethod`
-   appelle `wrappedMethod()`.
+   Checks in particular that the annotation targets a class and that a `@wrapMethod`
+   calls `wrappedMethod()`.
 
-4. **Déploiement** : copier `r6\scripts\...` vers `<JEU>\r6\scripts\...` (le redscript
-   « classique » est chargé directement ; en pipeline REDmod, voir recette 4).
+4. **Deployment**: copy `r6\scripts\...` to `<GAME>\r6\scripts\...` (the "classic"
+   redscript is loaded directly; in the REDmod pipeline, see recipe 4).
 
-**Vérification** : `lint_script` renvoie `status: "success"` (ou `"partial"` avec de
-simples avertissements), `errors: []`, et un `declarations`/`parsedDeclarations` non nul.
-`lint_script` n'effectue PAS de vérification de types (résolution externe = `scc`).
+**Verification**: `lint_script` returns `status: "success"` (or `"partial"` with mere
+warnings), `errors: []`, and a non-null `declarations`/`parsedDeclarations`.
+`lint_script` does NOT perform type checking (external resolution = `scc`).
 
 ---
 
-## 3. Apparence / item via ArchiveXL
+## 3. Appearance / item via ArchiveXL
 
-**Objectif** : déclarer un record factory (ou un patch de ressource / des sons / de la
-localisation) via un fichier `.xl` ArchiveXL.
+**Goal**: declare a factory record (or a resource patch / sounds /
+localization) via an ArchiveXL `.xl` file.
 
-1. **`scaffold_archivexl`** — générer le `.xl` de départ.
+1. **`scaffold_archivexl`** — generate the starter `.xl`.
    - `outputFolder`: `C:\mods\MyAppearance`
    - `modName`: `MyAppearance`
-   - `kind`: `"factory"`  (autres : `"customSounds"`, `"localization"`, `"resource"`)
+   - `kind`: `"factory"`  (others: `"customSounds"`, `"localization"`, `"resource"`)
 
-   Produit `C:\mods\MyAppearance\MyAppearance.xl`. Pour `factory`, il référence un
-   `MyAppearance\factory.csv` ; pour `resource`, il pré-remplit un bloc
-   `resource: patch:` ; etc.
+   Produces `C:\mods\MyAppearance\MyAppearance.xl`. For `factory`, it references a
+   `MyAppearance\factory.csv`; for `resource`, it pre-fills a
+   `resource: patch:` block; etc.
 
-2. *(édition)* — compléter le `.xl` (chemins des `.app`/CSV) et préparer les fichiers
-   ressources associés.
+2. *(edit)* — complete the `.xl` (paths of the `.app`/CSV) and prepare the associated
+   resource files.
 
-3. **`validate_xl`** — valider le YAML et les sections de premier niveau.
+3. **`validate_xl`** — validate the YAML and the top-level sections.
    - `xlFile`: `C:\mods\MyAppearance\MyAppearance.xl`
 
-   Sections reconnues : `customSounds`, `resource`, `factories`, `localization`,
-   `animations`. Une section inconnue génère un avertissement (`status: "partial"`),
-   un YAML mal formé une erreur (`status: "error"`).
+   Recognized sections: `customSounds`, `resource`, `factories`, `localization`,
+   `animations`. An unknown section generates a warning (`status: "partial"`),
+   a malformed YAML an error (`status: "error"`).
 
-4. **Déploiement** : placer le `.xl` dans `<JEU>\archive\pc\mod\` à côté de l'archive
-   du mod (ArchiveXL lit les `.xl` de ce dossier).
+4. **Deployment**: place the `.xl` in `<GAME>\archive\pc\mod\` next to the mod's
+   archive (ArchiveXL reads the `.xl` files of this folder).
 
-**Vérification** : `validate_xl` renvoie `status: "success"`, `errors: []` et liste les
-`sections` attendues.
+**Verification**: `validate_xl` returns `status: "success"`, `errors: []` and lists the
+expected `sections`.
 
 ---
 
-## 4. REDmod (format post-1.6)
+## 4. REDmod (post-1.6 format)
 
-**Objectif** : produire un mod au format REDmod (archives + scripts + tweaks), puis
-l'installer et le déployer officiellement via `redMod.exe`.
+**Goal**: produce a mod in REDmod format (archives + scripts + tweaks), then
+install and officially deploy it via `redMod.exe`.
 
-1. **`create_redmod_project`** — créer la structure `mods/<nom>/`.
+1. **`create_redmod_project`** — create the `mods/<name>/` structure.
    - `parentFolder`: `C:\mods`
    - `modName`: `MyRedmod`
-   - `description`: `"Mon premier REDmod"`
+   - `description`: `"My first REDmod"`
    - `version`: `"1.0.0"`
 
-   Crée `C:\mods\MyRedmod\` avec `info.json` + sous-dossiers `archives/`, `scripts/`,
+   Creates `C:\mods\MyRedmod\` with `info.json` + subfolders `archives/`, `scripts/`,
    `tweaks/`, `customSounds/`.
 
-2. *(remplissage)* — déposer les `.archive` dans `archives/`, les `.reds` dans
-   `scripts/`, les `.tweak` dans `tweaks/`.
+2. *(filling)* — drop the `.archive` files into `archives/`, the `.reds` into
+   `scripts/`, the `.tweak` into `tweaks/`.
 
-3. **`pack_redmod`** *(optionnel, distribution)* — produire un `.zip` distribuable.
+3. **`pack_redmod`** *(optional, distribution)* — produce a distributable `.zip`.
    - `modSourceFolder`: `C:\mods\MyRedmod`
    - `outputPath`: `C:\dist`
 
-   Le `.zip` inclut le dossier `MyRedmod/` (avec `info.json`) ; l'utilisateur final le
-   décompresse dans `<JEU>\mods\`.
+   The `.zip` includes the `MyRedmod/` folder (with `info.json`); the end user
+   decompresses it into `<GAME>\mods\`.
 
-4. **`install_redmod`** — copie récursive vers `<JEU>\mods\<nom>\`.
+4. **`install_redmod`** — recursive copy to `<GAME>\mods\<name>\`.
    - `modSourceFolder`: `C:\mods\MyRedmod`
-   - `gamePath`: `<JEU>`
+   - `gamePath`: `<GAME>`
 
-5. **`deploy_redmod`** — lance `<JEU>\tools\redmod\bin\redMod.exe deploy` (compile les
-   scripts + applique les tweaks des REDmods installés).
-   - `gamePath`: `<JEU>`
+5. **`deploy_redmod`** — runs `<GAME>\tools\redmod\bin\redMod.exe deploy` (compiles the
+   scripts + applies the tweaks of installed REDmods).
+   - `gamePath`: `<GAME>`
 
-**Vérification** : `install_redmod` renvoie un `produced` dans `<JEU>\mods\<nom>` ;
-`deploy_redmod` renvoie `exit=0` dans son `summary`. (Le DLC REDmod doit être installé,
-sinon `redMod.exe` est introuvable.) On peut confirmer avec **`list_installed_mods`**
-(`gamePath` = `<JEU>`) qui doit lister le mod dans `redMods`.
+**Verification**: `install_redmod` returns a `produced` in `<GAME>\mods\<name>`;
+`deploy_redmod` returns `exit=0` in its `summary`. (The REDmod DLC must be installed,
+otherwise `redMod.exe` is not found.) You can confirm with **`list_installed_mods`**
+(`gamePath` = `<GAME>`) which should list the mod in `redMods`.
 
 ---
 
-## 5. Localisation (traduction UI)
+## 5. Localization (UI translation)
 
-**Objectif** : extraire les chaînes traduisibles de la TweakDB, les traduire, puis
-construire un `.tweak` qui surcharge `displayName` / `localizedDescription` / etc.
+**Goal**: extract the translatable strings from the TweakDB, translate them, then
+build a `.tweak` that overrides `displayName` / `localizedDescription` / etc.
 
-1. **`extract_localization`** — extraire les champs traduisibles vers un JSON
+1. **`extract_localization`** — extract the translatable fields to a JSON
    `{recordId: {field: value}}`.
-   - `tweakdbPath`: `<JEU>\r6\cache\tweakdb.bin`
+   - `tweakdbPath`: `<GAME>\r6\cache\tweakdb.bin`
    - `outputJson`: `C:\mods\loc_fr\strings.json`
-   - `filter` (optionnel) : `"Items."` pour ne cibler que les items.
+   - `filter` (optional): `"Items."` to target only items.
 
-2. *(édition)* — traduire les valeurs dans `strings.json` (conserver la structure
-   `{recordId: {field: "Traduction"}}`).
+2. *(edit)* — translate the values in `strings.json` (keep the structure
+   `{recordId: {field: "Translation"}}`).
 
-3. **`build_localization`** — construire le `.tweak` TweakXL depuis le JSON traduit.
+3. **`build_localization`** — build the TweakXL `.tweak` from the translated JSON.
    - `translationsJson`: `C:\mods\loc_fr\strings.json`
    - `outputTweak`: `C:\mods\loc_fr\loc_fr.tweak`
-   - `lang` (informatif) : `"fr-fr"`
+   - `lang` (informative): `"fr-fr"`
 
-4. **`install_tweak`** — copier vers `<JEU>\r6\tweaks\`.
+4. **`install_tweak`** — copy to `<GAME>\r6\tweaks\`.
    - `tweakFile`: `C:\mods\loc_fr\loc_fr.tweak`
-   - `gamePath`: `<JEU>`
+   - `gamePath`: `<GAME>`
 
-**Vérification** : `build_localization` renvoie `recordCount`/`fieldCount` > 0 et
-`status: "success"`. (Limitation : ne couvre que les strings UI de TweakDB ; les
-sous-titres audio `.opusinfo` ne sont pas concernés.)
+**Verification**: `build_localization` returns `recordCount`/`fieldCount` > 0 and
+`status: "success"`. (Limitation: it only covers TweakDB UI strings; audio
+subtitles `.opusinfo` are not concerned.)
 
 ---
 
-## 6. Remplacement de texture
+## 6. Texture replacement
 
-**Objectif** : extraire une texture du jeu, l'éditer en PNG, la réimporter, l'empaqueter
-en `.archive` et l'installer.
+**Goal**: extract a game texture, edit it as PNG, reimport it, pack it
+into a `.archive` and install it.
 
-1. **`uncook`** — extraire + convertir la texture en image éditable.
-   - `archivePath`: `<JEU>\archive\pc\content\basegame_4_gamedata.archive`
-     (ou l'archive contenant la texture cible)
+1. **`uncook`** — extract + convert the texture into an editable image.
+   - `archivePath`: `<GAME>\archive\pc\content\basegame_4_gamedata.archive`
+     (or the archive containing the target texture)
    - `outputPath`: `C:\work\uncooked`
-   - `pattern`: `"*.xbm"` (ou un chemin de texture précis)
+   - `pattern`: `"*.xbm"` (or a specific texture path)
    - `textureFormat`: `"png"`
 
-   *(Pour seulement extraire sans convertir : **`extract_files`** avec les mêmes
+   *(To only extract without converting: **`extract_files`** with the same
    `archivePath`/`outputPath`/`pattern`.)*
 
-2. *(édition)* — modifier le PNG dans un éditeur d'image, en conservant l'arborescence
-   relative `base\...` produite par `uncook`.
+2. *(edit)* — modify the PNG in an image editor, keeping the
+   relative tree `base\...` produced by `uncook`.
 
-3. **`import_raw`** — réimporter le PNG en CR2W REDengine.
-   - `path`: `C:\work\uncooked`  (fichier ou dossier)
+3. **`import_raw`** — reimport the PNG into REDengine CR2W.
+   - `path`: `C:\work\uncooked`  (file or folder)
    - `outputPath`: `C:\work\cooked`
 
-   La structure de dossiers `base\...` doit être préservée (= le chemin de jeu de la
-   ressource).
+   The folder structure `base\...` must be preserved (= the game path of the
+   resource).
 
-4. **`pack_archive`** — empaqueter le dossier en `.archive` (compression Kraken).
+4. **`pack_archive`** — pack the folder into a `.archive` (Kraken compression).
    - `folderPath`: `C:\work\cooked`
    - `outputPath`: `C:\dist`
 
-5. **`install_mod`** — copier l'archive dans `<JEU>\archive\pc\mod\`.
+5. **`install_mod`** — copy the archive into `<GAME>\archive\pc\mod\`.
    - `archivePath`: `C:\dist\cooked.archive`
-   - `gamePath`: `<JEU>`
+   - `gamePath`: `<GAME>`
 
-**Vérification** : chaque étape renvoie un `produced` non vide (`uncook` → image,
-`import_raw` → CR2W, `pack_archive` → `.archive`) ; `install_mod` renvoie le chemin de
-destination dans `archive\pc\mod`. Confirmer avec **`list_installed_mods`** ou
-**`mod_summary`** sur l'archive produite.
+**Verification**: each step returns a non-empty `produced` (`uncook` → image,
+`import_raw` → CR2W, `pack_archive` → `.archive`); `install_mod` returns the destination
+path in `archive\pc\mod`. Confirm with **`list_installed_mods`** or
+**`mod_summary`** on the produced archive.
 
 ---
 
-## 7. Analyse d'un mod existant
+## 7. Analyzing an existing mod
 
-**Objectif** : comprendre ce qu'un mod fait, ses dépendances, où une cible est
-référencée, et ce qu'il change réellement par rapport au jeu de base.
+**Goal**: understand what a mod does, its dependencies, where a target is
+referenced, and what it actually changes relative to the base game.
 
-1. **`mod_summary`** — synthèse compacte (accepte un `.archive` OU un dossier REDmod).
+1. **`mod_summary`** — compact synthesis (accepts a `.archive` OR a REDmod folder).
    - `modPath`: `C:\mods\SomeMod\SomeMod.archive`
-     (ou `C:\mods\SomeRedmod` avec `info.json` à la racine)
+     (or `C:\mods\SomeRedmod` with `info.json` at the root)
 
-   Pour une archive : nombre de fichiers + répartition par extension. Pour un REDmod :
-   `info.json`, contenu de `archives/`/`scripts/`/`tweaks/`/`customSounds/`, clés
-   top-level des `.tweak` et déclarations des `.reds`.
+   For an archive: number of files + breakdown by extension. For a REDmod:
+   `info.json`, content of `archives/`/`scripts/`/`tweaks/`/`customSounds/`, top-level
+   keys of the `.tweak` and declarations of the `.reds`.
 
-2. **`analyze_dependencies`** — déduire les frameworks requis (redscript, RED4ext,
+2. **`analyze_dependencies`** — deduce the required frameworks (redscript, RED4ext,
    ArchiveXL, TweakXL, Codeware, Audioware, etc.).
    - `modPath`: `C:\mods\SomeRedmod`
-   - `gamePath` (optionnel) : `<JEU>` — indique pour chaque dépendance si elle est
-     `installé` ou `MANQUANT`.
+   - `gamePath` (optional): `<GAME>` — indicates for each dependency whether it is
+     `installed` or `MISSING`.
 
-3. **`find_references`** — trouver toutes les références textuelles à une cible dans les
-   sources du mod (`.reds`, `.tweak`, `.xl`, `.yaml`, `.lua`, `.json`, `.csv`).
+3. **`find_references`** — find all textual references to a target in the
+   mod's sources (`.reds`, `.tweak`, `.xl`, `.yaml`, `.lua`, `.json`, `.csv`).
    - `target`: `"Items.Preset_Lexington_Default"`
    - `searchFolder`: `C:\mods\SomeRedmod`
-   - `maxResults` (optionnel) : `200`
+   - `maxResults` (optional): `200`
 
-   *(Pour chercher dans les `.archive` du jeu, utiliser plutôt `find_in_archives`.)*
+   *(To search in the game's `.archive` files, use `find_in_archives` instead.)*
 
-4. **`diff_mod_vs_base`** — diff sémantique d'un fichier surchargé contre sa version de
-   base (champs ajoutés / supprimés / modifiés).
+4. **`diff_mod_vs_base`** — semantic diff of an overridden file against its base
+   version (fields added / removed / changed).
    - `modArchive`: `C:\mods\SomeMod\SomeMod.archive`
-   - `gameFilePath`: `base\path\to\fichier.app`
-   - `gamePath`: `<JEU>`  (localise la base dans `archive\pc\content`)
-   - `baseArchive` (optionnel) : archive de base précise pour court-circuiter la
-     recherche.
+   - `gameFilePath`: `base\path\to\file.app`
+   - `gamePath`: `<GAME>`  (locates the base in `archive\pc\content`)
+   - `baseArchive` (optional): a specific base archive to short-circuit the
+     search.
 
-**Vérification** : `mod_summary`/`analyze_dependencies` renvoient `status: "success"`
-(`"partial"` si dépendances manquantes) ; `find_references` renvoie un `matchCount` et la
-liste `matches` (fichier:ligne) ; `diff_mod_vs_base` résume `added`/`removed`/`changed`.
-Si `diff_mod_vs_base` ne trouve pas le fichier dans la base, c'est probablement un fichier
-**ajouté** par le mod (pas une surcharge).
-
----
-
-## Recette — Éditer le journal de quêtes/codex (`.journal`)
-
-Le journal (`base\journal\cooked_journal.journal`) est un CR2W standard, donc éditable
-via le pipeline générique — mais son JSON pèse **~70 Mo** (28 000+ entrées). On le
-navigue d'abord, puis on n'édite que l'entrée ciblée.
-
-**Objectif** : modifier une entrée précise (quête, contact, codex, e-mail…).
-
-1. **Localiser** : `find_in_archives` (`pattern: "*.journal"`,
-   `archivesFolder: <JEU>\archive\pc\content`) → `base\journal\cooked_journal.journal`
-   (dans `basegame_4_gamedata.archive`).
-2. **Extraire en JSON** : `read_game_file` (`archivePath` = l'archive,
-   `gameFilePath: base\journal\cooked_journal.journal`). Le contenu renvoyé est tronqué ;
-   noter le champ **`jsonFile`** (le JSON complet sur disque).
-3. **Cartographier** : `inspect_journal` (`jsonFile`) → total d'entrées, répartition par
-   `$type`, catégories de 1er niveau (`quests`, `codex`, `contacts`, `briefings`…).
-4. **Cibler** : `find_journal_entry` (`jsonFile`, `query`, `field` ∈ `id`|`type`|`title`).
-   Ex. `field:"id", query:"holofixer_used_1"` ou `field:"type", query:"gameJournalContact"`.
-   Renvoie le **chemin JSON exact** de chaque entrée
-   (ex. `Data.RootChunk.entry.Data.entries[3].Data.entries[1].Data`).
-5. **Éditer** le `jsonFile` à ce chemin (modifier les champs de l'entrée).
-6. **Réécrire** : `write_game_file` (`jsonFile`, `gameFilePath` identique,
-   `modArchiveFolder` = `source/archive` du projet) → CR2W reconstruit.
-7. **Empaqueter/installer** : `pack_archive` → `install_mod`.
-
-**Vérification** : `inspect_journal` confirme total/types ; le `.journal` CR2W produit par
-`write_game_file` est non vide (quelques Mo) ; `diff_mod_vs_base` confirme ce qui a changé.
+**Verification**: `mod_summary`/`analyze_dependencies` return `status: "success"`
+(`"partial"` if dependencies are missing); `find_references` returns a `matchCount` and the
+`matches` list (file:line); `diff_mod_vs_base` summarizes `added`/`removed`/`changed`.
+If `diff_mod_vs_base` does not find the file in the base, it is probably a file
+**added** by the mod (not an override).
 
 ---
 
-## Annexe — appels utiles transverses
+## Recipe — Editing the quest/codex journal (`.journal`)
 
-- **`wolvenkit_status`** : à appeler en premier (disponibilité du CLI + stats du cache).
-- **`detect_conflicts`** (`gamePath` = `<JEU>`) : repère deux mods fournissant le même
-  fichier de jeu.
-- **`lint_mod`** : lint global d'un dossier de mod.
-- **`package_mod`** (`sourceFolder` au layout jeu `archive/`, `r6/`, `mods/...` →
-  `outputZip`) : produit un `.zip` distribuable (Nexus / install manuel) avec séparateurs
-  `/`.
-- **`check_requirements`** (`gamePath` = `<JEU>`) : inventorie les frameworks installés.
+The journal (`base\journal\cooked_journal.journal`) is a standard CR2W, so editable
+via the generic pipeline — but its JSON weighs **~70 MB** (28,000+ entries). You
+navigate it first, then edit only the targeted entry.
+
+**Goal**: modify a specific entry (quest, contact, codex, e-mail…).
+
+1. **Locate**: `find_in_archives` (`pattern: "*.journal"`,
+   `archivesFolder: <GAME>\archive\pc\content`) → `base\journal\cooked_journal.journal`
+   (in `basegame_4_gamedata.archive`).
+2. **Extract to JSON**: `read_game_file` (`archivePath` = the archive,
+   `gameFilePath: base\journal\cooked_journal.journal`). The returned content is truncated;
+   note the **`jsonFile`** field (the full JSON on disk).
+3. **Map**: `inspect_journal` (`jsonFile`) → total entries, breakdown by
+   `$type`, top-level categories (`quests`, `codex`, `contacts`, `briefings`…).
+4. **Target**: `find_journal_entry` (`jsonFile`, `query`, `field` ∈ `id`|`type`|`title`).
+   E.g. `field:"id", query:"holofixer_used_1"` or `field:"type", query:"gameJournalContact"`.
+   Returns the **exact JSON path** of each entry
+   (e.g. `Data.RootChunk.entry.Data.entries[3].Data.entries[1].Data`).
+5. **Edit** the `jsonFile` at that path (modify the entry's fields).
+6. **Rewrite**: `write_game_file` (`jsonFile`, identical `gameFilePath`,
+   `modArchiveFolder` = the project's `source/archive`) → CR2W rebuilt.
+7. **Pack/install**: `pack_archive` → `install_mod`.
+
+**Verification**: `inspect_journal` confirms total/types; the CR2W `.journal` produced by
+`write_game_file` is non-empty (a few MB); `diff_mod_vs_base` confirms what changed.
+
+---
+
+## Appendix — useful cross-cutting calls
+
+- **`wolvenkit_status`**: to call first (CLI availability + cache stats).
+- **`detect_conflicts`** (`gamePath` = `<GAME>`): spots two mods providing the same
+  game file.
+- **`lint_mod`**: global lint of a mod folder.
+- **`package_mod`** (`sourceFolder` at the game layout `archive/`, `r6/`, `mods/...` →
+  `outputZip`): produces a distributable `.zip` (Nexus / manual install) with `/`
+  separators.
+- **`check_requirements`** (`gamePath` = `<GAME>`): inventories the installed frameworks.

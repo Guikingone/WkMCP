@@ -5,12 +5,12 @@ using Xunit;
 namespace WolvenKitMcp.Tests;
 
 /// <summary>
-/// Smoke test MCP de bout en bout, sans jeu ni cp77tools : lance le serveur stdio
-/// réellement compilé, fait le handshake initialize, puis pagine tools/list et
-/// vérifie que les ~120 outils s'enregistrent avec leurs annotations. C'est le
-/// test qui attrape une régression d'enregistrement par réflexion ou un paramètre
-/// que le SDK ne sait pas lier (l'erreur n'apparaîtrait sinon qu'au runtime chez
-/// l'utilisateur).
+/// End-to-end MCP smoke test, without game or cp77tools: launches the actually
+/// compiled stdio server, does the initialize handshake, then paginates tools/list and
+/// verifies that the ~120 tools register with their annotations. This is the
+/// test that catches a reflection-based registration regression or a parameter
+/// that the SDK cannot bind (the error would otherwise only appear at runtime on the
+/// user's machine).
 /// </summary>
 public class McpE2ETests : IDisposable
 {
@@ -24,7 +24,7 @@ public class McpE2ETests : IDisposable
         var config = baseDir.Parent!.Name;
         var src = baseDir.Parent!.Parent!.Parent!.Parent!;
         var serverDll = Path.Combine(src.FullName, "WolvenKitMcp", "bin", config, "net8.0", "WolvenKitMcp.dll");
-        Assert.True(File.Exists(serverDll), $"Serveur non compilé : {serverDll} (builder WolvenKitMcp d'abord)");
+        Assert.True(File.Exists(serverDll), $"Server not compiled: {serverDll} (build WolvenKitMcp first)");
 
         var psi = new ProcessStartInfo
         {
@@ -37,19 +37,19 @@ public class McpE2ETests : IDisposable
         };
         psi.ArgumentList.Add(serverDll);
         psi.Environment["WOLVENKIT_MCP_TRANSPORT"] = "stdio";
-        // Pas de daemon : le serveur doit démarrer et répondre à tools/list sans lui.
+        // No daemon: the server must start and answer tools/list without it.
         psi.Environment["WOLVENKIT_DAEMON"] = Path.Combine(Path.GetTempPath(), "inexistant-daemon.dll");
-        // Pas de port TCP partagé entre tests/sessions.
+        // No TCP port shared between tests/sessions.
         psi.Environment["CET_TRANSPORT"] = "file";
 
         _server = Process.Start(psi)!;
-        // Draine stderr (logs) pour ne pas bloquer le pipe.
+        // Drain stderr (logs) so as not to block the pipe.
         _ = Task.Run(async () => { while (await _server.StandardError.ReadLineAsync() is not null) { } });
     }
 
     public void Dispose()
     {
-        try { _server.Kill(entireProcessTree: true); } catch { /* déjà mort */ }
+        try { _server.Kill(entireProcessTree: true); } catch { /* already dead */ }
         _server.Dispose();
     }
 
@@ -61,13 +61,13 @@ public class McpE2ETests : IDisposable
         {
             var readTask = _server.StandardOutput.ReadLineAsync();
             var line = await readTask.WaitAsync(IoTimeout);
-            Assert.False(line is null, "Le serveur a fermé stdout prématurément.");
+            Assert.False(line is null, "The server closed stdout prematurely.");
             if (string.IsNullOrWhiteSpace(line)) continue;
             var doc = JsonDocument.Parse(line!);
             if (doc.RootElement.TryGetProperty("id", out var id)
                 && id.ValueKind == JsonValueKind.Number && id.GetInt32() == expectedId)
                 return doc;
-            doc.Dispose(); // notification ou autre réponse : on continue
+            doc.Dispose(); // notification or other response: continue
         }
     }
 
@@ -78,7 +78,7 @@ public class McpE2ETests : IDisposable
     }
 
     [Fact]
-    public async Task Handshake_puis_tools_list_complet()
+    public async Task Handshake_then_full_tools_list()
     {
         using var init = await RequestAsync(new
         {
@@ -98,7 +98,7 @@ public class McpE2ETests : IDisposable
 
         await NotifyAsync(new { jsonrpc = "2.0", method = "notifications/initialized" });
 
-        // tools/list est paginé : on accumule jusqu'à épuisement du curseur.
+        // tools/list is paginated: we accumulate until the cursor is exhausted.
         var tools = new Dictionary<string, JsonElement>();
         string? cursor = null;
         var id = 2;
@@ -115,23 +115,23 @@ public class McpE2ETests : IDisposable
             cursor = result.TryGetProperty("nextCursor", out var nc) ? nc.GetString() : null;
         } while (!string.IsNullOrEmpty(cursor));
 
-        // Le compte attendu vient du code lui-même (réflexion), pas d'une constante.
+        // The expected count comes from the code itself (reflection), not a constant.
         var expected = new[] { typeof(WolvenKitTools), typeof(ModdingTools), typeof(LiveTools) }
             .SelectMany(WolvenKitResources.ToolNames).ToHashSet(StringComparer.Ordinal);
-        Assert.True(expected.Count >= 123, $"compte d'outils suspect : {expected.Count}");
+        Assert.True(expected.Count >= 123, $"suspicious tool count: {expected.Count}");
         var missing = expected.Where(n => !tools.ContainsKey(n)).ToList();
         Assert.True(missing.Count == 0,
-            $"Outils non exposés par tools/list : {string.Join(", ", missing)}");
+            $"Tools not exposed by tools/list: {string.Join(", ", missing)}");
 
-        // Les annotations doivent traverser le protocole.
+        // The annotations must travel through the protocol.
         var find = tools["find_in_archives"];
         Assert.True(find.TryGetProperty("annotations", out var ann),
-            "find_in_archives sans annotations dans tools/list");
+            "find_in_archives without annotations in tools/list");
         Assert.True(ann.GetProperty("readOnlyHint").GetBoolean());
         var uninstall = tools["uninstall_mod"].GetProperty("annotations");
         Assert.True(uninstall.GetProperty("destructiveHint").GetBoolean());
 
-        // Le paramètre IProgress des outils longs ne doit PAS fuir dans l'inputSchema.
+        // The IProgress parameter of long-running tools must NOT leak into the inputSchema.
         var uncookSchema = tools["uncook"].GetProperty("inputSchema").GetRawText();
         Assert.DoesNotContain("progress", uncookSchema, StringComparison.OrdinalIgnoreCase);
     }

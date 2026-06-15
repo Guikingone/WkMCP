@@ -7,23 +7,23 @@ using Microsoft.AspNetCore.Http;
 namespace WolvenKitMcp;
 
 /// <summary>
-/// Garde-fous du mode HTTP (opt-in). Le serveur écrit des fichiers de jeu, installe des mods
-/// et exécute du Lua dans le jeu vivant (outils <c>live_*</c>) : l'exposer en réseau est une
-/// surface RCE. D'où : <b>bind loopback par défaut</b> + <b>bearer token</b> + <b>fail-closed</b>
-/// (refus de démarrer si bind non-loopback sans token). TLS = via reverse proxy.
+/// HTTP mode safeguards (opt-in). The server writes game files, installs mods
+/// and runs Lua in the live game (<c>live_*</c> tools): exposing it on the network is an
+/// RCE surface. Hence: <b>loopback bind by default</b> + <b>bearer token</b> + <b>fail-closed</b>
+/// (refuses to start if bind is non-loopback without a token). TLS = via reverse proxy.
 ///
-/// Les helpers <see cref="IsLoopback"/> / <see cref="CheckStartup"/> / <see cref="TokenEquals"/>
-/// sont purs et testés (cf. HttpBridgeSecurityTests).
+/// The <see cref="IsLoopback"/> / <see cref="CheckStartup"/> / <see cref="TokenEquals"/> helpers
+/// are pure and tested (see HttpBridgeSecurityTests).
 /// </summary>
 internal static class HttpBridgeSecurity
 {
     internal const string TransportEnv = "WOLVENKIT_MCP_TRANSPORT"; // stdio | http
     internal const string UrlEnv = "WOLVENKIT_MCP_HTTP_URL";        // ex. http://127.0.0.1:3001
-    internal const string TokenEnv = "WOLVENKIT_MCP_HTTP_TOKEN";    // bearer token (recommandé)
+    internal const string TokenEnv = "WOLVENKIT_MCP_HTTP_TOKEN";    // bearer token (recommended)
     internal const string DefaultUrl = "http://127.0.0.1:3001";
 
-    /// <summary>Vrai si l'URL bind sur une interface loopback (127.0.0.0/8, ::1, localhost).
-    /// Tout le reste (0.0.0.0, *, +, IP publique, nom DNS) est considéré NON-loopback.</summary>
+    /// <summary>True if the URL binds to a loopback interface (127.0.0.0/8, ::1, localhost).
+    /// Everything else (0.0.0.0, *, +, public IP, DNS name) is considered NON-loopback.</summary>
     internal static bool IsLoopback(string? url)
     {
         if (string.IsNullOrWhiteSpace(url)) return false;
@@ -36,18 +36,18 @@ internal static class HttpBridgeSecurity
         return IPAddress.TryParse(host.Trim('[', ']'), out var ip) && IPAddress.IsLoopback(ip);
     }
 
-    /// <summary>Règle fail-closed appliquée au démarrage du mode HTTP.</summary>
+    /// <summary>Fail-closed rule applied at HTTP mode startup.</summary>
     internal static (bool ok, string? error) CheckStartup(string url, string? token)
     {
         bool hasToken = !string.IsNullOrWhiteSpace(token);
         if (!IsLoopback(url) && !hasToken)
             return (false,
-                $"Refus de démarrer en HTTP : bind non-loopback ({url}) SANS {TokenEnv}. " +
-                "Définis un token (et place du TLS devant, ex. reverse proxy), ou bind sur 127.0.0.1.");
+                $"Refusing to start in HTTP: non-loopback bind ({url}) WITHOUT {TokenEnv}. " +
+                "Set a token (and put TLS in front, e.g. a reverse proxy), or bind to 127.0.0.1.");
         return (true, null);
     }
 
-    /// <summary>Comparaison à temps constant (via SHA-256, longueur fixe) de deux tokens.</summary>
+    /// <summary>Constant-time comparison (via SHA-256, fixed length) of two tokens.</summary>
     internal static bool TokenEquals(string? provided, string? expected)
     {
         if (string.IsNullOrEmpty(provided) || string.IsNullOrEmpty(expected)) return false;
@@ -58,11 +58,11 @@ internal static class HttpBridgeSecurity
         return CryptographicOperations.FixedTimeEquals(hp, he);
     }
 
-    /// <summary>Middleware bearer. Sans token configuré : no-op (dev loopback). Avec token :
-    /// exige <c>Authorization: Bearer &lt;token&gt;</c>, sinon 401.</summary>
+    /// <summary>Bearer middleware. Without a configured token: no-op (dev loopback). With a token:
+    /// requires <c>Authorization: Bearer &lt;token&gt;</c>, otherwise 401.</summary>
     internal static void UseWolvenKitBearerAuth(this WebApplication app, string? token)
     {
-        if (string.IsNullOrWhiteSpace(token)) return; // pas d'auth configurée
+        if (string.IsNullOrWhiteSpace(token)) return; // no auth configured
 
         app.Use(async (context, next) =>
         {
@@ -76,7 +76,7 @@ internal static class HttpBridgeSecurity
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Headers["WWW-Authenticate"] = "Bearer";
-                await context.Response.WriteAsync("401 Unauthorized — bearer token requis.");
+                await context.Response.WriteAsync("401 Unauthorized — bearer token required.");
                 return;
             }
             await next();

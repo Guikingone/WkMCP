@@ -1,82 +1,82 @@
-# Reprise de session — WolvenKit MCP
+# Session handoff — WolvenKit MCP
 
-Serveur MCP C#/.NET 8 pour le modding de Cyberpunk 2077 : **123 outils**
-(63 de base + 25 workflow + 35 live in-game), **8 prompts**, **4 ressources**.
-Historique complet des évolutions dans `CHANGELOG.md` (0.1.0 → 0.4.0,
-12 rounds + chantier qualité + finalisation 0.4.0 du 15/06/2026).
+C#/.NET 8 MCP server for Cyberpunk 2077 modding: **123 tools**
+(63 base + 25 workflow + 35 live in-game), **8 prompts**, **4 resources**.
+Full history of the evolutions in `CHANGELOG.md` (0.1.0 → 0.4.0,
+12 rounds + quality work + 0.4.0 finalization of 2026-06-15).
 
-**Pour reprendre :** ouvre Claude (Code ou Desktop) dans le dossier
-`wolvenkit-mcp/` et donne-lui ce fichier.
+**To resume:** open Claude (Code or Desktop) in the `wolvenkit-mcp/` folder
+and hand it this file.
 
 ---
 
-## Pour Claude — contexte de reprise
+## For Claude — resumption context
 
-Tu reprends ce projet. Lis ce fichier, puis `CHANGELOG.md` (état réel le plus
-fiable), `README.md` et `docs/ARCHITECTURE.md`. La validation jeu-réel la plus
-récente est tracée dans `WINDOWS-VALIDATION.md` ; les tests automatiques (129,
-dont un smoke test MCP E2E sans jeu) sont dans `src/WolvenKitMcp.Tests`.
+You are resuming this project. Read this file, then `CHANGELOG.md` (the most
+reliable real state), `README.md` and `docs/ARCHITECTURE.md`. The most recent
+real-game validation is tracked in `WINDOWS-VALIDATION.md`; the automatic tests
+(129, including an MCP E2E smoke test without the game) are in
+`src/WolvenKitMcp.Tests`.
 
-## Le projet en bref
+## The project in brief
 
-- **`src/WolvenKitMcp/`** — le serveur MCP. Transports stdio (défaut) et
+- **`src/WolvenKitMcp/`** — the MCP server. stdio (default) and
   HTTP/Streamable (`WOLVENKIT_MCP_TRANSPORT=http`, fail-closed, cf.
-  `docs/HTTP_TRANSPORT.md`). Outils/prompts/ressources enregistrés par réflexion.
-  Les 123 outils portent des tool annotations (ReadOnly/Destructive/Idempotent) ;
-  les outils longs remontent de la progression MCP.
-- **`src/WolvenKitDaemon/`** — daemon persistant hébergeant les bibliothèques
-  WolvenKit 8.18.0 (HashService chargé une fois ~6 s, puis requêtes en ms).
-  IPC stdio JSON pipeliné (`{"id":N,"argv":[...]}` → réponse + messages
-  `{"id":N,"progress":"…"}`), verbe `ping` hors sérialisation pour le watchdog.
-- **`Cp77ToolsRunner.cs`** — pilote le daemon : cache LRU des listings
-  (mtime+taille), timeouts d'inactivité par verbe, watchdog, repli sous-processus
-  `cp77tools`, purge des dossiers temp au démarrage.
-- **`CetBridge.cs` + `live-bridge/CETBridge/`** — pont live vers le jeu en cours
-  (mod Lua CET, TCP 127.0.0.1:27010 + repli fichier via FileSystemWatcher).
-- **`native/`** — reconstruction kraken pour macOS uniquement (inutile sur Windows).
+  `docs/HTTP_TRANSPORT.md`) transports. Tools/prompts/resources registered by reflection.
+  The 123 tools carry tool annotations (ReadOnly/Destructive/Idempotent);
+  long tools report MCP progress.
+- **`src/WolvenKitDaemon/`** — persistent daemon hosting the WolvenKit
+  8.18.0 libraries (HashService loaded once ~6 s, then requests in ms).
+  Pipelined JSON stdio IPC (`{"id":N,"argv":[...]}` → response + `{"id":N,"progress":"…"}`
+  messages), `ping` verb out of serialization for the watchdog.
+- **`Cp77ToolsRunner.cs`** — drives the daemon: LRU cache of listings
+  (mtime+size), per-verb idle timeouts, watchdog, `cp77tools` subprocess
+  fallback, purge of temp folders at startup.
+- **`CetBridge.cs` + `live-bridge/CETBridge/`** — live bridge to the running game
+  (CET Lua mod, TCP 127.0.0.1:27010 + file fallback via FileSystemWatcher).
+- **`native/`** — kraken rebuild for macOS only (unnecessary on Windows).
 
-## Pièges connus (savoir durement acquis — ne pas redécouvrir)
+## Known pitfalls (hard-won knowledge — do not rediscover)
 
-1. **Builder/tester en `-c Release`** : une instance serveur qui tourne verrouille
-   la DLL Debug.
-2. **Le daemon a besoin de `kraken.dll` et `DirectXTexNet.dll`** — déployées par
-   la cible `DeployNativeWindows` du csproj + résolveur `AssemblyLoadContext`.
-3. **cp77tools renvoie parfois un exit ≠ 0 en cas de succès** (ex. `oodle`) :
-   `Format()` se fie aux marqueurs `: Success` / `: Error` du log.
-4. `WolvenKit.CLI` a son host en `internal` → le daemon reconstruit le conteneur
-   DI à partir des types publics des bibliothèques.
-5. Le **1ᵉʳ appel** d'une session attend le préchauffage du daemon (~7 s).
-6. `resolve_hash` et `tweakdb_*` ne marchent **que via le daemon** (pas de repli).
-7. **`export_entity` reste expérimental** : `IModTools.ExportEntity` refuse en
-   headless sur les entités NPC (le GUI fait un setup non documenté).
-8. Les prompts et `wolvenkit://reference` citent des outils par nom : le test
-   `ConsistencyTests` casse si un outil est renommé — c'est voulu. La référence
-   est générée par réflexion, ne pas réintroduire de comptes en dur.
-9. `build-mcpb.ps1` doit garder son **BOM UTF-8** (Windows PowerShell 5.1 ne parse
-   pas l'UTF-8 accentué sans BOM ; la CI utilise pwsh qui s'en moque).
+1. **Build/test in `-c Release`**: a running server instance locks the Debug DLL.
+2. **The daemon needs `kraken.dll` and `DirectXTexNet.dll`** — deployed by the
+   `DeployNativeWindows` target of the csproj + `AssemblyLoadContext` resolver.
+3. **cp77tools sometimes returns a non-zero exit on success** (e.g. `oodle`):
+   `Format()` relies on the `: Success` / `: Error` markers of the log.
+4. `WolvenKit.CLI` has its host as `internal` → the daemon rebuilds the
+   DI container from the public types of the libraries.
+5. The **1st call** of a session waits for the daemon warm-up (~7 s).
+6. `resolve_hash` and `tweakdb_*` work **only via the daemon** (no fallback).
+7. **`export_entity` remains experimental**: `IModTools.ExportEntity` refuses in
+   headless mode on NPC entities (the GUI does an undocumented setup).
+8. The prompts and `wolvenkit://reference` cite tools by name: the `ConsistencyTests`
+   test breaks if a tool is renamed — that is intentional. The reference
+   is generated by reflection, do not reintroduce hardcoded counts.
+9. `build-mcpb.ps1` must keep its **UTF-8 BOM** (Windows PowerShell 5.1 does not
+   parse accented UTF-8 without a BOM; CI uses pwsh which doesn't care).
 
-## Vérifications rapides
+## Quick checks
 
 ```powershell
-dotnet build src/WolvenKitDaemon -c Release   # daemon d'abord (binaires natifs)
+dotnet build src/WolvenKitDaemon -c Release   # daemon first (native binaries)
 dotnet build src/WolvenKitMcp -c Release
-dotnet test  src/WolvenKitMcp.Tests -c Release   # 129 tests, dont E2E MCP
+dotnet test  src/WolvenKitMcp.Tests -c Release   # 129 tests, including MCP E2E
 ./build-mcpb.ps1 -Configuration Release          # bundle dist/wolvenkit-mcp.mcpb
-python validate-windows.py                       # validation jeu réel (longue)
+python validate-windows.py                       # real-game validation (long)
 ```
 
-## Pistes restantes (non bloquantes)
+## Remaining work (non-blocking)
 
-- `structuredContent`/outputSchema : écarté tant que le coût en tokens (réponse
-  dupliquée) dépasse le gain client — réévaluer si les clients exploitent
-  `structuredContent` nativement.
-- Validation live des outils `live_*` : nécessite le jeu lancé
-  (`test-live-bridge.py`, manuel).
-- macOS : re-validation périodique (le gros des binaires natifs est Windows).
+- `structuredContent`/outputSchema: set aside as long as the token cost
+  (duplicated response) exceeds the client gain — reassess if clients exploit
+  `structuredContent` natively.
+- Live validation of the `live_*` tools: requires the game running
+  (`test-live-bridge.py`, manual).
+- macOS: periodic re-validation (the bulk of the native binaries is Windows).
 
-## Toolchain de référence
+## Reference toolchain
 
 .NET 8 ; `ModelContextProtocol` 1.4.0 (+ AspNetCore) ; `WolvenKit.Modkit` 8.18.0 ;
-`YamlDotNet` 16.3.0 ; `cp77tools` = WolvenKit.CLI 8.18.0 (repli).
+`YamlDotNet` 16.3.0 ; `cp77tools` = WolvenKit.CLI 8.18.0 (fallback).
 
-*Handoff mis à jour le 2026-06-10 (chantier qualité 0.3.0 — voir CHANGELOG.md).*
+*Handoff updated on 2026-06-10 (0.3.0 quality work — see CHANGELOG.md).*

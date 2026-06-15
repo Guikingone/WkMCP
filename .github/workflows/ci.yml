@@ -19,24 +19,24 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      # Le daemon doit être compilé en premier : son build déploie les binaires
-      # natifs Windows (kraken.dll, DirectXTexNet.dll, opus-tools).
+      # The daemon must be compiled first: its build deploys the Windows native
+      # binaries (kraken.dll, DirectXTexNet.dll, opus-tools).
       - name: Build daemon
         run: dotnet build src/WolvenKitDaemon -c Release --nologo
 
-      - name: Build serveur MCP
+      - name: Build MCP server
         run: dotnet build src/WolvenKitMcp -c Release --nologo
 
-      - name: Tests unitaires
+      - name: Unit tests
         run: dotnet test src/WolvenKitMcp.Tests -c Release --nologo --verbosity normal
 
-      # Vérifie que le bundle d'extension Desktop se construit sans erreur.
+      # Checks that the Desktop Extension bundle builds without error.
       - name: Build .mcpb
         run: pwsh ./build-mcpb.ps1 -Configuration Release
 
-      # Un bundle qui se construit n'est pas forcément un bundle valide : on le
-      # dézippe et on vérifie manifest + entry points + binaires natifs + mod Lua.
-      - name: Valider le bundle .mcpb
+      # A bundle that builds is not necessarily a valid bundle: we unzip it
+      # and verify manifest + entry points + native binaries + Lua mod.
+      - name: Validate the .mcpb bundle
         shell: pwsh
         run: |
           $zip  = "dist/wolvenkit-mcp.mcpb"
@@ -44,8 +44,8 @@ jobs:
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           [System.IO.Compression.ZipFile]::ExtractToDirectory((Resolve-Path $zip), $dest)
           $manifest = Get-Content "$dest/manifest.json" -Raw | ConvertFrom-Json
-          if (-not $manifest.name)    { throw "manifest.json : champ name absent" }
-          if (-not $manifest.version) { throw "manifest.json : champ version absent" }
+          if (-not $manifest.name)    { throw "manifest.json: name field missing" }
+          if (-not $manifest.version) { throw "manifest.json: version field missing" }
           $required = @(
             $manifest.server.entry_point,
             "daemon/WolvenKitDaemon.dll",
@@ -53,10 +53,10 @@ jobs:
             "live-bridge/CETBridge/init.lua"
           )
           foreach ($p in $required) {
-            if (-not (Test-Path (Join-Path $dest $p))) { throw "manquant dans le bundle : $p" }
+            if (-not (Test-Path (Join-Path $dest $p))) { throw "missing from the bundle: $p" }
           }
           $sizeMb = [Math]::Round((Get-Item $zip).Length / 1MB, 1)
-          Write-Host "Bundle valide : v$($manifest.version), $sizeMb Mo"
+          Write-Host "Valid bundle: v$($manifest.version), $sizeMb MB"
 
       - name: Upload .mcpb
         uses: actions/upload-artifact@v4
