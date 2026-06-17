@@ -18,15 +18,15 @@ public class TruncateTests
     [Fact]
     public void LongMultilineKeepsHeadAndTail()
     {
-        var lines = Enumerable.Range(1, 100).Select(i => $"ligne de log numéro {i}");
+        var lines = Enumerable.Range(1, 100).Select(i => $"application diagnostic log line number {i}");
         var input = string.Join("\n", lines);
-        // max assez grand pour conserver le format en sections (tête + milieu omis + queue).
+        // max large enough to keep the sectioned format (head + omitted middle + tail).
         var result = WolvenKitTools.Truncate(input, 2000);
 
-        Assert.True(result.Length < input.Length); // réellement tronqué
-        Assert.Contains("ligne de log numéro 1", result);   // tête préservée
-        Assert.Contains("ligne de log numéro 100", result); // queue préservée
-        Assert.Contains("omises", result);                  // marqueur de section omise
+        Assert.True(result.Length < input.Length); // actually truncated
+        Assert.Contains("application diagnostic log line number 1", result);   // head preserved
+        Assert.Contains("application diagnostic log line number 100", result); // tail preserved
+        Assert.Contains("omitted", result);              // omitted-section marker
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class TruncateTests
             .Select(i => i == 50 ? "[ 2026 : Error ] boom" : $"ligne {i}");
         var input = string.Join("\n", lines);
         var result = WolvenKitTools.Truncate(input, 500);
-        Assert.Contains("boom", result); // l'erreur au milieu est conservée
+        Assert.Contains("boom", result); // the error in the middle is kept
     }
 }
 
@@ -59,7 +59,7 @@ public class CpmodprojTests
     {
         var xml = WolvenKitTools.BuildCpmodprojXml("MyMod", author: "Me",
             version: "2.1.0", description: "desc");
-        var doc = XDocument.Parse(xml); // lève si mal formé
+        var doc = XDocument.Parse(xml); // throws if malformed
 
         Assert.Equal("CP77Mod", doc.Root!.Name.LocalName);
         Assert.Equal("MyMod", doc.Root.Element("Name")!.Value);
@@ -80,7 +80,7 @@ public class CpmodprojTests
     public void EscapesSpecialCharacters()
     {
         var xml = WolvenKitTools.BuildCpmodprojXml("A & B <mod>", null, null, "d\"e");
-        var doc = XDocument.Parse(xml); // ne doit pas casser le XML
+        var doc = XDocument.Parse(xml); // must not break the XML
         Assert.Equal("A & B <mod>", doc.Root!.Element("Name")!.Value);
     }
 }
@@ -132,7 +132,7 @@ public class ScriptLintTests
     {
         const string src = "@addMethod()\nfunc Extra() {\n}\n";
         var issues = WolvenKitTools.LintScriptSemantics(src);
-        Assert.Contains(issues, i => i.Contains("classe cible"));
+        Assert.Contains(issues, i => i.Contains("target class"));
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class ScriptLintTests
     {
         const string src = "func Dup() {\n}\nfunc Dup() {\n}\n";
         var issues = WolvenKitTools.LintScriptSemantics(src);
-        Assert.Contains(issues, i => i.Contains("Dup") && i.Contains("2 fois"));
+        Assert.Contains(issues, i => i.Contains("Dup") && i.Contains("2 times"));
     }
 
     [Fact]
@@ -162,10 +162,10 @@ public class RedscriptParserTests
     [Fact]
     public void AcceptsRealisticRedscript()
     {
-        // Couvre : module, import annoté @if, classe abstraite + extends, champs
-        // (dont type tableau [T] et dimensionné [T; N]), func native sans corps,
-        // func à corps-expression « = », if/while/for/switch sans parenthèses,
-        // chaîne interpolée s"\(...)" avec guillemets imbriqués, mots-clés contextuels.
+        // Covers: module, @if-annotated import, abstract class + extends, fields
+        // (including array type [T] and sized [T; N]), native func without body,
+        // expression-body func "=", if/while/for/switch without parentheses,
+        // interpolated string s"\(...)" with nested quotes, contextual keywords.
         const string src = @"
 module My.Mod
 @if(ModuleExists(""Other""))
@@ -203,13 +203,13 @@ enum Color { Red = 0, Green = 1, Blue, }
     }
 
     [Theory]
-    [InlineData("func F() { let x = 1;")]                       // accolade non fermée
-    [InlineData("func F() -> Int32 { return (1 + 2; }")]        // parenthèse non fermée
-    [InlineData("class { }")]                                   // nom de classe manquant
-    [InlineData("func F() { let x = \"unterminated; }")]        // chaîne non terminée
-    [InlineData("func F( -> Int32 { }")]                        // signature mal formée
+    [InlineData("func F() { let x = 1;")]                       // unclosed brace
+    [InlineData("func F() -> Int32 { return (1 + 2; }")]        // unclosed parenthesis
+    [InlineData("class { }")]                                   // missing class name
+    [InlineData("func F() { let x = \"unterminated; }")]        // unterminated string
+    [InlineData("func F( -> Int32 { }")]                        // malformed signature
     public void DetectsSyntaxErrors(string src)
-        => Assert.True(ErrorCount(src) > 0, $"erreur attendue pour : {src}");
+        => Assert.True(ErrorCount(src) > 0, $"error expected for: {src}");
 
     [Fact]
     public void ExtractsModuleAndDeclarations()
@@ -235,7 +235,7 @@ public class JsonDiffTests
     [Fact]
     public void IdenticalContentWithDifferingHeaderHasNoDiff()
     {
-        // Le $.Header (chemin d'extraction, horodatage) doit être ignoré.
+        // The $.Header (extraction path, timestamp) must be ignored.
         const string b = "{\"Header\":{\"ArchiveFileName\":\"/tmp/a\",\"ExportedDateTime\":\"t1\"},\"Data\":{\"x\":1}}";
         const string m = "{\"Header\":{\"ArchiveFileName\":\"/tmp/b\",\"ExportedDateTime\":\"t2\"},\"Data\":{\"x\":1}}";
         var (added, removed, changed) = ModdingTools.DiffJson(b, m);
@@ -258,8 +258,8 @@ public class JsonDiffTests
 
 public class JournalTests
 {
-    // Mini-journal reproduisant la structure réelle (gameJournalResource -> dossier
-    // racine -> dossiers de 1er niveau -> entrées feuilles).
+    // Mini-journal reproducing the real structure (gameJournalResource -> root
+    // folder -> first-level folders -> leaf entries).
     private const string Journal = @"{
       ""Data"": { ""RootChunk"": {
         ""$type"": ""gameJournalResource"",
@@ -285,7 +285,7 @@ public class JournalTests
         using var doc = JsonDocument.Parse(Journal);
         var s = ModdingTools.SummarizeJournal(doc.RootElement);
         Assert.NotNull(s);
-        Assert.Equal(6, s!.TotalEntries);          // racine + 2 dossiers + 3 feuilles
+        Assert.Equal(6, s!.TotalEntries);          // root + 2 folders + 3 leaves
         Assert.Equal(2, s.MaxDepth);
         Assert.Equal(2, s.ByType["gameJournalQuest"]);
         Assert.Contains(s.TopLevel, e => e.Id == "quests" && e.ChildCount == 2);
@@ -434,7 +434,7 @@ public class TweakLintTests
     public void TabIndentIsError()
     {
         var (errors, _) = ModdingTools.LintTweakText(new[] { "Items.Foo:", "\tmagazineCapacity: 24" });
-        Assert.Contains(errors, e => e.Contains("TABULATION"));
+        Assert.Contains(errors, e => e.Contains("TAB"));
     }
 
     [Fact]
@@ -448,7 +448,7 @@ public class TweakLintTests
             "  damage: 5",
         });
         Assert.Contains(warnings, w => w.Contains("inline"));
-        Assert.Contains(warnings, w => w.Contains("Items.Foo") && w.Contains("2 fois"));
+        Assert.Contains(warnings, w => w.Contains("Items.Foo") && w.Contains("2 times"));
     }
 
     [Fact]

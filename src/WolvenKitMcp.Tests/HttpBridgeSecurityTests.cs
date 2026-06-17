@@ -3,16 +3,16 @@ using Xunit;
 
 namespace WolvenKitMcp.Tests;
 
-/// <summary>Garde-fous du mode HTTP : classification loopback, règle fail-closed, compare token.</summary>
+/// <summary>HTTP mode safeguards: loopback classification, fail-closed rule, token compare.</summary>
 public class HttpBridgeSecurityTests
 {
     [Theory]
     [InlineData("http://127.0.0.1:3001", true)]
     [InlineData("http://localhost:3001", true)]
     [InlineData("http://[::1]:3001", true)]
-    [InlineData("http://127.0.0.5:80", true)]   // tout 127.0.0.0/8 est loopback
-    [InlineData("127.0.0.1:3001", true)]        // sans schéma
-    [InlineData("http://0.0.0.0:3001", false)]  // toutes interfaces
+    [InlineData("http://127.0.0.5:80", true)]   // all of 127.0.0.0/8 is loopback
+    [InlineData("127.0.0.1:3001", true)]        // without scheme
+    [InlineData("http://0.0.0.0:3001", false)]  // all interfaces
     [InlineData("http://192.168.1.10:3001", false)]
     [InlineData("http://example.com:3001", false)]
     [InlineData("http://+:3001", false)]
@@ -38,10 +38,10 @@ public class HttpBridgeSecurityTests
 
     [Theory]
     [InlineData("secret", "secret", true)]
-    [InlineData("secret", "secreT", false)]   // sensible à la casse
+    [InlineData("secret", "secreT", false)]   // case-sensitive
     [InlineData("secret", "", false)]
     [InlineData("", "secret", false)]
-    [InlineData("a", "aa", false)]            // longueurs différentes
+    [InlineData("a", "aa", false)]            // different lengths
     public void TokenEquals_compares(string provided, string expected, bool result)
         => Assert.Equal(result, HttpBridgeSecurity.TokenEquals(provided, expected));
 }

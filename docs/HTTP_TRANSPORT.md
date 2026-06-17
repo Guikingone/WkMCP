@@ -1,62 +1,62 @@
-# Transport HTTP (accès distant)
+# HTTP transport (remote access)
 
-Par défaut, `WolvenKitMcp` parle **stdio** (pour Claude Desktop/Code en local). Le **même
-binaire** peut aussi servir le MCP en **HTTP/Streamable** (pour un accès distant ou un client
-web), via `ModelContextProtocol.AspNetCore`. C'est **opt-in** et **sécurisé par défaut**.
+By default, `WolvenKitMcp` speaks **stdio** (for local Claude Desktop/Code). The **same
+binary** can also serve MCP over **HTTP/Streamable** (for remote access or a web
+client), via `ModelContextProtocol.AspNetCore`. This is **opt-in** and **secure by default**.
 
-## Choix du transport (variable d'env)
+## Transport selection (env variable)
 
-| Variable | Défaut | Rôle |
+| Variable | Default | Role |
 |---|---|---|
-| `WOLVENKIT_MCP_TRANSPORT` | `stdio` | `stdio` ou `http`. |
-| `WOLVENKIT_MCP_HTTP_URL` | `http://127.0.0.1:3001` | Adresse de bind du serveur HTTP. |
-| `WOLVENKIT_MCP_HTTP_TOKEN` | — | Bearer token exigé sur les requêtes (fortement recommandé). |
+| `WOLVENKIT_MCP_TRANSPORT` | `stdio` | `stdio` or `http`. |
+| `WOLVENKIT_MCP_HTTP_URL` | `http://127.0.0.1:3001` | Bind address of the HTTP server. |
+| `WOLVENKIT_MCP_HTTP_TOKEN` | — | Bearer token required on requests (strongly recommended). |
 
-Endpoint MCP : **`/`** (Streamable HTTP, mode *stateless*). Le daemon WolvenKit, les 123 outils
-et le pont live `CetBridge` sont identiques en stdio et en HTTP.
+MCP endpoint: **`/`** (Streamable HTTP, *stateless* mode). The WolvenKit daemon, the 123 tools
+and the `CetBridge` live bridge are identical in stdio and in HTTP.
 
-## Lancer en HTTP (local)
+## Launch over HTTP (local)
 
 ```powershell
 $env:WOLVENKIT_MCP_TRANSPORT = "http"
 $env:WOLVENKIT_MCP_HTTP_URL   = "http://127.0.0.1:3001"
-$env:WOLVENKIT_MCP_HTTP_TOKEN = "un-secret-long-et-aléatoire"
+$env:WOLVENKIT_MCP_HTTP_TOKEN = "a-long-random-secret"
 dotnet src\WolvenKitMcp\bin\Release\net8.0\WolvenKitMcp.dll
 ```
 
-Brancher Claude Code dessus :
+Connect Claude Code to it:
 
 ```bash
 claude mcp add --transport http wolvenkit http://127.0.0.1:3001 \
-  --header "Authorization: Bearer un-secret-long-et-aléatoire"
+  --header "Authorization: Bearer a-long-random-secret"
 ```
 
-Vérifier au curl (handshake `initialize`) :
+Verify with curl (`initialize` handshake):
 
 ```bash
-# sans token -> 401
+# without token -> 401
 curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:3001/ \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
   --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}'
-# avec token -> 200 + serverInfo
-curl ... -H "Authorization: Bearer un-secret-long-et-aléatoire" ...
+# with token -> 200 + serverInfo
+curl ... -H "Authorization: Bearer a-long-random-secret" ...
 ```
 
-## Sécurité — à lire avant d'exposer (sans détour)
+## Security — read before exposing (no beating around the bush)
 
-Ce serveur **écrit des fichiers de jeu, installe/désinstalle des mods, et exécute du Lua
-arbitraire dans le jeu vivant** (`live_execute_lua`, etc.). L'exposer en réseau = **surface RCE**
-sur la machine **et** le jeu. Règles appliquées par le serveur :
+This server **writes game files, installs/uninstalls mods, and executes arbitrary Lua
+in the live game** (`live_execute_lua`, etc.). Exposing it on the network = **RCE surface**
+on the machine **and** the game. Rules enforced by the server:
 
-- **Bind `127.0.0.1` par défaut.** L'exposition réseau est un choix explicite.
-- **Bearer token** (`WOLVENKIT_MCP_HTTP_TOKEN`) : middleware → `401` sans `Authorization: Bearer`.
-- **Fail-closed** : bind **non-loopback** (ex. `0.0.0.0`) **sans** token → le serveur **refuse de
-  démarrer**. (Loopback sans token = autorisé pour le dev, mais averti.)
-- **TLS = non géré en interne.** Pour le distant, place un **reverse proxy TLS** devant.
+- **Bind `127.0.0.1` by default.** Network exposure is an explicit choice.
+- **Bearer token** (`WOLVENKIT_MCP_HTTP_TOKEN`): middleware → `401` without `Authorization: Bearer`.
+- **Fail-closed**: a **non-loopback** bind (e.g. `0.0.0.0`) **without** a token → the server **refuses
+  to start**. (Loopback without a token = allowed for dev, but with a warning.)
+- **TLS = not handled internally.** For remote access, place a **TLS reverse proxy** in front.
 
-### Accès distant recommandé : reverse proxy TLS, serveur en loopback
+### Recommended remote access: TLS reverse proxy, server on loopback
 
-Garde le serveur sur `127.0.0.1` et laisse le proxy terminer le TLS et router. Exemple Caddy :
+Keep the server on `127.0.0.1` and let the proxy terminate TLS and route. Caddy example:
 
 ```
 wolvenkit.example.com {
@@ -64,15 +64,15 @@ wolvenkit.example.com {
 }
 ```
 
-⚠ **Important** : derrière un proxy, le serveur bind en loopback → le *fail-closed* ne **force**
-pas le token. **Définis quand même `WOLVENKIT_MCP_HTTP_TOKEN`** : sinon le proxy expose un MCP
-non authentifié à Internet. Limite aussi l'accès réseau (firewall/ACL/VPN) tant que possible.
+⚠ **Important**: behind a proxy, the server binds in loopback → the *fail-closed* does **not**
+force the token. **Set `WOLVENKIT_MCP_HTTP_TOKEN` anyway**: otherwise the proxy exposes an
+unauthenticated MCP to the Internet. Also restrict network access (firewall/ACL/VPN) as much as possible.
 
 ## Notes
 
-- Le bundle `.mcpb` (extension desktop) reste **stdio**. Le mode HTTP se lance à la main ou en
-  service (NSSM/Windows Service, systemd, supervisor) avec les variables d'env ci-dessus.
-- Mode **stateless** : pas de session côté serveur (le serveur ne pousse pas de notifications) —
-  simple et compatible reverse proxy / load-balancer.
-- OAuth : le SDK fournit aussi un handler OAuth (Protected Resource Metadata) si un fournisseur
-  d'identité entre en jeu ; le bearer token suffit pour un self-host.
+- The `.mcpb` bundle (desktop extension) stays **stdio**. HTTP mode is launched by hand or as a
+  service (NSSM/Windows Service, systemd, supervisor) with the env variables above.
+- **Stateless** mode: no server-side session (the server pushes no notifications) —
+  simple and compatible with a reverse proxy / load balancer.
+- OAuth: the SDK also provides an OAuth handler (Protected Resource Metadata) if an identity
+  provider comes into play; the bearer token is enough for self-hosting.

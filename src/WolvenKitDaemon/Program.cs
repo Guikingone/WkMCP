@@ -18,46 +18,46 @@ using WolvenKit.RED4.CR2W;
 using WolvenKit.RED4.CR2W.Archive;
 
 // ════════════════════════════════════════════════════════════════════════
-// WolvenKitDaemon — hôte persistant des bibliothèques WolvenKit.
+// WolvenKitDaemon — persistent host for the WolvenKit libraries.
 //
-// Charge HashService UNE seule fois (~6 s au démarrage), puis traite des
-// requêtes successives sur stdin/stdout sans payer ce cold-start.
+// Loads HashService ONCE (~6 s at startup), then handles successive
+// requests over stdin/stdout without paying that cold-start.
 //
-// Protocole (JSON, une ligne par message) :
-//   requête  : {"id":N,"argv":["unbundle","/x.archive","--outpath","/out"]}
-//   réponse  : {"id":N,"exit":0,"output":"[ Information ] ..."}
-//   au prêt  : {"ready":true}
+// Protocol (JSON, one line per message):
+//   request  : {"id":N,"argv":["unbundle","/x.archive","--outpath","/out"]}
+//   response : {"id":N,"exit":0,"output":"[ Information ] ..."}
+//   on ready : {"ready":true}
 //
-// Codes de sortie (exit) : 0 = succès ; -1 = erreur d'argument ou de chargement ;
-// 1 = résultat vide / non trouvé (ex. loc-resolve --key absent, tweak validate avec
-// clés inconnues, opus-import sans encodage). id=0 est réservé aux erreurs de
-// désérialisation. Les réponses peuvent arriver dans le désordre (pipelining) alors
-// que l'exécution est sérialisée (execLock) ; stdout est réservé au protocole.
+// Exit codes: 0 = success; -1 = argument or loading error;
+// 1 = empty result / not found (e.g. loc-resolve --key absent, tweak validate with
+// unknown keys, opus-import without encoding). id=0 is reserved for deserialization
+// errors. Responses may arrive out of order (pipelining) while execution is
+// serialized (execLock); stdout is reserved for the protocol.
 //
-// Verbes spéciaux (hors ConsoleFunctions) :
-//   loc-resolve <racineJeu|.exe> [--lang en_us] (--key <hash|cléSecondaire> | --all)
-//     → LocKey → texte localisé (variantes M/F). --all liste les 100 premières entrées.
-//       Précédence : si --all et --key sont fournis, --all l'emporte (--key ignoré).
-//   opus-import <racineJeu|.exe> --wav-dir <dir> --out <dir>
-//     → WAV (nommés par hash opus) → .opus repacké (encodeur opusenc embarqué).
+// Special verbs (outside ConsoleFunctions):
+//   loc-resolve <gameRoot|.exe> [--lang en_us] (--key <hash|secondaryKey> | --all)
+//     → LocKey → localized text (M/F variants). --all lists the first 100 entries.
+//       Precedence: if both --all and --key are given, --all wins (--key ignored).
+//   opus-import <gameRoot|.exe> --wav-dir <dir> --out <dir>
+//     → WAV (named by opus hash) → repacked .opus (embedded opusenc encoder).
 // ════════════════════════════════════════════════════════════════════════
 
-// stdout est le canal JSON réservé au protocole : on en garde une référence
-// (channel) avant toute redirection.
+// stdout is the JSON channel reserved for the protocol: we keep a reference
+// (channel) before any redirection.
 var channel = Console.Out;
 
-// Certaines tâches WolvenKit (le listing de « archive --list », notamment)
-// écrivent leur résultat via Console.WriteLine et non via ILoggerService. On
-// redirige donc Console.Out vers le même tampon que le logger capturant — sans
-// quoi cette sortie serait perdue et archive_info / find_in_archives / la
-// ressource d'archive renverraient du vide.
+// Some WolvenKit tasks (the "archive --list" listing in particular)
+// write their result via Console.WriteLine and not via ILoggerService. So we
+// redirect Console.Out to the same buffer as the capturing logger — otherwise
+// this output would be lost and archive_info / find_in_archives / the
+// archive resource would return nothing.
 var logger = new CapturingLoggerService();
 Console.SetOut(new CapturingTextWriter(logger));
 
-// Certaines dépendances de WolvenKit (DirectXTexNet, conversion de textures)
-// sont livrées comme fichiers de contenu : copiées dans la sortie de build mais
-// absentes du deps.json, donc introuvables pour le résolveur .NET par défaut.
-// On ajoute un repli qui les charge depuis le dossier de l'application.
+// Some WolvenKit dependencies (DirectXTexNet, texture conversion)
+// are shipped as content files: copied to the build output but
+// absent from deps.json, so unfindable by the default .NET resolver.
+// We add a fallback that loads them from the application folder.
 AssemblyLoadContext.Default.Resolving += (ctx, name) =>
 {
     var dll = Path.Combine(AppContext.BaseDirectory, (name.Name ?? "") + ".dll");
@@ -69,18 +69,18 @@ Oodle.Load();
 var services = new ServiceCollection();
 services.AddLogging();
 
-// Implémentations maison (celles de WolvenKit.CLI sont internal).
+// In-house implementations (the WolvenKit.CLI ones are internal).
 services.AddSingleton<ILoggerService>(logger);
 services.AddSingleton<IProgressService<double>>(new BridgingProgressService(logger));
 
-// Données de référence — singletons gardés chauds (HashService = le coût ~6 s).
+// Reference data — singletons kept warm (HashService = the ~6 s cost).
 services.AddSingleton<IHashService, HashService>();
 services.AddSingleton<ITweakDBService, TweakDBService>();
 services.AddSingleton<ILocKeyService, LocKeyService>();
 services.AddSingleton<IHookService, HookService>();
 
-// État par opération — scoped : ArchiveManager accumule les archives chargées,
-// il DOIT être neuf à chaque requête (sinon fuite d'état entre appels).
+// Per-operation state — scoped: ArchiveManager accumulates the loaded archives,
+// it MUST be fresh on each request (otherwise state leaks between calls).
 services.AddScoped<IArchiveManager, ArchiveManager>();
 services.AddScoped<IModTools, ModTools>();
 services.AddScoped<Red4ParserService>();
@@ -101,7 +101,7 @@ services.AddScoped<ConsoleFunctions>();
 var provider = services.BuildServiceProvider();
 var json = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-// Préchauffage : construit HashService maintenant (~6 s payés une fois).
+// Pre-warm: builds HashService now (~6 s paid once).
 using (var warm = provider.CreateScope())
 {
     _ = warm.ServiceProvider.GetRequiredService<ConsoleFunctions>();
@@ -109,16 +109,16 @@ using (var warm = provider.CreateScope())
 channel.WriteLine("""{"ready":true}""");
 channel.Flush();
 
-// Pipelining IPC : la lecture des requêtes ne bloque pas sur l'exécution. Plusieurs
-// requêtes peuvent être en vol, mais l'exécution reste sérialisée par execLock car
-// les bibliothèques WolvenKit (logger, archive manager, Console.Out captured) ne
-// sont pas thread-safe pour l'exécution. L'overlap utile : décoder la requête N+1
-// pendant que N s'exécute, et que le client puisse envoyer en pipeline sans attendre.
+// IPC pipelining: reading requests does not block on execution. Several
+// requests may be in-flight, but execution stays serialized by execLock because
+// the WolvenKit libraries (logger, archive manager, captured Console.Out) are
+// not thread-safe for execution. The useful overlap: decode request N+1
+// while N executes, and let the client pipeline sends without waiting.
 var execLock = new SemaphoreSlim(1, 1);
 var writeLock = new SemaphoreSlim(1, 1);
 
-// Émet un message de progression {"id":N,"progress":"…"} sur le canal protocole.
-// Appelé de façon synchrone par le sink du logger pendant Dispatch.
+// Emits a progress message {"id":N,"progress":"…"} on the protocol channel.
+// Called synchronously by the logger sink during Dispatch.
 void EmitProgress(int id, string message)
 {
     if (message.Length > 300) message = message[..300] + "…";
@@ -141,10 +141,10 @@ async Task HandleRequest(DaemonRequest req)
         try
         {
             logger.Drain();
-            // Pendant l'exécution (sérialisée par execLock), chaque ligne de log
-            // est relayée au client en message de progression, throttlée à 2/s —
-            // les verbes rapides ne produisent donc rien, les longs (uncook, build)
-            // remontent leur avancement au lieu de rester muets des minutes.
+            // During execution (serialized by execLock), each log line
+            // is relayed to the client as a progress message, throttled to 2/s —
+            // so fast verbs produce nothing, while long ones (uncook, build)
+            // report their progress instead of staying silent for minutes.
             var lastEmit = Environment.TickCount64;
             logger.ProgressSink = msg =>
             {
@@ -162,11 +162,11 @@ async Task HandleRequest(DaemonRequest req)
     catch (Exception ex)
     {
         exit = -1;
-        // Drainer le log accumulé avant l'exception (souvent le vrai diagnostic :
-        // progression, étapes) au lieu de ne renvoyer que le message nu.
+        // Drain the log accumulated before the exception (often the real diagnostic:
+        // progress, steps) instead of returning only the bare message.
         var partial = logger.Drain().Trim();
         output = (partial.Length > 0 ? partial + "\n" : "") +
-                 "[ 0: Error ] - Erreur daemon : " + ex.Message;
+                 "[ 0: Error ] - Daemon error: " + ex.Message;
     }
 
     await writeLock.WaitAsync();
@@ -197,7 +197,7 @@ while ((line = Console.In.ReadLine()) != null)
         try
         {
             await channel.WriteLineAsync(JsonSerializer.Serialize(
-                new DaemonResponse(0, -1, "Requête JSON invalide : " + ex.Message), json));
+                new DaemonResponse(0, -1, "Invalid JSON request: " + ex.Message), json));
             await channel.FlushAsync();
         }
         finally { writeLock.Release(); }
@@ -205,8 +205,8 @@ while ((line = Console.In.ReadLine()) != null)
     }
     if (req is null) continue;
 
-    // ping : liveness check du watchdog côté serveur MCP — répond immédiatement
-    // SANS prendre execLock (sinon un uncook long ferait passer le daemon pour mort).
+    // ping: liveness check from the watchdog on the MCP server side — replies immediately
+    // WITHOUT taking execLock (otherwise a long uncook would make the daemon look dead).
     if (req.argv is ["ping"])
     {
         await writeLock.WaitAsync();
@@ -222,7 +222,7 @@ while ((line = Console.In.ReadLine()) != null)
 
     pending.Add(Task.Run(() => HandleRequest(req)));
 
-    // Empêche la liste de pending de grossir indéfiniment : on draine ce qui est terminé.
+    // Prevents the pending list from growing indefinitely: we drain what has completed.
     pending.RemoveAll(t => t.IsCompleted);
 }
 
@@ -230,13 +230,13 @@ await Task.WhenAll(pending);
 return 0;
 
 // ════════════════════════════════════════════════════════════════════════
-// Dispatch — verbe + argv → méthode de ConsoleFunctions.
+// Dispatch — verb + argv → ConsoleFunctions method.
 // ════════════════════════════════════════════════════════════════════════
 static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerService logger, string[] argv)
 {
     if (argv.Length == 0)
     {
-        logger.Error("argv vide");
+        logger.Error("empty argv");
         return -1;
     }
 
@@ -244,20 +244,20 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
 
     if (verb is "--version" or "version")
     {
-        var v = typeof(ConsoleFunctions).Assembly.GetName().Version?.ToString() ?? "inconnue";
+        var v = typeof(ConsoleFunctions).Assembly.GetName().Version?.ToString() ?? "unknown";
         logger.Info($"WolvenKitDaemon — WolvenKit.Modkit {v}");
         return 0;
     }
 
-    // loc-resolve : LocKey (hash ou clé) → texte localisé via LocKeyService.
-    // Charge les archives du jeu dans un ArchiveManager neuf (scope dédié), puis
-    // une langue d'on-screens, et résout la clé. --all liste les premières entrées.
+    // loc-resolve: LocKey (hash or key) → localized text via LocKeyService.
+    // Loads the game archives into a fresh ArchiveManager (dedicated scope), then
+    // an on-screens language, and resolves the key. --all lists the first entries.
     if (verb == "loc-resolve")
     {
         var (pos, o) = ParseArgs(argv, 1);
-        if (pos.Count == 0) { logger.Error("loc-resolve : chemin du jeu (racine ou .exe) manquant"); return -1; }
+        if (pos.Count == 0) { logger.Error("loc-resolve: game path (root or .exe) missing"); return -1; }
         var exe = ResolveGameExe(pos[0]);
-        if (!exe.Exists) { logger.Error($"exécutable du jeu introuvable : {exe.FullName}"); return -1; }
+        if (!exe.Exists) { logger.Error($"game executable not found: {exe.FullName}"); return -1; }
         var lang = Enum.TryParse<EGameLanguage>(Opt(o, "--lang"), ignoreCase: true, out var lg)
             ? lg : EGameLanguage.en_us;
 
@@ -269,64 +269,64 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         var loc = new LocKeyService(parser, am) { Language = lang };
         if (!loc.LoadCurrentLanguage())
         {
-            logger.Error($"échec du chargement de la langue {lang} (on-screens introuvables ?)");
+            logger.Error($"failed to load language {lang} (on-screens not found?)");
             return -1;
         }
 
         if (o.ContainsKey("--all"))
         {
             var entries = loc.GetEntries().ToList();
-            logger.Info($"loc-resolve : {entries.Count} entrée(s) pour {lang} (100 premières)");
+            logger.Info($"loc-resolve: {entries.Count} entry(ies) for {lang} (first 100)");
             foreach (var e in entries.Take(100))
                 logger.Info($"{e.PrimaryKey} | {e.SecondaryKey} = {e.MaleVariant}");
             return 0;
         }
 
         var key = Opt(o, "--key");
-        if (string.IsNullOrEmpty(key)) { logger.Error("loc-resolve : --key requis (hash uint64 ou clé secondaire)"); return -1; }
+        if (string.IsNullOrEmpty(key)) { logger.Error("loc-resolve: --key required (uint64 hash or secondary key)"); return -1; }
         var entry = ulong.TryParse(key, out var kh) ? loc.GetEntry(kh) : loc.GetEntry(key);
-        if (entry is null) { logger.Info($"loc-resolve : aucune entrée pour '{key}' ({lang})"); return 1; }
-        logger.Info($"loc-resolve {lang} '{key}' : male=\"{entry.MaleVariant}\" " +
+        if (entry is null) { logger.Info($"loc-resolve: no entry for '{key}' ({lang})"); return 1; }
+        logger.Info($"loc-resolve {lang} '{key}': male=\"{entry.MaleVariant}\" " +
                     $"female=\"{entry.FemaleVariant}\" secondaryKey=\"{entry.SecondaryKey}\"");
         return 0;
     }
 
-    // opus-import : importe des .wav (nommés par hash opus) → .opus repackés dans
-    // un dossier de mod, via OpusTools.ImportWavs (encodeur opusenc embarqué).
+    // opus-import: imports .wav files (named by opus hash) → .opus repacked into
+    // a mod folder, via OpusTools.ImportWavs (embedded opusenc encoder).
     if (verb == "opus-import")
     {
         var (pos, o) = ParseArgs(argv, 1);
-        if (pos.Count == 0) { logger.Error("opus-import : chemin du jeu (racine ou .exe) manquant"); return -1; }
+        if (pos.Count == 0) { logger.Error("opus-import: game path (root or .exe) missing"); return -1; }
         var exe = ResolveGameExe(pos[0]);
-        if (!exe.Exists) { logger.Error($"exécutable du jeu introuvable : {exe.FullName}"); return -1; }
+        if (!exe.Exists) { logger.Error($"game executable not found: {exe.FullName}"); return -1; }
         var wavDir = Opt(o, "--wav-dir");
         var outDir = Opt(o, "--out");
-        if (string.IsNullOrEmpty(wavDir) || !Directory.Exists(wavDir)) { logger.Error($"--wav-dir introuvable : {wavDir}"); return -1; }
-        if (string.IsNullOrEmpty(outDir)) { logger.Error("opus-import : --out requis"); return -1; }
+        if (string.IsNullOrEmpty(wavDir) || !Directory.Exists(wavDir)) { logger.Error($"--wav-dir not found: {wavDir}"); return -1; }
+        if (string.IsNullOrEmpty(outDir)) { logger.Error("opus-import: --out required"); return -1; }
         var wavs = Directory.GetFiles(wavDir, "*.wav").ToList();
-        if (wavs.Count == 0) { logger.Error($"aucun .wav dans {wavDir} (les noms doivent être des hashes opus, ex. 123456.wav)"); return -1; }
+        if (wavs.Count == 0) { logger.Error($"no .wav in {wavDir} (names must be opus hashes, e.g. 123456.wav)"); return -1; }
         Directory.CreateDirectory(outDir);
 
         using var opusScope = provider.CreateScope();
         var am = opusScope.ServiceProvider.GetRequiredService<IArchiveManager>();
         am.LoadGameArchives(exe);
         var ok = OpusTools.ImportWavs(am, wavs, new DirectoryInfo(wavDir), new DirectoryInfo(outDir));
-        logger.Info($"opus-import : {wavs.Count} wav → {outDir} ({(ok ? "OK" : "échec")})");
+        logger.Info($"opus-import: {wavs.Count} wav → {outDir} ({(ok ? "OK" : "failure")})");
         return ok ? 0 : 1;
     }
 
-    // export-entity : exporte une apparence d'entité (.ent) en glTF via IModTools.
-    // Charge les archives du jeu (les apparences référencent meshes/matériaux en base).
+    // export-entity: exports an entity appearance (.ent) to glTF via IModTools.
+    // Loads the game archives (appearances reference base meshes/materials).
     if (verb == "export-entity")
     {
         var (pos, o) = ParseArgs(argv, 1);
-        if (pos.Count == 0) { logger.Error("export-entity : fichier .ent manquant"); return -1; }
+        if (pos.Count == 0) { logger.Error("export-entity: .ent file missing"); return -1; }
         var entFile = pos[0];
         var outFile = Opt(o, "--out");
         var appearance = Opt(o, "--appearance") ?? "";
         var gameArg = Opt(o, "--game");
-        if (string.IsNullOrEmpty(outFile)) { logger.Error("export-entity : --out requis"); return -1; }
-        if (!File.Exists(entFile)) { logger.Error($".ent introuvable : {entFile}"); return -1; }
+        if (string.IsNullOrEmpty(outFile)) { logger.Error("export-entity: --out required"); return -1; }
+        if (!File.Exists(entFile)) { logger.Error($".ent not found: {entFile}"); return -1; }
 
         using var entScope = provider.CreateScope();
         var sp = entScope.ServiceProvider;
@@ -334,30 +334,30 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         if (!string.IsNullOrEmpty(gameArg))
         {
             var exe = ResolveGameExe(gameArg);
-            if (!exe.Exists) { logger.Error($"exécutable du jeu introuvable : {exe.FullName}"); return -1; }
+            if (!exe.Exists) { logger.Error($"game executable not found: {exe.FullName}"); return -1; }
             am.LoadGameArchives(exe);
         }
         var parser = sp.GetRequiredService<Red4ParserService>();
         var mt = sp.GetRequiredService<IModTools>();
         using var efs = File.OpenRead(entFile);
         if (!parser.TryReadRed4File(efs, out var entCr2w) || entCr2w is null)
-        { logger.Error("lecture du CR2W .ent échouée"); return -1; }
+        { logger.Error("reading the .ent CR2W failed"); return -1; }
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outFile))!);
         var ok = mt.ExportEntity(entCr2w, appearance, new FileInfo(outFile));
-        logger.Info($"export-entity : {entFile} [{appearance}] → {outFile} ({(ok ? "OK" : "échec")})");
+        logger.Info($"export-entity: {entFile} [{appearance}] → {outFile} ({(ok ? "OK" : "failure")})");
         return ok ? 0 : 1;
     }
 
-    // export-materials : exporte les matériaux d'un .mesh en JSON+textures via IModTools.
+    // export-materials: exports the materials of a .mesh to JSON+textures via IModTools.
     if (verb == "export-materials")
     {
         var (pos, o) = ParseArgs(argv, 1);
-        if (pos.Count == 0) { logger.Error("export-materials : fichier .mesh manquant"); return -1; }
+        if (pos.Count == 0) { logger.Error("export-materials: .mesh file missing"); return -1; }
         var meshFile = pos[0];
         var outFile = Opt(o, "--out");
         var gameArg = Opt(o, "--game");
-        if (string.IsNullOrEmpty(outFile)) { logger.Error("export-materials : --out requis"); return -1; }
-        if (!File.Exists(meshFile)) { logger.Error($".mesh introuvable : {meshFile}"); return -1; }
+        if (string.IsNullOrEmpty(outFile)) { logger.Error("export-materials: --out required"); return -1; }
+        if (!File.Exists(meshFile)) { logger.Error($".mesh not found: {meshFile}"); return -1; }
 
         using var matScope = provider.CreateScope();
         var sp = matScope.ServiceProvider;
@@ -365,18 +365,18 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         if (!string.IsNullOrEmpty(gameArg))
         {
             var exe = ResolveGameExe(gameArg);
-            if (!exe.Exists) { logger.Error($"exécutable du jeu introuvable : {exe.FullName}"); return -1; }
+            if (!exe.Exists) { logger.Error($"game executable not found: {exe.FullName}"); return -1; }
             am.LoadGameArchives(exe);
         }
         var parser = sp.GetRequiredService<Red4ParserService>();
         var mt = sp.GetRequiredService<IModTools>();
         using var mfs = File.OpenRead(meshFile);
         if (!parser.TryReadRed4File(mfs, out var meshCr2w) || meshCr2w is null)
-        { logger.Error("lecture du CR2W .mesh échouée"); return -1; }
+        { logger.Error("reading the .mesh CR2W failed"); return -1; }
         var outFi = new FileInfo(outFile);
         Directory.CreateDirectory(outFi.DirectoryName!);
-        // ExportMaterials a besoin d'un dépôt de matériaux (où écrire/résoudre les
-        // textures) ; sans MaterialRepo l'export échoue. On utilise le dossier de sortie.
+        // ExportMaterials needs a material repo (where to write/resolve the
+        // textures); without MaterialRepo the export fails. We use the output folder.
         var mea = new MeshExportArgs
         {
             MaterialRepo = outFi.DirectoryName,
@@ -384,11 +384,11 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             withMaterials = true,
         };
         var ok = mt.ExportMaterials(meshCr2w, outFi, mea);
-        logger.Info($"export-materials : {meshFile} → {outFile} ({(ok ? "OK" : "échec")})");
+        logger.Info($"export-materials: {meshFile} → {outFile} ({(ok ? "OK" : "failure")})");
         return ok ? 0 : 1;
     }
 
-    // resolve-hash : recherche inverse hash → chemin, via HashService (déjà chaud).
+    // resolve-hash: reverse hash → path lookup, via HashService (already warm).
     if (verb == "resolve-hash")
     {
         var hashes = provider.GetRequiredService<IHashService>();
@@ -397,17 +397,17 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             if (ulong.TryParse(arg, out var h))
             {
                 var path = hashes.Get(h);
-                logger.Info(path is not null ? $"{h} = {path}" : $"{h} = (hash inconnu)");
+                logger.Info(path is not null ? $"{h} = {path}" : $"{h} = (unknown hash)");
             }
             else
             {
-                logger.Error($"hash invalide (entier non signé attendu) : {arg}");
+                logger.Error($"invalid hash (unsigned integer expected): {arg}");
             }
         }
         return 0;
     }
 
-    // tweakdb-resolve : hash d'identifiant TweakDB → nom (TweakDBIDPool, déjà chaud).
+    // tweakdb-resolve: TweakDB identifier hash → name (TweakDBIDPool, already warm).
     if (verb == "tweakdb-resolve")
     {
         var tdb = provider.GetRequiredService<ITweakDBService>();
@@ -416,36 +416,36 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             if (ulong.TryParse(arg, out var h))
             {
                 var name = tdb.GetString(h);
-                logger.Info(name is not null ? $"{h} = {name}" : $"{h} = (inconnu)");
+                logger.Info(name is not null ? $"{h} = {name}" : $"{h} = (unknown)");
             }
             else
             {
-                logger.Error($"hash invalide (entier non signé attendu) : {arg}");
+                logger.Error($"invalid hash (unsigned integer expected): {arg}");
             }
         }
         return 0;
     }
 
-    // tweakdb-query : charge une tweakdb.bin et liste records/flats filtrés.
+    // tweakdb-query: loads a tweakdb.bin and lists filtered records/flats.
     if (verb == "tweakdb-query")
     {
         var rest = argv[1..];
         if (rest.Length < 1)
         {
-            logger.Error("tweakdb-query : chemin de la tweakdb.bin manquant");
+            logger.Error("tweakdb-query: tweakdb.bin path missing");
             return -1;
         }
         var tdb = provider.GetRequiredService<ITweakDBService>();
         await EnsureTweakDbAsync(tdb, rest[0]);
         if (!tdb.IsLoaded)
         {
-            logger.Error($"échec du chargement de la TweakDB : {rest[0]}");
+            logger.Error($"failed to load the TweakDB: {rest[0]}");
             return -1;
         }
         var filter = rest.Length > 1 ? rest[1] : "";
 
-        // Cap dur côté daemon pour éviter de saturer le contexte du LLM ; on
-        // peeke un élément au-delà du cap pour détecter la troncature.
+        // Hard cap on the daemon side to avoid saturating the LLM context; we
+        // peek one element beyond the cap to detect truncation.
         const int cap = 100;
         var allRecords = TweakDBService.GetRecords()
             .Select(r => r.ToString() ?? "")
@@ -459,44 +459,44 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             .OrderBy(s => s).Take(cap + 1).ToList();
         var flatsTruncated = allFlats.Count > cap;
         var flats = flatsTruncated ? allFlats.Take(cap).ToList() : allFlats;
-        // Marqueur "+" lu côté MCP pour exposer un champ truncated dans la sortie JSON.
-        var advice = recordsTruncated || flatsTruncated ? " — affiner le filtre" : "";
+        // "+" marker read on the MCP side to expose a truncated field in the JSON output.
+        var advice = recordsTruncated || flatsTruncated ? " — refine the filter" : "";
         logger.Info(
             $"{records.Count}{(recordsTruncated ? "+" : "")} record(s), " +
             $"{flats.Count}{(flatsTruncated ? "+" : "")} flat(s) — " +
-            $"filtre \"{filter}\" (cap {cap}{advice})");
+            $"filter \"{filter}\" (cap {cap}{advice})");
         foreach (var rec in records) logger.Info("record  " + rec);
         foreach (var flt in flats) logger.Info("flat    " + flt);
         return 0;
     }
 
-    // tweakdb-describe : pour un identifiant TweakDB, liste tous ses flats avec
-    // leurs types et valeurs courantes. Indispensable avant write_tweak.
+    // tweakdb-describe: for a TweakDB identifier, lists all its flats with
+    // their types and current values. Indispensable before write_tweak.
     if (verb == "tweakdb-describe")
     {
         var rest = argv[1..];
         if (rest.Length < 2)
         {
-            logger.Error("tweakdb-describe : tweakdbBin et recordId requis");
+            logger.Error("tweakdb-describe: tweakdbBin and recordId required");
             return -1;
         }
         var tdb = provider.GetRequiredService<ITweakDBService>();
         await EnsureTweakDbAsync(tdb, rest[0]);
         if (!tdb.IsLoaded)
         {
-            logger.Error($"échec du chargement TweakDB : {rest[0]}");
+            logger.Error($"failed to load TweakDB: {rest[0]}");
             return -1;
         }
 
         var recordId = rest[1];
         var prefix = recordId + ".";
 
-        // Lookups O(1) via l'index par record (construit à la première requête).
+        // O(1) lookups via the per-record index (built on the first request).
         EnsureTweakDbIndex();
         if (DaemonState.RecordsByName is null
             || !DaemonState.RecordsByName.TryGetValue(recordId, out var recordTdbId))
         {
-            logger.Warning($"record inconnu dans TweakDB : {recordId}");
+            logger.Warning($"unknown record in TweakDB: {recordId}");
             return 0;
         }
 
@@ -518,35 +518,35 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             var value = TweakDBService.GetFlat(flat);
             var typeName = value?.GetType().Name ?? "?";
             var valueStr = value?.ToString() ?? "(null)";
-            // Tronque les valeurs très longues (arrays massifs).
+            // Truncate very long values (massive arrays).
             if (valueStr.Length > 200) valueStr = valueStr[..200] + "…";
             logger.Info($"  flat  {fieldName} : {typeName} = {valueStr}");
             found++;
         }
-        logger.Info($"{found} flat(s) sous {recordId}");
+        logger.Info($"{found} flat(s) under {recordId}");
         return 0;
     }
 
-    // tweakdb-extract-localization : extrait tous les flats "displayName" et
-    // "localizedDescription" (et variantes) connus de la TweakDB, indexés par
-    // recordId. Sortie JSON, prête à servir de base pour un mod de traduction.
+    // tweakdb-extract-localization: extracts all "displayName" and
+    // "localizedDescription" (and variant) flats known to the TweakDB, indexed by
+    // recordId. JSON output, ready to serve as a base for a translation mod.
     if (verb == "tweakdb-extract-localization")
     {
         var rest = argv[1..];
         if (rest.Length < 2)
         {
-            logger.Error("tweakdb-extract-localization : tweakdbBin et outputJson requis");
+            logger.Error("tweakdb-extract-localization: tweakdbBin and outputJson required");
             return -1;
         }
         var tdb = provider.GetRequiredService<ITweakDBService>();
         await EnsureTweakDbAsync(tdb, rest[0]);
         if (!tdb.IsLoaded)
         {
-            logger.Error($"échec du chargement TweakDB : {rest[0]}");
+            logger.Error($"failed to load TweakDB: {rest[0]}");
             return -1;
         }
         var outputJson = rest[1];
-        var filter = rest.Length > 2 ? rest[2] : ""; // ex. "Items." pour limiter
+        var filter = rest.Length > 2 ? rest[2] : ""; // e.g. "Items." to narrow down
 
         var localizable = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -554,7 +554,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             "uiName", "name", "menuName", "shortDescription", "longDescription",
         };
 
-        // Index flats par recordId comme dans dump-records.
+        // Index flats by recordId as in dump-records.
         var byRecord = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         foreach (var flat in TweakDBService.GetFlats())
         {
@@ -569,7 +569,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
                 && !recordId.Contains(filter, StringComparison.OrdinalIgnoreCase))
                 continue;
             var value = TweakDBService.GetFlat(flat)?.ToString() ?? "";
-            // Tronque les très longues valeurs (descriptions verbeuses possibles).
+            // Truncate very long values (possibly verbose descriptions).
             if (value.Length > 1000) value = value[..1000] + "…";
             if (!byRecord.TryGetValue(recordId, out var fields))
             {
@@ -587,28 +587,28 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             JsonSerializer.Serialize(sorted,
                 new JsonSerializerOptions { WriteIndented = true }));
 
-        logger.Info($"tweakdb-extract-localization : {byRecord.Count} record(s) avec " +
-                    $"champs traduisibles → {outputJson}" +
-                    (filter.Length > 0 ? $" (filtre: {filter})" : ""));
+        logger.Info($"tweakdb-extract-localization: {byRecord.Count} record(s) with " +
+                    $"translatable fields → {outputJson}" +
+                    (filter.Length > 0 ? $" (filter: {filter})" : ""));
         return 0;
     }
 
-    // tweakdb-dump-records : exporte tous les records d'un type donné en
-    // JSON Lines ou CSV. Indexe d'abord les flats par recordId pour rester en
-    // O(records × flats_par_record) au lieu de O(records × N_flats_total).
+    // tweakdb-dump-records: exports all records of a given type to
+    // JSON Lines or CSV. First indexes flats by recordId to stay at
+    // O(records × flats_per_record) instead of O(records × total_N_flats).
     if (verb == "tweakdb-dump-records")
     {
         var rest = argv[1..];
         if (rest.Length < 3)
         {
-            logger.Error("tweakdb-dump-records : tweakdbBin, recordType, outputFile requis");
+            logger.Error("tweakdb-dump-records: tweakdbBin, recordType, outputFile required");
             return -1;
         }
         var tdb = provider.GetRequiredService<ITweakDBService>();
         await EnsureTweakDbAsync(tdb, rest[0]);
         if (!tdb.IsLoaded)
         {
-            logger.Error($"échec du chargement TweakDB : {rest[0]}");
+            logger.Error($"failed to load TweakDB: {rest[0]}");
             return -1;
         }
 
@@ -616,7 +616,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         var outputFile = rest[2];
         var format = rest.Length > 3 ? rest[3].ToLowerInvariant() : "jsonl";
 
-        // Index flats par recordId (préfixe avant le dernier point).
+        // Index flats by recordId (prefix before the last dot).
         var flatsByRecord = new Dictionary<string, List<(string field, WolvenKit.RED4.Types.TweakDBID flat)>>(
             StringComparer.Ordinal);
         foreach (var flat in TweakDBService.GetFlats())
@@ -635,7 +635,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             list.Add((field, flat));
         }
 
-        // Cherche les records du type demandé.
+        // Look up the records of the requested type.
         var matching = new List<(string id, WolvenKit.RED4.Types.TweakDBID rec)>();
         foreach (var rec in TweakDBService.GetRecords())
         {
@@ -647,7 +647,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         }
         if (matching.Count == 0)
         {
-            logger.Warning($"Aucun record de type : {recordType}");
+            logger.Warning($"No record of type: {recordType}");
             return 0;
         }
 
@@ -657,7 +657,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         int written = 0;
         if (format == "csv")
         {
-            // Collecte des colonnes en deux passes pour superset stable.
+            // Collect columns in two passes for a stable superset.
             var rows = new List<Dictionary<string, string>>();
             var allColumns = new HashSet<string>(StringComparer.Ordinal);
             foreach (var (id, _) in matching)
@@ -687,7 +687,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         }
         else
         {
-            // JSON Lines (1 record par ligne).
+            // JSON Lines (1 record per line).
             var jsonOpts = new JsonSerializerOptions { WriteIndented = false };
             foreach (var (id, _) in matching)
             {
@@ -707,12 +707,12 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             }
         }
 
-        logger.Info($"dump_records : {recordType} → {outputFile} " +
-                    $"({written} ligne(s), format={format})");
+        logger.Info($"dump_records: {recordType} → {outputFile} " +
+                    $"({written} line(s), format={format})");
         return 0;
     }
 
-    // tweak : édition structurée des fichiers .tweak (TweakXL — YAML).
+    // tweak: structured editing of .tweak files (TweakXL — YAML).
     if (verb == "tweak")
     {
         var sub = argv.Length > 1 ? argv[1] : "";
@@ -722,26 +722,26 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             case "read":
                 if (rest.Length < 2)
                 {
-                    logger.Error("tweak read : tweakFile et outputJsonFile requis");
+                    logger.Error("tweak read: tweakFile and outputJsonFile required");
                     return -1;
                 }
                 return await TweakRead(logger, rest[0], rest[1]);
             case "write":
                 if (rest.Length < 2)
                 {
-                    logger.Error("tweak write : jsonFile et outputTweakFile requis");
+                    logger.Error("tweak write: jsonFile and outputTweakFile required");
                     return -1;
                 }
                 return await TweakWrite(logger, rest[0], rest[1]);
             case "validate":
                 if (rest.Length < 2)
                 {
-                    logger.Error("tweak validate : tweakFile et tweakdbBin requis");
+                    logger.Error("tweak validate: tweakFile and tweakdbBin required");
                     return -1;
                 }
                 return await TweakValidate(provider, logger, rest[0], rest[1]);
             default:
-                logger.Error($"tweak : sous-commande inconnue : {sub} (read | write | validate)");
+                logger.Error($"tweak: unknown subcommand: {sub} (read | write | validate)");
                 return -1;
         }
     }
@@ -776,13 +776,13 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         case "uncook":
         {
             var (pos, o) = ParseArgs(argv, 1);
-            // UncookTaskOptions a des propriétés init-only — toutes en un seul initialiseur.
+            // UncookTaskOptions has init-only properties — all in a single initializer.
             MeshExporterType? met = Enum.TryParse<MeshExporterType>(
                 Opt(o, "--mesh-exporter-type"), ignoreCase: true, out var metVal) ? metVal : null;
             MeshExportType? mxt = Enum.TryParse<MeshExportType>(
                 Opt(o, "--mesh-export-type"), ignoreCase: true, out var mxtVal) ? mxtVal : null;
-            // Audio voix-off : --opus-export-all extrait tous les .opus de l'archive ;
-            // --opus-hashes 12345,67890 cible des hashes opus précis (uint32).
+            // Voice-over audio: --opus-export-all extracts all .opus from the archive;
+            // --opus-hashes 12345,67890 targets specific opus hashes (uint32).
             var opusHashes = ParseUintList(Opt(o, "--opus-hashes"));
             return f.UncookTask(pos.Select(Fs).ToArray(), new UncookTaskOptions
             {
@@ -855,7 +855,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             var (pos, _) = ParseArgs(argv, 2);
             if (pos.Count < 2)
             {
-                logger.Error("oodle : chemins d'entrée/sortie manquants");
+                logger.Error("oodle: input/output paths missing");
                 return -1;
             }
             return f.OodleTask(new FileInfo(pos[0]), new FileInfo(pos[1]),
@@ -867,14 +867,14 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             var (pos, o) = ParseArgs(argv, 1);
             if (pos.Count < 2)
             {
-                logger.Error("wwise : chemins d'entrée/sortie manquants");
+                logger.Error("wwise: input/output paths missing");
                 return -1;
             }
             return f.WwiseTask(new FileInfo(pos[0]), new FileInfo(pos[1]), o.ContainsKey("--wem"));
         }
 
         default:
-            logger.Error($"verbe inconnu : {verb}");
+            logger.Error($"unknown verb: {verb}");
             return -1;
     }
 }
@@ -887,14 +887,14 @@ static string EscapeCsv(string v)
 }
 
 // ────────────────────────────────────────────────────────────────────────
-// TweakXL — édition structurée des fichiers .tweak (YAML).
+// TweakXL — structured editing of .tweak files (YAML).
 // ────────────────────────────────────────────────────────────────────────
 
 static async Task<int> TweakRead(CapturingLoggerService logger, string tweakFile, string outputJsonFile)
 {
     if (!File.Exists(tweakFile))
     {
-        logger.Error($"Fichier .tweak introuvable : {tweakFile}");
+        logger.Error($".tweak file not found: {tweakFile}");
         return -1;
     }
     var yaml = await File.ReadAllTextAsync(tweakFile);
@@ -903,7 +903,7 @@ static async Task<int> TweakRead(CapturingLoggerService logger, string tweakFile
     try { parsed = deserializer.Deserialize<object?>(yaml); }
     catch (Exception ex)
     {
-        logger.Error($"YAML invalide dans {tweakFile} : {ex.Message}");
+        logger.Error($"invalid YAML in {tweakFile}: {ex.Message}");
         return -1;
     }
     var normalized = NormalizeYamlNode(parsed);
@@ -911,7 +911,7 @@ static async Task<int> TweakRead(CapturingLoggerService logger, string tweakFile
     await File.WriteAllTextAsync(outputJsonFile,
         JsonSerializer.Serialize(normalized,
             new JsonSerializerOptions { WriteIndented = true }));
-    logger.Info($"tweak read OK : {tweakFile} -> {outputJsonFile} ({new FileInfo(outputJsonFile).Length} o)");
+    logger.Info($"tweak read OK: {tweakFile} -> {outputJsonFile} ({new FileInfo(outputJsonFile).Length} B)");
     return 0;
 }
 
@@ -919,7 +919,7 @@ static async Task<int> TweakWrite(CapturingLoggerService logger, string jsonFile
 {
     if (!File.Exists(jsonFile))
     {
-        logger.Error($"Fichier JSON introuvable : {jsonFile}");
+        logger.Error($"JSON file not found: {jsonFile}");
         return -1;
     }
     var jsonText = await File.ReadAllTextAsync(jsonFile);
@@ -928,20 +928,20 @@ static async Task<int> TweakWrite(CapturingLoggerService logger, string jsonFile
     var serializer = new YamlDotNet.Serialization.SerializerBuilder().Build();
     Directory.CreateDirectory(Path.GetDirectoryName(outputTweakFile) ?? ".");
     await File.WriteAllTextAsync(outputTweakFile, serializer.Serialize(dict));
-    logger.Info($"tweak write OK : {jsonFile} -> {outputTweakFile} " +
-                $"({new FileInfo(outputTweakFile).Length} o)");
+    logger.Info($"tweak write OK: {jsonFile} -> {outputTweakFile} " +
+                $"({new FileInfo(outputTweakFile).Length} B)");
     return 0;
 }
 
 static async Task<int> TweakValidate(IServiceProvider provider, CapturingLoggerService logger,
     string tweakFile, string tweakdbBin)
 {
-    if (!File.Exists(tweakFile)) { logger.Error($"Fichier .tweak introuvable : {tweakFile}"); return -1; }
-    if (!File.Exists(tweakdbBin)) { logger.Error($"tweakdb.bin introuvable : {tweakdbBin}"); return -1; }
+    if (!File.Exists(tweakFile)) { logger.Error($".tweak file not found: {tweakFile}"); return -1; }
+    if (!File.Exists(tweakdbBin)) { logger.Error($"tweakdb.bin not found: {tweakdbBin}"); return -1; }
 
     var tdb = provider.GetRequiredService<ITweakDBService>();
     await EnsureTweakDbAsync(tdb, tweakdbBin);
-    if (!tdb.IsLoaded) { logger.Error($"échec du chargement TweakDB : {tweakdbBin}"); return -1; }
+    if (!tdb.IsLoaded) { logger.Error($"failed to load TweakDB: {tweakdbBin}"); return -1; }
 
     var yaml = await File.ReadAllTextAsync(tweakFile);
     var deserializer = new YamlDotNet.Serialization.DeserializerBuilder().Build();
@@ -949,12 +949,12 @@ static async Task<int> TweakValidate(IServiceProvider provider, CapturingLoggerS
     try { parsed = deserializer.Deserialize<object?>(yaml); }
     catch (Exception ex)
     {
-        logger.Error($"YAML invalide : {ex.Message}"); return -1;
+        logger.Error($"invalid YAML: {ex.Message}"); return -1;
     }
 
     if (parsed is not Dictionary<object, object> root)
     {
-        logger.Error("La racine du .tweak doit être un mapping YAML (clé: valeur).");
+        logger.Error("The root of the .tweak must be a YAML mapping (key: value).");
         return -1;
     }
 
@@ -969,33 +969,33 @@ static async Task<int> TweakValidate(IServiceProvider provider, CapturingLoggerS
         if (hasInstanceOf)
         {
             instances++;
-            logger.Info($"  + {key} ($instanceOf : nouveau record)");
+            logger.Info($"  + {key} ($instanceOf: new record)");
             continue;
         }
-        // Hache le nom via la fonction officielle de TweakDBID, puis cherche
-        // si la TweakDB connaît cet identifiant.
+        // Hash the name via the official TweakDBID function, then check
+        // whether the TweakDB knows this identifier.
         var hash = WolvenKit.RED4.Types.TweakDBID.CalculateHash(key);
         var resolved = tdb.GetString(hash);
         if (!string.IsNullOrEmpty(resolved))
         {
             ok++;
-            logger.Info($"  + {key} (connu)");
+            logger.Info($"  + {key} (known)");
         }
         else
         {
             missing++;
             logger.Warning(
-                $"  - {key} : inconnu dans TweakDB (ajouter $instanceOf si nouveau record)");
+                $"  - {key}: unknown in TweakDB (add $instanceOf if it's a new record)");
         }
     }
-    logger.Info($"tweak validate : {total} cle(s) ; {ok} OK + {instances} instanceOf + {missing} inconnues");
+    logger.Info($"tweak validate: {total} key(s); {ok} OK + {instances} instanceOf + {missing} unknown");
     return missing > 0 ? 1 : 0;
 }
 
-/// <summary>Convertit l'arbre brut renvoyé par YamlDotNet (mélange de
-/// Dictionary&lt;object,object&gt;, List&lt;object&gt; et scalaires) en arbre
-/// 100% JSON-friendly (Dictionary&lt;string,object?&gt; avec clés normalisées
-/// et valeurs scalaires typées).</summary>
+/// <summary>Converts the raw tree returned by YamlDotNet (a mix of
+/// Dictionary&lt;object,object&gt;, List&lt;object&gt; and scalars) into a
+/// 100% JSON-friendly tree (Dictionary&lt;string,object?&gt; with normalized keys
+/// and typed scalar values).</summary>
 static object? NormalizeYamlNode(object? node)
 {
     switch (node)
@@ -1010,7 +1010,7 @@ static object? NormalizeYamlNode(object? node)
         case List<object> list:
             return list.Select(NormalizeYamlNode).ToList();
         case string s:
-            // YamlDotNet renvoie tout scalaire en string ; on essaie de typer.
+            // YamlDotNet returns every scalar as a string; we try to type it.
             if (long.TryParse(s, out var l)) return l;
             if (double.TryParse(s, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var dbl)) return dbl;
@@ -1021,8 +1021,8 @@ static object? NormalizeYamlNode(object? node)
     }
 }
 
-/// <summary>Conversion inverse — JsonElement vers l'arbre Dictionary/List
-/// que YamlDotNet sait sérialiser.</summary>
+/// <summary>Reverse conversion — JsonElement to the Dictionary/List tree
+/// that YamlDotNet can serialize.</summary>
 static object? JsonElementToObject(JsonElement el)
 {
     switch (el.ValueKind)
@@ -1082,20 +1082,20 @@ static DirectoryInfo? Dir(Dictionary<string, string?> o, string key)
 static FileSystemInfo Fs(string p)
     => Directory.Exists(p) ? new DirectoryInfo(p) : new FileInfo(p);
 
-/// <summary>Résout l'exécutable du jeu à partir d'un chemin : si déjà un .exe,
-/// le renvoie ; sinon suppose la racine d'installation et compose
-/// bin/x64/Cyberpunk2077.exe (attendu par ArchiveManager.LoadGameArchives).</summary>
+/// <summary>Resolves the game executable from a path: if already a .exe,
+/// returns it; otherwise assumes the install root and composes
+/// bin/x64/Cyberpunk2077.exe (expected by ArchiveManager.LoadGameArchives).</summary>
 static FileInfo ResolveGameExe(string path)
     => path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
         ? new FileInfo(path)
         : new FileInfo(Path.Combine(path, "bin", "x64", "Cyberpunk2077.exe"));
 
-// TweakDBService est un singleton gardé chaud (sa TweakDB vit dans un champ
-// statique). Sans suivi du chemin, un premier chargement « collait » : interroger
-// une AUTRE tweakdb.bin renvoyait les données de la première. On mémorise donc le
-// chemin canonique chargé (DaemonState) et on recharge quand il change — ou quand
-// le fichier lui-même a été modifié (mod qui régénère tweakdb.bin) : sans le mtime,
-// le daemon servirait des données périmées.
+// TweakDBService is a singleton kept warm (its TweakDB lives in a static
+// field). Without path tracking, a first load would "stick": querying
+// ANOTHER tweakdb.bin returned the data from the first one. So we memoize the
+// canonical loaded path (DaemonState) and reload when it changes — or when
+// the file itself has been modified (a mod regenerating tweakdb.bin): without the mtime,
+// the daemon would serve stale data.
 static async Task EnsureTweakDbAsync(ITweakDBService tdb, string path)
 {
     var canon = Path.GetFullPath(path);
@@ -1109,17 +1109,17 @@ static async Task EnsureTweakDbAsync(ITweakDBService tdb, string path)
     {
         DaemonState.LoadedTweakDbPath = canon;
         DaemonState.LoadedTweakDbMtime = mtime;
-        // L'index par record appartient à l'ancienne base : il sera reconstruit
-        // paresseusement au prochain tweakdb-describe.
+        // The per-record index belongs to the old database: it will be rebuilt
+        // lazily on the next tweakdb-describe.
         DaemonState.IndexedTweakDbPath = null;
         DaemonState.RecordsByName = null;
         DaemonState.FlatsByRecord = null;
     }
 }
 
-// Index TweakDB par record, construit paresseusement (une passe O(N) sur les flats
-// au premier tweakdb-describe, puis lookups O(1)). Sans lui, chaque describe
-// re-scannait TOUS les flats (~500 ms sur une tweakdb.bin complète).
+// TweakDB index by record, built lazily (one O(N) pass over the flats
+// on the first tweakdb-describe, then O(1) lookups). Without it, each describe
+// re-scanned ALL flats (~500 ms on a full tweakdb.bin).
 static void EnsureTweakDbIndex()
 {
     if (DaemonState.IndexedTweakDbPath is not null
@@ -1164,23 +1164,23 @@ static List<uint> ParseUintList(string? s)
     return list;
 }
 
-// ── Protocole IPC ───────────────────────────────────────────────────────
-// État partagé du daemon (les fichiers à instructions top-level n'autorisent pas
-// de champs statiques au niveau racine — on les regroupe ici).
+// ── IPC protocol ────────────────────────────────────────────────────────
+// Shared daemon state (top-level statement files don't allow
+// static fields at the root level — we group them here).
 static class DaemonState
 {
-    // Chemin canonique + mtime de la dernière tweakdb.bin chargée (le service est
-    // un singleton chaud ; on recharge quand le chemin OU le fichier change).
+    // Canonical path + mtime of the last loaded tweakdb.bin (the service is
+    // a warm singleton; we reload when the path OR the file changes).
     public static string? LoadedTweakDbPath;
     public static DateTime LoadedTweakDbMtime;
 
-    // Index par record (construit paresseusement par EnsureTweakDbIndex, invalidé
-    // au rechargement de la base).
+    // Per-record index (built lazily by EnsureTweakDbIndex, invalidated
+    // when the database is reloaded).
     public static string? IndexedTweakDbPath;
     public static Dictionary<string, WolvenKit.RED4.Types.TweakDBID>? RecordsByName;
     public static Dictionary<string, List<WolvenKit.RED4.Types.TweakDBID>>? FlatsByRecord;
 
-    // Flags booléens (sans valeur) — immuable, partagé entre requêtes.
+    // Boolean flags (no value) — immutable, shared across requests.
     public static readonly HashSet<string> BoolFlags = new()
     {
         "--list", "--diff", "--wem", "--structured", "--keep",
@@ -1194,10 +1194,10 @@ sealed record DaemonResponse(int id, int exit, string output);
 sealed record DaemonProgress(int id, string progress);
 
 // ════════════════════════════════════════════════════════════════════════
-// Shims — implémentations minimales des interfaces de service de WolvenKit.
+// Shims — minimal implementations of WolvenKit's service interfaces.
 // ════════════════════════════════════════════════════════════════════════
 
-/// <summary>ILoggerService qui accumule la sortie dans un tampon drainable.</summary>
+/// <summary>ILoggerService that accumulates output in a drainable buffer.</summary>
 sealed class CapturingLoggerService : ILoggerService
 {
     private readonly StringBuilder _sb = new();
@@ -1212,30 +1212,30 @@ sealed class CapturingLoggerService : ILoggerService
     public void Debug(string msg) => Append("Debug", msg);
     public void Error(Exception exception) => Append("Error", exception.Message);
 
-    /// <summary>Relais de progression vers le client IPC. Positionné par requête
-    /// (sous execLock) ; les lignes de log de l'exécution en cours y sont relayées.</summary>
+    /// <summary>Progress relay to the IPC client. Set per request
+    /// (under execLock); the log lines of the current execution are relayed to it.</summary>
     public Action<string>? ProgressSink;
 
     private void Append(string level, string s)
     {
-        // Même format que le logger de cp77tools : "[ 0: Level ] - message".
-        // Le Format() du serveur MCP se fie aux marqueurs ": Success" / ": Error".
+        // Same format as the cp77tools logger: "[ 0: Level ] - message".
+        // The MCP server's Format() relies on the ": Success" / ": Error" markers.
         lock (_sb) _sb.AppendLine($"[ 0: {level} ] - {s}");
         ProgressSink?.Invoke(s);
     }
 
-    /// <summary>Progression « pourcentage » (IProgressService de WolvenKit) :
-    /// relayée au client sans polluer le tampon de sortie.</summary>
+    /// <summary>"Percentage" progress (WolvenKit's IProgressService):
+    /// relayed to the client without polluting the output buffer.</summary>
     public void EmitPercent(double value)
         => ProgressSink?.Invoke(value <= 1.0 ? $"{value * 100:F0} %" : $"{value:F0}");
 
-    /// <summary>Ajoute du texte brut (sortie Console capturée) au même tampon.</summary>
+    /// <summary>Appends raw text (captured Console output) to the same buffer.</summary>
     public void AppendRaw(string s)
     {
         lock (_sb) _sb.Append(s);
     }
 
-    /// <summary>Renvoie la sortie accumulée et vide le tampon.</summary>
+    /// <summary>Returns the accumulated output and clears the buffer.</summary>
     public string Drain()
     {
         lock (_sb)
@@ -1248,9 +1248,9 @@ sealed class CapturingLoggerService : ILoggerService
 }
 
 /// <summary>
-/// TextWriter qui draine les écritures Console.Out vers le logger capturant.
-/// Indispensable : certaines tâches WolvenKit (listing d'archive…) écrivent
-/// leur résultat via Console.WriteLine plutôt que par ILoggerService.
+/// TextWriter that drains Console.Out writes to the capturing logger.
+/// Indispensable: some WolvenKit tasks (archive listing…) write
+/// their result via Console.WriteLine rather than via ILoggerService.
 /// </summary>
 sealed class CapturingTextWriter : TextWriter
 {
@@ -1263,9 +1263,9 @@ sealed class CapturingTextWriter : TextWriter
     public override void WriteLine(string? value) => _sink.AppendRaw((value ?? "") + Environment.NewLine);
 }
 
-#pragma warning disable CS0067 // événements jamais déclenchés — relais minimal
-/// <summary>IProgressService qui relaie les pourcentages WolvenKit vers le sink
-/// de progression du logger (→ messages {"id":N,"progress":"42 %"} côté client).</summary>
+#pragma warning disable CS0067 // events never raised — minimal relay
+/// <summary>IProgressService that relays WolvenKit percentages to the logger's
+/// progress sink (→ {"id":N,"progress":"42 %"} messages on the client side).</summary>
 sealed class BridgingProgressService : IProgressService<double>
 {
     private readonly CapturingLoggerService _logger;

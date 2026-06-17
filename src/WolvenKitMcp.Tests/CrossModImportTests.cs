@@ -3,7 +3,7 @@ using Xunit;
 
 namespace WolvenKitMcp.Tests;
 
-/// <summary>Résolution des imports REDscript inter-mods (analyze_dependencies).</summary>
+/// <summary>Resolution of cross-mod REDscript imports (analyze_dependencies).</summary>
 public class CrossModImportTests
 {
     private static Dictionary<string, List<string>> Providers => new(StringComparer.OrdinalIgnoreCase)
@@ -14,23 +14,23 @@ public class CrossModImportTests
     };
 
     [Fact]
-    public void Import_exact_est_resolu()
+    public void Exact_import_is_resolved()
         => Assert.Equal(new[] { "EquipmentEx" },
             ModdingTools.ResolveImportProvider("EquipmentEx", Providers));
 
     [Fact]
-    public void Import_de_classe_remonte_au_module_parent()
-        // import Codeware.UI.InkWidget → fourni par le module Codeware.UI
+    public void Class_import_walks_up_to_parent_module()
+        // import Codeware.UI.InkWidget → provided by the Codeware.UI module
         => Assert.Equal(new[] { "Codeware" },
             ModdingTools.ResolveImportProvider("Codeware.UI.InkWidget", Providers));
 
     [Fact]
-    public void Import_de_prefixe_couvre_les_sous_modules()
-        // import Audioware.* (stocké "Audioware") → le sous-module déclaré suffit
+    public void Prefix_import_covers_submodules()
+        // import Audioware.* (stored as "Audioware") → the declared submodule is enough
         => Assert.Equal(new[] { "Audioware" },
             ModdingTools.ResolveImportProvider("Audioware", Providers));
 
     [Fact]
-    public void Import_inconnu_renvoie_null()
+    public void Unknown_import_returns_null()
         => Assert.Null(ModdingTools.ResolveImportProvider("ModInexistant.Truc", Providers));
 }

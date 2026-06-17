@@ -9,43 +9,43 @@ using Microsoft.Extensions.Logging;
 
 namespace WolvenKitMcp;
 
-/// <summary>Réponse d'une requête au pont in-game (mod CETBridge).</summary>
-/// <param name="Transport">"tcp" ou "file" — par quel canal la réponse est passée.</param>
+/// <summary>Response to a request to the in-game bridge (CETBridge mod).</summary>
+/// <param name="Transport">"tcp" or "file" — through which channel the response was passed.</param>
 public sealed record BridgeResponse(
     string Id, bool Ok, string? Result, string? Error, bool TimedOut, string Transport);
 
-/// <summary>État de connectivité du pont — exposé par l'outil <c>live_status</c>.</summary>
+/// <summary>Bridge connectivity state — exposed by the <c>live_status</c> tool.</summary>
 public sealed record BridgeStatus(
     bool Connected, string Transport, bool TcpListening, int TcpPort,
     bool TcpClientConnected, string? BridgeDir, string? LastHeartbeatUtc, bool FileHeartbeatFresh);
 
 /// <summary>
-/// Pont « live » vers un jeu Cyberpunk 2077 en cours d'exécution, via le mod Lua
-/// <b>CETBridge</b> (Cyber Engine Tweaks). À l'inverse des 85 outils offline qui
-/// opèrent sur des fichiers, ce service parle à la VM Lua du jeu vivant.
+/// "Live" bridge to a running Cyberpunk 2077 game, via the Lua mod
+/// <b>CETBridge</b> (Cyber Engine Tweaks). Unlike the 85 offline tools that
+/// operate on files, this service talks to the Lua VM of the live game.
 ///
-/// Protocole (identique à l'upstream Y4rd13/cyber-engine-tweak-mcp, pour réutiliser
-/// le mod Lua tel quel) :
-///   requête  : { id, type:"exec"|"eval"|"query", code?|expr?|handler?+args? }
-///   réponse  : { id, ok, result?, error? }
+/// Protocol (identical to upstream Y4rd13/cyber-engine-tweak-mcp, to reuse
+/// the Lua mod as-is):
+///   request  : { id, type:"exec"|"eval"|"query", code?|expr?|handler?+args? }
+///   response : { id, ok, result?, error? }
 ///
-/// Deux transports, avec bascule automatique :
-///   • <b>TCP</b> (recommandé, ~1 ms) : ce service est le <i>listener</i> sur
-///     127.0.0.1:27010 ; le mod Lua se connecte (plugin RED4ext RedSocket). Trames
-///     JSON délimitées par "\r\n". Messages {type:"heartbeat"} ignorés (liveness).
-///   • <b>Fichier</b> (repli, ~16-33 ms, sans RedSocket) : on écrit <c>command.json</c>
-///     (tmp + rename atomique) dans le dossier du mod, puis on poll <c>response.json</c>.
-///     Liveness via <c>heartbeat.json</c> (frais &lt; 3 s).
+/// Two transports, with automatic switching:
+///   • <b>TCP</b> (recommended, ~1 ms): this service is the <i>listener</i> on
+///     127.0.0.1:27010; the Lua mod connects (RED4ext RedSocket plugin). JSON
+///     frames delimited by "\r\n". {type:"heartbeat"} messages ignored (liveness).
+///   • <b>File</b> (fallback, ~16-33 ms, without RedSocket): we write <c>command.json</c>
+///     (tmp + atomic rename) into the mod folder, then poll <c>response.json</c>.
+///     Liveness via <c>heartbeat.json</c> (fresh &lt; 3 s).
 ///
-/// Le démarrage du listener est <b>paresseux mais idempotent</b> (<see cref="EnsureStarted"/>) :
-/// un serveur purement offline n'ouvre jamais le port tant qu'aucun outil <c>live_*</c>
-/// (ni le préchauffage de Program.cs) n'est sollicité.
+/// The listener startup is <b>lazy but idempotent</b> (<see cref="EnsureStarted"/>):
+/// a purely offline server never opens the port as long as no <c>live_*</c> tool
+/// (nor the Program.cs warmup) is invoked.
 ///
-/// Variables d'environnement (toutes optionnelles) :
-///   CET_TRANSPORT        "tcp" (défaut) | "file" (force le repli, n'ouvre pas le port)
-///   CET_TCP_PORT         port TCP du listener (défaut 27010)
-///   CET_BRIDGE_DIR       dossier du mod CETBridge (sinon dérivé du gamePath des outils)
-///   CET_BRIDGE_TIMEOUT_MS délai max d'une requête (défaut 5000)
+/// Environment variables (all optional):
+///   CET_TRANSPORT        "tcp" (default) | "file" (forces fallback, does not open the port)
+///   CET_TCP_PORT         listener TCP port (default 27010)
+///   CET_BRIDGE_DIR       CETBridge mod folder (otherwise derived from the tools' gamePath)
+///   CET_BRIDGE_TIMEOUT_MS max delay of a request (default 5000)
 /// </summary>
 public sealed class CetBridge : IDisposable
 {
@@ -58,17 +58,17 @@ public sealed class CetBridge : IDisposable
     private readonly object _startLock = new();
     private volatile bool _started;
     private TcpListener? _listener;
-    private bool _tcpAvailable; // a-t-on réussi à binder le port ?
+    private bool _tcpAvailable; // did we manage to bind the port?
     private CancellationTokenSource? _cts;
 
     private volatile TcpClient? _client;
     private NetworkStream? _stream;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
 
-    // Requêtes TCP en vol, indexées par id ; complétées par la boucle de lecture.
+    // In-flight TCP requests, indexed by id; completed by the read loop.
     private readonly ConcurrentDictionary<string, TaskCompletionSource<BridgeResponse>> _pending = new();
 
-    private long _lastHeartbeatTicks; // DateTime.UtcNow.Ticks du dernier heartbeat TCP (0 = jamais)
+    private long _lastHeartbeatTicks; // DateTime.UtcNow.Ticks of the last TCP heartbeat (0 = never)
 
     private static readonly JsonSerializerOptions RequestJson = new()
     {
@@ -90,20 +90,20 @@ public sealed class CetBridge : IDisposable
 
     public int TcpPort => _port;
 
-    /// <summary>Démarre le listener TCP si nécessaire. Idempotent et thread-safe.
-    /// N'ouvre rien si CET_TRANSPORT=file. Une erreur de bind (port déjà pris par une
-    /// autre session) est non fatale : on retombe sur le transport fichier.</summary>
+    /// <summary>Starts the TCP listener if needed. Idempotent and thread-safe.
+    /// Opens nothing if CET_TRANSPORT=file. A bind error (port already taken by
+    /// another session) is non-fatal: we fall back to the file transport.</summary>
     public void EnsureStarted()
     {
         if (_started) return;
         lock (_startLock)
         {
             if (_started) return;
-            _started = true; // marqué tôt : même en cas d'échec de bind, on ne re-tente pas
+            _started = true; // marked early: even on bind failure, we do not retry
 
             if (_transportPref == "file")
             {
-                _log?.LogInformation("[CetBridge] CET_TRANSPORT=file — listener TCP non démarré.");
+                _log?.LogInformation("[CetBridge] CET_TRANSPORT=file — TCP listener not started.");
                 return;
             }
 
@@ -114,12 +114,12 @@ public sealed class CetBridge : IDisposable
                 _tcpAvailable = true;
                 _cts = new CancellationTokenSource();
                 _ = Task.Run(() => AcceptLoopAsync(_cts.Token));
-                _log?.LogInformation("[CetBridge] listener TCP sur 127.0.0.1:{Port}", _port);
+                _log?.LogInformation("[CetBridge] TCP listener on 127.0.0.1:{Port}", _port);
             }
             catch (SocketException ex)
             {
                 _tcpAvailable = false;
-                _log?.LogWarning("[CetBridge] bind 127.0.0.1:{Port} impossible ({Msg}) — transport fichier seul.",
+                _log?.LogWarning("[CetBridge] cannot bind 127.0.0.1:{Port} ({Msg}) — file transport only.",
                     _port, ex.Message);
             }
         }
@@ -135,19 +135,19 @@ public sealed class CetBridge : IDisposable
             catch (ObjectDisposedException) { break; }
             catch (Exception ex) { _log?.LogWarning("[CetBridge] accept: {Msg}", ex.Message); continue; }
 
-            // Une seule connexion à la fois : la nouvelle remplace l'ancienne (comme l'upstream).
+            // One connection at a time: the new one replaces the old (like upstream).
             var old = Interlocked.Exchange(ref _client, client);
             if (old is not null)
             {
-                // Les requêtes en vol appartiennent à l'ancienne connexion : on les échoue
-                // ICI, avec une erreur explicite — l'appelant sait que c'est une reconnexion
-                // (jeu relancé / mod rechargé) et qu'un simple réessai suffit.
-                FailAllPending("Connexion CETBridge remplacée (jeu relancé ou mod rechargé) — réessayer l'appel.");
+                // In-flight requests belong to the old connection: we fail them
+                // HERE, with an explicit error — the caller knows it is a reconnection
+                // (game restarted / mod reloaded) and that a simple retry suffices.
+                FailAllPending("CETBridge connection replaced (game restarted or mod reloaded) — retry the call.");
                 old.Dispose();
             }
             _stream = client.GetStream();
             Volatile.Write(ref _lastHeartbeatTicks, DateTime.UtcNow.Ticks);
-            _log?.LogInformation("[CetBridge] CETBridge connecté (TCP).");
+            _log?.LogInformation("[CetBridge] CETBridge connected (TCP).");
             _ = Task.Run(() => ReadLoopAsync(client, ct));
         }
     }
@@ -168,19 +168,19 @@ public sealed class CetBridge : IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _log?.LogDebug("[CetBridge] lecture socket terminée : {Msg}", ex.Message);
+            _log?.LogDebug("[CetBridge] socket read ended: {Msg}", ex.Message);
         }
         finally
         {
             if (Interlocked.CompareExchange(ref _client, null, client) == client)
             {
-                // Déconnexion réelle (le jeu/mod a fermé) : les requêtes en vol ne
-                // recevront jamais de réponse. Si la connexion a été REMPLACÉE,
-                // AcceptLoopAsync a déjà échoué les requêtes de l'ancienne connexion —
-                // ne pas toucher ici à celles de la nouvelle.
+                // Real disconnection (the game/mod closed): in-flight requests will
+                // never receive a response. If the connection was REPLACED,
+                // AcceptLoopAsync has already failed the old connection's requests —
+                // do not touch the new one's here.
                 _stream = null;
-                _log?.LogInformation("[CetBridge] CETBridge déconnecté.");
-                FailAllPending("Pont déconnecté (le jeu/mod a fermé la connexion).");
+                _log?.LogInformation("[CetBridge] CETBridge disconnected.");
+                FailAllPending("Bridge disconnected (the game/mod closed the connection).");
             }
             client.Dispose();
         }
@@ -190,7 +190,7 @@ public sealed class CetBridge : IDisposable
     {
         JsonDocument doc;
         try { doc = JsonDocument.Parse(json); }
-        catch { _log?.LogDebug("[CetBridge] trame JSON illisible ignorée."); return; }
+        catch { _log?.LogDebug("[CetBridge] unreadable JSON frame ignored."); return; }
         using (doc)
         {
             var root = doc.RootElement;
@@ -214,7 +214,7 @@ public sealed class CetBridge : IDisposable
                 tcs.TrySetResult(new BridgeResponse(id, false, null, error, false, "tcp"));
     }
 
-    // ── API publique : un appel = une requête au jeu ───────────────────────────
+    // ── Public API: one call = one request to the game ───────────────────────────
 
     public Task<BridgeResponse> ExecAsync(string code, string? gamePath, CancellationToken ct)
         => SendAsync(new Dictionary<string, object?> { ["type"] = "exec", ["code"] = code }, gamePath, ct);
@@ -238,15 +238,15 @@ public sealed class CetBridge : IDisposable
         if (useTcp)
             return await SendTcpAsync(id, json, ct);
 
-        // Repli fichier
+        // File fallback
         var dir = ResolveBridgeDir(gamePath);
         if (dir == null)
             return new BridgeResponse(id, false, null,
-                "Pont non connecté (TCP) et dossier du mod inconnu : passe `gamePath`, ou définis " +
-                "CET_BRIDGE_DIR, ou installe RedSocket pour le transport TCP.", false, "file");
+                "Bridge not connected (TCP) and mod folder unknown: pass `gamePath`, or set " +
+                "CET_BRIDGE_DIR, or install RedSocket for the TCP transport.", false, "file");
         if (!Directory.Exists(dir))
             return new BridgeResponse(id, false, null,
-                $"Dossier du mod introuvable : {dir}. Le jeu tourne-t-il avec CET + le mod CETBridge installé ?",
+                $"Mod folder not found: {dir}. Is the game running with CET + the CETBridge mod installed?",
                 false, "file");
         return await BridgeProtocol.FileSendAsync(id, json, dir, _timeout, ct);
     }
@@ -262,20 +262,20 @@ public sealed class CetBridge : IDisposable
         catch (Exception ex)
         {
             _pending.TryRemove(id, out _);
-            return new BridgeResponse(id, false, null, $"Écriture socket échouée : {ex.Message}", false, "tcp");
+            return new BridgeResponse(id, false, null, $"Socket write failed: {ex.Message}", false, "tcp");
         }
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var completed = await Task.WhenAny(tcs.Task, Task.Delay(_timeout, timeoutCts.Token));
         if (completed == tcs.Task)
         {
-            timeoutCts.Cancel(); // arrête le Task.Delay
+            timeoutCts.Cancel(); // stops the Task.Delay
             return await tcs.Task;
         }
         _pending.TryRemove(id, out _);
         return new BridgeResponse(id, false, null,
-            $"Timeout du pont : aucune réponse en {_timeout.TotalMilliseconds:n0} ms. " +
-            "Le jeu est-il actif et réactif (pas en pause/chargement) ?", true, "tcp");
+            $"Bridge timeout: no response within {_timeout.TotalMilliseconds:n0} ms. " +
+            "Is the game active and responsive (not paused/loading)?", true, "tcp");
     }
 
     private async Task WriteFrameAsync(string json, CancellationToken ct)
@@ -284,22 +284,22 @@ public sealed class CetBridge : IDisposable
         await _writeLock.WaitAsync(ct);
         try
         {
-            var s = _stream ?? throw new IOException("flux TCP indisponible (déconnecté).");
+            var s = _stream ?? throw new IOException("TCP stream unavailable (disconnected).");
             await s.WriteAsync(bytes, ct);
             await s.FlushAsync(ct);
         }
         finally { _writeLock.Release(); }
     }
 
-    // ── État ───────────────────────────────────────────────────────────────────
+    // ── State ───────────────────────────────────────────────────────────────────
 
     private bool TcpClientConnected
     {
         get { var c = _client; return c is { Connected: true }; }
     }
 
-    /// <summary>Instantané de connectivité pour <c>live_status</c>. Ne requiert pas le
-    /// jeu (diagnostique aussi quand il est éteint).</summary>
+    /// <summary>Connectivity snapshot for <c>live_status</c>. Does not require the
+    /// game (also diagnoses when it is off).</summary>
     public BridgeStatus StatusSnapshot(string? gamePath)
     {
         EnsureStarted();
@@ -339,8 +339,8 @@ public sealed class CetBridge : IDisposable
         catch { return false; }
     }
 
-    /// <summary>Dossier du mod CETBridge : CET_BRIDGE_DIR sinon dérivé du gamePath
-    /// (&lt;jeu&gt;/bin/x64/plugins/cyber_engine_tweaks/mods/CETBridge).</summary>
+    /// <summary>CETBridge mod folder: CET_BRIDGE_DIR otherwise derived from gamePath
+    /// (&lt;game&gt;/bin/x64/plugins/cyber_engine_tweaks/mods/CETBridge).</summary>
     internal string? ResolveBridgeDir(string? gamePath)
     {
         if (_bridgeDirEnv != null) return _bridgeDirEnv;
@@ -352,7 +352,7 @@ public sealed class CetBridge : IDisposable
     public void Dispose()
     {
         try { _cts?.Cancel(); } catch { /* ignore */ }
-        FailAllPending("Serveur en arrêt.");
+        FailAllPending("Server shutting down.");
         try { _listener?.Stop(); } catch { /* ignore */ }
         _client?.Dispose();
         _writeLock.Dispose();
@@ -361,9 +361,9 @@ public sealed class CetBridge : IDisposable
 }
 
 /// <summary>
-/// Découpe un flux d'octets en messages JSON délimités par "\r\n" (gère les trames
-/// fragmentées sur plusieurs lectures socket). Travaille en octets pour ne jamais
-/// couper un caractère UTF-8 multi-octet au milieu.
+/// Splits a byte stream into JSON messages delimited by "\r\n" (handles frames
+/// fragmented across multiple socket reads). Works in bytes so as never to
+/// cut a multi-byte UTF-8 character in the middle.
 /// </summary>
 internal sealed class FrameSplitter
 {
@@ -392,11 +392,11 @@ internal sealed class FrameSplitter
     }
 }
 
-/// <summary>Helpers protocole purs (testables sans socket ni jeu).</summary>
+/// <summary>Pure protocol helpers (testable without socket or game).</summary>
 internal static class BridgeProtocol
 {
-    /// <summary>Construit un <see cref="BridgeResponse"/> depuis l'élément JSON racine
-    /// d'une réponse <c>{ id, ok, result?, error? }</c>.</summary>
+    /// <summary>Builds a <see cref="BridgeResponse"/> from the root JSON element
+    /// of a response <c>{ id, ok, result?, error? }</c>.</summary>
     internal static BridgeResponse ToResponse(JsonElement root, string transport)
     {
         string id = root.TryGetProperty("id", out var i) && i.ValueKind == JsonValueKind.String
@@ -404,7 +404,7 @@ internal static class BridgeProtocol
         bool ok = root.TryGetProperty("ok", out var o) && o.ValueKind == JsonValueKind.True;
         string? result = ReadStringLike(root, "result");
         string? error = ReadStringLike(root, "error");
-        if (!ok && error == null) error = "erreur inconnue (champ 'error' absent).";
+        if (!ok && error == null) error = "unknown error ('error' field absent).";
         return new BridgeResponse(id, ok, result, error, false, transport);
     }
 
@@ -423,15 +423,15 @@ internal static class BridgeProtocol
         }
         catch (JsonException)
         {
-            return new BridgeResponse("", false, null, "Réponse JSON malformée du pont.", false, transport);
+            return new BridgeResponse("", false, null, "Malformed JSON response from the bridge.", false, transport);
         }
     }
 
-    /// <summary>Transport fichier : écrit la requête dans <c>command.json</c> (tmp +
-    /// rename atomique), purge l'ancienne <c>response.json</c>, puis attend la réponse.
-    /// L'attente est pilotée par un <see cref="FileSystemWatcher"/> (latence ~ms) avec
-    /// un poll de filet toutes les 250 ms ; si le watcher ne peut pas s'installer
-    /// (répertoire réseau exotique), on retombe sur le poll pur à 50 ms de l'upstream.</summary>
+    /// <summary>File transport: writes the request into <c>command.json</c> (tmp +
+    /// atomic rename), purges the old <c>response.json</c>, then waits for the response.
+    /// The wait is driven by a <see cref="FileSystemWatcher"/> (~ms latency) with
+    /// a safety-net poll every 250 ms; if the watcher cannot be installed
+    /// (exotic network directory), we fall back to upstream's pure 50 ms poll.</summary>
     internal static async Task<BridgeResponse> FileSendAsync(
         string id, string requestJson, string bridgeDir, TimeSpan timeout, CancellationToken ct)
     {
@@ -451,7 +451,7 @@ internal static class BridgeProtocol
                 {
                     NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
                 };
-                void Signal() { try { responseReady.Release(); } catch { /* sémaphore saturé */ } }
+                void Signal() { try { responseReady.Release(); } catch { /* semaphore saturated */ } }
                 watcher.Created += (_, _) => Signal();
                 watcher.Changed += (_, _) => Signal();
                 watcher.Renamed += (_, _) => Signal();
@@ -460,7 +460,7 @@ internal static class BridgeProtocol
             catch
             {
                 watcher?.Dispose();
-                watcher = null; // poll pur
+                watcher = null; // pure poll
             }
 
             await File.WriteAllTextAsync(tmp, requestJson, ct);
@@ -481,18 +481,18 @@ internal static class BridgeProtocol
                         {
                             var resp = ParseResponse(data, "file");
                             if (resp.Id == id) return resp;
-                            // Réponse périmée d'une autre requête — on continue d'attendre.
+                            // Stale response from another request — keep waiting.
                         }
                     }
                 }
-                catch (IOException) { /* fichier en cours d'écriture : on retente */ }
+                catch (IOException) { /* file being written: we retry */ }
                 await responseReady.WaitAsync(pollInterval, ct);
             }
 
             SafeDelete(cmd);
             return new BridgeResponse(id, false, null,
-                $"Timeout du pont : aucune réponse en {timeout.TotalMilliseconds:n0} ms (transport fichier). " +
-                "Le jeu tourne-t-il avec le mod CETBridge chargé ?", true, "file");
+                $"Bridge timeout: no response within {timeout.TotalMilliseconds:n0} ms (file transport). " +
+                "Is the game running with the CETBridge mod loaded?", true, "file");
         }
         finally
         {

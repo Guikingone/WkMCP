@@ -1,448 +1,447 @@
 # Architecture — WolvenKit MCP
 
-Document destiné à un **futur contributeur**. Il explique *pourquoi* le projet
-est structuré ainsi, *comment* les morceaux communiquent, et *comment* y ajouter
-du code sans casser les invariants. Les chemins sont donnés relativement à la
-racine du dépôt (`wolvenkit-mcp/`).
+Document intended for a **future contributor**. It explains *why* the project
+is structured the way it is, *how* the pieces communicate, and *how* to add
+code to it without breaking the invariants. Paths are given relative to the
+repository root (`wolvenkit-mcp/`).
 
 ---
 
-## 1. Vue d'ensemble
+## 1. Overview
 
-Le projet est un **serveur MCP** (Model Context Protocol) qui expose les
-capacités de modding Cyberpunk 2077 de WolvenKit à un agent LLM. Il se compose de
-**deux processus** :
+The project is an **MCP server** (Model Context Protocol) that exposes
+WolvenKit's Cyberpunk 2077 modding capabilities to an LLM agent. It consists of
+**two processes**:
 
 ```
-Claude ─MCP/JSON-RPC (stdio)─▶ WolvenKitMcp ─IPC stdio JSON─▶ WolvenKitDaemon ─▶ libs WolvenKit + libkraken
-                                            └─repli──────────▶ cp77tools (sous-processus) si daemon indisponible
+Claude ─MCP/JSON-RPC (stdio)─▶ WolvenKitMcp ─IPC stdio JSON─▶ WolvenKitDaemon ─▶ WolvenKit libs + libkraken
+                                            └─fallback───────▶ cp77tools (subprocess) if daemon unavailable
 ```
 
-- **`src/WolvenKitMcp`** — l'hôte MCP. Il parle JSON-RPC MCP au client (Claude)
-  sur stdio (ou HTTP/Streamable opt-in), expose **123 outils** (63 de base +
-  25 workflow + 35 live), **8 prompts** et **4 ressources**, et ne lie *aucune*
-  bibliothèque WolvenKit. Il pilote le daemon par IPC.
-- **`src/WolvenKitDaemon`** — un processus persistant qui lie les bibliothèques
-  WolvenKit (`WolvenKit.Modkit`, `WolvenKit.RED4.CR2W`, …) et `libkraken`/Oodle.
-  Il charge les données de référence lourdes **une seule fois** puis traite des
-  requêtes en boucle.
-- **`src/WolvenKitMcp.Tests`** — 129 tests xUnit (helpers purs : `Truncate`,
-  `MatchesGlob`, `BuildCpmodprojXml`, lint REDscript, histogramme d'archive,
-  validation REDmod, résumé `.app`, garde-fou doc, etc.).
+- **`src/WolvenKitMcp`** — the MCP host. It speaks MCP JSON-RPC to the client
+  (Claude) over stdio (or opt-in HTTP/Streamable), exposes **123 tools** (63 base +
+  25 workflow + 35 live), **8 prompts** and **4 resources**, and links *no*
+  WolvenKit library. It drives the daemon over IPC.
+- **`src/WolvenKitDaemon`** — a persistent process that links the WolvenKit
+  libraries (`WolvenKit.Modkit`, `WolvenKit.RED4.CR2W`, …) and `libkraken`/Oodle.
+  It loads the heavy reference data **once** then processes requests in a loop.
+- **`src/WolvenKitMcp.Tests`** — 129 xUnit tests (pure helpers: `Truncate`,
+  `MatchesGlob`, `BuildCpmodprojXml`, REDscript lint, archive histogram,
+  REDmod validation, `.app` summary, doc safeguard, etc.).
 
 ---
 
-## 2. Pourquoi deux processus ?
+## 2. Why two processes?
 
-Deux raisons, dans cet ordre d'importance.
+Two reasons, in this order of importance.
 
-### 2.1 Isolement de licence (GPL-3.0)
+### 2.1 License isolation (GPL-3.0)
 
-Les bibliothèques de WolvenKit sont sous **GPL-3.0** (copyleft). Lier ces
-assemblies *dans le même processus/assembly* que le serveur MCP contaminerait ce
-dernier par le copyleft. En isolant tout le code GPL dans un **processus séparé**
-(le daemon) auquel le serveur MCP ne parle que par **IPC stdio** (échange de
-texte JSON, pas de lien d'assembly), le serveur MCP reste hors du périmètre du
-copyleft. C'est la frontière de séparation centrale du projet : **`WolvenKitMcp`
-ne référence jamais d'assembly WolvenKit ; seul `WolvenKitDaemon` le fait.**
+WolvenKit's libraries are under **GPL-3.0** (copyleft). Linking these
+assemblies *in the same process/assembly* as the MCP server would contaminate the
+latter with the copyleft. By isolating all GPL code in a **separate process**
+(the daemon) that the MCP server only talks to via **stdio IPC** (exchanging
+JSON text, no assembly link), the MCP server stays outside the scope of the
+copyleft. This is the project's central separation boundary: **`WolvenKitMcp`
+never references a WolvenKit assembly; only `WolvenKitDaemon` does.**
 
-### 2.2 Performance : payer le cold-start une seule fois
+### 2.2 Performance: pay the cold-start only once
 
-Le coût dominant de WolvenKit est le chargement de `HashService` (la base de
-hashes ↔ chemins REDengine) : **~6 s**. Le CLI `cp77tools` paie ce coût *à chaque
-invocation*. En gardant le daemon vivant, ce coût est payé **une fois** au
-démarrage ; les requêtes suivantes ne coûtent que quelques millisecondes d'IPC +
-le travail réel.
+WolvenKit's dominant cost is loading `HashService` (the hash ↔ REDengine path
+database): **~6 s**. The `cp77tools` CLI pays this cost *on every
+invocation*. By keeping the daemon alive, this cost is paid **once** at
+startup; subsequent requests only cost a few milliseconds of IPC +
+the real work.
 
-Voir `src/WolvenKitDaemon/Program.cs` : `HashService`, `TweakDBService`,
-`LocKeyService`, `HookService` sont des **singletons** (« chauds »), et un
-préchauffage explicite construit `ConsoleFunctions` au démarrage avant de signaler
+See `src/WolvenKitDaemon/Program.cs`: `HashService`, `TweakDBService`,
+`LocKeyService`, `HookService` are **singletons** ("hot"), and an
+explicit warmup builds `ConsoleFunctions` at startup before signaling
 `{"ready":true}`.
 
 ---
 
-## 3. Le protocole IPC stdio JSON pipeliné
+## 3. The pipelined stdio JSON IPC protocol
 
-### 3.1 Format des messages (une ligne JSON par message)
+### 3.1 Message format (one JSON line per message)
 
-Référence : en-tête de `src/WolvenKitDaemon/Program.cs`.
+Reference: header of `src/WolvenKitDaemon/Program.cs`.
 
 ```
-requête  : {"id":N,"argv":["unbundle","/x.archive","--outpath","/out"]}
-réponse  : {"id":N,"exit":0,"output":"[ 0: Information ] - ..."}
-au prêt  : {"ready":true}
+request  : {"id":N,"argv":["unbundle","/x.archive","--outpath","/out"]}
+response : {"id":N,"exit":0,"output":"[ 0: Information ] - ..."}
+on ready : {"ready":true}
 ```
 
-- `argv` est exactement la ligne de commande façon `cp77tools` (verbe +
-  arguments). Le daemon dispatche le verbe sur une méthode WolvenKit.
-- `output` agrège tout ce que la commande a écrit (logger + `Console.Out`
-  capturé, cf. §3.4).
-- Les DTO sont `DaemonRequest(int id, string[] argv)` et
+- `argv` is exactly the `cp77tools`-style command line (verb +
+  arguments). The daemon dispatches the verb to a WolvenKit method.
+- `output` aggregates everything the command wrote (logger + captured
+  `Console.Out`, see §3.4).
+- The DTOs are `DaemonRequest(int id, string[] argv)` and
   `DaemonResponse(int id, int exit, string output)`.
 
-**`stdout` du daemon est strictement réservé au protocole JSON.** Une référence
-`channel = Console.Out` est capturée *avant* toute redirection, puis
-`Console.Out` est réaffecté vers un writer capturant (cf. §3.4). Toutes les
-réponses sont écrites via `channel`. Côté serveur MCP, même discipline : `stdout`
-est réservé au JSON-RPC MCP, donc **tous les logs partent sur stderr**
-(`Program.cs` configure `LogToStandardErrorThreshold = Trace`).
+**The daemon's `stdout` is strictly reserved for the JSON protocol.** A reference
+`channel = Console.Out` is captured *before* any redirection, then
+`Console.Out` is reassigned to a capturing writer (see §3.4). All
+responses are written via `channel`. On the MCP server side, same discipline: `stdout`
+is reserved for MCP JSON-RPC, so **all logs go to stderr**
+(`Program.cs` configures `LogToStandardErrorThreshold = Trace`).
 
-### 3.2 Pipelining et corrélation par `id`
+### 3.2 Pipelining and correlation by `id`
 
-Le transport est **pipeliné** : plusieurs requêtes peuvent être en vol
-simultanément, ré-appariées par `id`. Côté serveur MCP
-(`src/WolvenKitMcp/Cp77ToolsRunner.cs`) :
+The transport is **pipelined**: several requests can be in flight
+simultaneously, re-paired by `id`. On the MCP server side
+(`src/WolvenKitMcp/Cp77ToolsRunner.cs`):
 
-- `SendToDaemonAsync` attribue un `id` incrémental, enregistre un
-  `TaskCompletionSource` dans le dictionnaire concurrent `_outstanding[id]`, puis
-  écrit la ligne JSON sur stdin du daemon. Les écritures stdin sont sérialisées
-  par `_writeLock` (un seul writer à la fois, sinon deux JSON-lines
-  s'entrelaceraient).
-- `ReadResponseLoopAsync` est une boucle de lecture unique qui tourne pendant
-  toute la vie du daemon : pour chaque ligne reçue, elle parse l'`id` et complète
-  le `TaskCompletionSource` correspondant. À la mort du daemon (stream fermé),
-  elle **échoue toutes les requêtes en vol** pour ne pas laisser d'appels pendus.
+- `SendToDaemonAsync` assigns an incremental `id`, registers a
+  `TaskCompletionSource` in the concurrent dictionary `_outstanding[id]`, then
+  writes the JSON line to the daemon's stdin. The stdin writes are serialized
+  by `_writeLock` (a single writer at a time, otherwise two JSON lines
+  would interleave).
+- `ReadResponseLoopAsync` is a single read loop that runs for
+  the entire life of the daemon: for each line received, it parses the `id` and completes
+  the corresponding `TaskCompletionSource`. When the daemon dies (stream closed),
+  it **fails all in-flight requests** so as not to leave pending calls.
 
-### 3.3 Sérialisation côté exécution
+### 3.3 Serialization on the execution side
 
-Bien que l'IPC soit pipeliné, **l'exécution dans le daemon reste sérialisée** par
-un `execLock` (SemaphoreSlim 1,1) : les bibliothèques WolvenKit (logger, archive
-manager, `Console.Out` capturé) **ne sont pas thread-safe**. L'overlap utile :
-décoder/recevoir la requête N+1 pendant que N s'exécute, et permettre au client
-d'envoyer en pipeline sans attendre la réponse précédente. Les écritures de
-réponse sont aussi protégées par un `writeLock`.
+Although the IPC is pipelined, **execution in the daemon stays serialized** by
+an `execLock` (SemaphoreSlim 1,1): the WolvenKit libraries (logger, archive
+manager, captured `Console.Out`) **are not thread-safe**. The useful overlap:
+decode/receive request N+1 while N executes, and let the client
+send in a pipeline without waiting for the previous response. The response
+writes are also protected by a `writeLock`.
 
-### 3.4 Capture de la sortie
+### 3.4 Output capture
 
-Deux canaux de sortie WolvenKit doivent être agrégés :
+Two WolvenKit output channels must be aggregated:
 
-1. `ILoggerService` — la plupart des messages. Le daemon fournit
-   `CapturingLoggerService`, qui accumule dans un `StringBuilder` drainable au
-   format `[ 0: Level ] - message` (identique à celui de `cp77tools`).
-2. `Console.WriteLine` — certaines tâches (notamment le listing
-   `archive --list`) écrivent leur résultat directement sur la console. D'où le
-   `CapturingTextWriter` qui redirige `Console.Out` vers le **même** tampon.
-   Sans cela, `archive_info` / `find_in_archives` / la ressource d'archive
-   renverraient du vide.
+1. `ILoggerService` — most messages. The daemon provides
+   `CapturingLoggerService`, which accumulates in a drainable `StringBuilder` in
+   the `[ 0: Level ] - message` format (identical to `cp77tools`).
+2. `Console.WriteLine` — some tasks (notably the `archive --list`
+   listing) write their result directly to the console. Hence the
+   `CapturingTextWriter` that redirects `Console.Out` to the **same** buffer.
+   Without it, `archive_info` / `find_in_archives` / the archive resource
+   would return empty.
 
-À chaque requête, le daemon `Drain()` le tampon avant exécution, exécute, puis
-`Drain()` à nouveau pour récupérer exactement la sortie de cette requête.
+On each request, the daemon `Drain()`s the buffer before execution, executes, then
+`Drain()`s again to retrieve exactly that request's output.
 
 ---
 
-## 4. Le runner : warmup, cache LRU, métriques, repli
+## 4. The runner: warmup, LRU cache, metrics, fallback
 
-Tout vit dans `src/WolvenKitMcp/Cp77ToolsRunner.cs`. Une **instance partagée
-unique** (`Cp77ToolsRunner.Shared`) est injectée par DI dans tous les outils et
-réutilisée par les ressources — donc **un seul daemon** pour tout le serveur.
+Everything lives in `src/WolvenKitMcp/Cp77ToolsRunner.cs`. A **single shared
+instance** (`Cp77ToolsRunner.Shared`) is injected via DI into all tools and
+reused by the resources — so **a single daemon** for the whole server.
 
 ### 4.1 Warmup
 
-`Program.cs` lance, dès le démarrage et en tâche de fond, un appel
-`--version` :
+`Program.cs` launches, at startup and in the background, a
+`--version` call:
 
 ```csharp
 _ = Task.Run(() => Cp77ToolsRunner.Shared.RunAsync(new[] { "--version" }, CancellationToken.None));
 ```
 
-Cela démarre le daemon et déclenche son préchauffage (~6-8 s) pendant que le
-client se connecte, pour que **même le premier vrai appel d'outil** bénéficie
-d'un `HashService` déjà chaud.
+This starts the daemon and triggers its warmup (~6-8 s) while the
+client connects, so that **even the very first real tool call** benefits
+from an already-hot `HashService`.
 
-`EnsureDaemonAsync` gère le cycle de vie : fast-path sans lock si le daemon est
-vivant, sinon démarrage sous `_initLock` (double-check), attente de
-`{"ready":true}` avec un timeout de 90 s, drainage continu de stderr (sinon le
-tampon du pipe bloquerait le daemon), puis lancement de la boucle de lecture.
+`EnsureDaemonAsync` manages the lifecycle: lock-free fast-path if the daemon is
+alive, otherwise startup under `_initLock` (double-check), waiting for
+`{"ready":true}` with a 90 s timeout, continuous draining of stderr (otherwise the
+pipe buffer would block the daemon), then launching the read loop.
 
-### 4.2 Cache LRU des listings d'archives
+### 4.2 LRU cache of archive listings
 
-`GetArchiveListingAsync` met en cache la liste des chemins internes d'une
-`.archive` (`_archiveCache`, clé = chemin absolu). L'invalidation est basée sur le
-**mtime** du fichier (`LastWriteTimeUtc`) : si le mtime a changé, on relance
-`archive --list` et on remplace l'entrée. Les compteurs `_cacheHits` /
-`_cacheMisses` sont exposés via l'outil `wolvenkit_status`.
-`InvalidateArchiveCache` permet de purger (outil `clear_cache`).
+`GetArchiveListingAsync` caches the list of internal paths of an
+`.archive` (`_archiveCache`, key = absolute path). Invalidation is based on the
+file's **mtime** (`LastWriteTimeUtc`): if the mtime has changed, we rerun
+`archive --list` and replace the entry. The counters `_cacheHits` /
+`_cacheMisses` are exposed via the `wolvenkit_status` tool.
+`InvalidateArchiveCache` allows purging (the `clear_cache` tool).
 
-### 4.3 Métriques par verbe
+### 4.3 Per-verb metrics
 
-`RunAsync` chronomètre chaque appel et l'enregistre dans `_metrics` (un
-`RunnerMetrics` par verbe). `RunnerMetrics` garde `Count`, `TotalMs`, et un
-**anneau circulaire des 100 dernières durées** d'où sont calculés **p50 / p95**.
-Exposé via `wolvenkit_status` (clé `metrics`), réinitialisable via
+`RunAsync` times each call and records it in `_metrics` (one
+`RunnerMetrics` per verb). `RunnerMetrics` keeps `Count`, `TotalMs`, and a
+**circular ring of the last 100 durations** from which **p50 / p95** are
+computed. Exposed via `wolvenkit_status` (key `metrics`), resettable via
 `clear_cache(scope=metrics|all)` → `ResetMetrics()`.
 
-### 4.4 Repli cp77tools
+### 4.4 cp77tools fallback
 
-Si le daemon échoue (exception hors annulation), `RunAsync` le tue
-(`KillDaemon`) — il sera relancé au prochain appel — puis se replie sur
-`RunViaSubprocessAsync`, qui relance le CLI `cp77tools` en sous-processus
-(comportement d'origine, ~6 s/appel, mais fonctionnel). Si le DLL du daemon est
-carrément **absent**, le repli devient définitif (`_daemonDisabled = true`).
+If the daemon fails (exception other than cancellation), `RunAsync` kills it
+(`KillDaemon`) — it will be restarted on the next call — then falls back to
+`RunViaSubprocessAsync`, which reruns the `cp77tools` CLI as a subprocess
+(original behavior, ~6 s/call, but functional). If the daemon DLL is
+flat-out **missing**, the fallback becomes permanent (`_daemonDisabled = true`).
 
-Résolution de chemins (toutes par variables d'environnement, sinon défauts) :
-`WOLVENKIT_DAEMON` (DLL du daemon, sinon projet frère), `WOLVENKIT_CP77TOOLS`
-(exe cp77tools, sinon `~/.dotnet/tools` puis PATH), `DOTNET_ROOT` /
-`WOLVENKIT_DOTNET_ROOT`, `WOLVENKIT_CLI_TIMEOUT_SECONDS` (défaut 300 s).
+Path resolution (all by environment variables, otherwise defaults):
+`WOLVENKIT_DAEMON` (daemon DLL, otherwise sibling project), `WOLVENKIT_CP77TOOLS`
+(cp77tools exe, otherwise `~/.dotnet/tools` then PATH), `DOTNET_ROOT` /
+`WOLVENKIT_DOTNET_ROOT`, `WOLVENKIT_CLI_TIMEOUT_SECONDS` (default 300 s).
 
 ---
 
-## 5. Convention de résultat des outils
+## 5. Tool result convention
 
-Chaque outil renvoie un JSON :
+Each tool returns a JSON:
 
 ```json
 { "ok", "status", "summary", "produced", "warnings", "errors", "exitCode", "log" }
 ```
 
 - `status` ∈ `success | partial | error | timeout`.
-- **Le succès est déterminé par les fichiers réellement produits, pas par un
-  marqueur de log.** Le helper `Structured` distingue deux cas :
-  - **outil producteur** (on lui passe une liste `produced`) : `success` si des
-    fichiers sont apparus (et `partial` s'il y a aussi des erreurs), `error`
-    sinon. Cela évite qu'une erreur non fatale (ex. export de matériaux d'un mesh)
-    fasse échouer un appel qui a bel et bien produit le fichier attendu.
-  - **outil d'information** (pas de `produced`) : on se fie au code de sortie et à
-    l'absence de marqueurs « Erreur daemon » / « Unhandled ».
-- `warnings` / `errors` sont extraits du log par `LogLines` (lignes
+- **Success is determined by the files actually produced, not by a
+  log marker.** The `Structured` helper distinguishes two cases:
+  - **producer tool** (it is passed a `produced` list): `success` if
+    files appeared (and `partial` if there are also errors), `error`
+    otherwise. This prevents a non-fatal error (e.g. exporting a mesh's materials)
+    from failing a call that did indeed produce the expected file.
+  - **information tool** (no `produced`): we rely on the exit code and the
+    absence of "Daemon error" / "Unhandled" markers.
+- `warnings` / `errors` are extracted from the log by `LogLines` (lines
   `[ 0: Warning/Error ] - …`).
-- `log` est tronqué par `Truncate` (12 000 c.) en préservant tête, erreurs du
-  milieu, et queue.
+- `log` is truncated by `Truncate` (12,000 chars) while preserving head, mid-log
+  errors, and tail.
 
-Helpers utilitaires dans `WolvenKitTools.cs` : `Err` (échec de validation
-d'argument), `Snapshot`/`ProducedIn`/`WithSnapshot` (diff de répertoire pour
-calculer `produced`), `MatchesGlob`, `BuildCpmodprojXml`.
+Utility helpers in `WolvenKitTools.cs`: `Err` (argument validation
+failure), `Snapshot`/`ProducedIn`/`WithSnapshot` (directory diff to
+compute `produced`), `MatchesGlob`, `BuildCpmodprojXml`.
 
 ---
 
-## 6. Guide : ajouter un nouvel outil MCP
+## 6. Guide: adding a new MCP tool
 
-Un outil est une **méthode statique** dans une classe `[McpServerToolType]`
-(`WolvenKitTools.cs` pour les 62 outils de base, `ModdingTools.cs` pour les 23
-outils de workflow haut niveau, `LiveTools.cs` pour les 35 outils live).
-**L'enregistrement est automatique par réflexion** : `Program.cs` appelle
-`.WithToolsFromAssembly()`, donc il n'y a rien à enregistrer manuellement.
-Déclarer les hints sur l'attribut (`ReadOnly`/`Destructive`/`Idempotent`) — un
-test (`ConsistencyTests`) échoue s'ils manquent.
+A tool is a **static method** in a `[McpServerToolType]` class
+(`WolvenKitTools.cs` for the 62 base tools, `ModdingTools.cs` for the 23
+high-level workflow tools, `LiveTools.cs` for the 35 live tools).
+**Registration is automatic via reflection**: `Program.cs` calls
+`.WithToolsFromAssembly()`, so there is nothing to register manually.
+Declare the hints on the attribute (`ReadOnly`/`Destructive`/`Idempotent`) — a
+test (`ConsistencyTests`) fails if they are missing.
 
-### 6.1 Squelette
+### 6.1 Skeleton
 
 ```csharp
-[McpServerTool(Name = "mon_outil")]
-[Description("Phrase claire pour le LLM : ce que fait l'outil, ses limites, " +
-             "et le format de sortie attendu.")]
-public static async Task<string> MonOutil(
-    Cp77ToolsRunner runner,   // injecté par DI (instance partagée → daemon unique)
-    [Description("Décris chaque paramètre — le LLM s'en sert pour appeler l'outil.")] string entree,
-    [Description("Chemin de sortie.")] string sortie,
+[McpServerTool(Name = "my_tool")]
+[Description("Clear sentence for the LLM: what the tool does, its limits, " +
+             "and the expected output format.")]
+public static async Task<string> MyTool(
+    Cp77ToolsRunner runner,   // injected by DI (shared instance → single daemon)
+    [Description("Describe each parameter — the LLM uses it to call the tool.")] string input,
+    [Description("Output path.")] string output,
     CancellationToken ct = default)
 {
-    if (!File.Exists(entree))
-        return Err($"Fichier introuvable : {entree}");          // échec de validation
+    if (!File.Exists(input))
+        return Err($"File not found: {input}");          // validation failure
 
-    var r = await runner.RunAsync(new[] { "verbe", entree, "--outpath", sortie }, ct);
+    var r = await runner.RunAsync(new[] { "verb", input, "--outpath", output }, ct);
 
-    return Structured($"Mon traitement : {entree} → {sortie}", r,
-        File.Exists(sortie) ? new List<string> { sortie } : new List<string>());
+    return Structured($"My processing: {input} → {output}", r,
+        File.Exists(output) ? new List<string> { output } : new List<string>());
 }
 ```
 
-### 6.2 Règles à respecter
+### 6.2 Rules to follow
 
-- **Signature** : `[McpServerTool(Name = "...")]` + `[Description]` sur la méthode
-  et sur chaque paramètre. Premier paramètre `Cp77ToolsRunner runner` si l'outil
-  délègue au daemon ; `CancellationToken ct = default` en dernier.
-- **Délégation** : appeler `runner.RunAsync(argv, ct)` avec l'`argv` façon
-  cp77tools. Si le verbe n'existe pas encore côté daemon, l'ajouter (cf. §7).
-- **Résultat** : toujours renvoyer du JSON via `Structured(...)` (ou
-  `Err(...)`/un objet anonyme conforme au schéma §5). Pour un outil producteur,
-  passer la liste `produced` calculée à partir des fichiers réellement écrits
-  (utiliser `WithSnapshot` quand la sortie est un répertoire dont on ne connaît
-  pas le contenu à l'avance).
-- **Validation amont** : vérifier l'existence des entrées et créer les
-  répertoires de sortie *avant* d'appeler le daemon ; renvoyer `Err` tôt.
-- Ne **rien écrire sur stdout** directement (réservé au JSON-RPC).
-- Ajouter un test dans `WolvenKitMcp.Tests` si l'outil contient une logique pure
-  (parsing, formatage, construction de chemin).
+- **Signature**: `[McpServerTool(Name = "...")]` + `[Description]` on the method
+  and on each parameter. First parameter `Cp77ToolsRunner runner` if the tool
+  delegates to the daemon; `CancellationToken ct = default` last.
+- **Delegation**: call `runner.RunAsync(argv, ct)` with the `argv` in
+  cp77tools style. If the verb does not yet exist on the daemon side, add it (see §7).
+- **Result**: always return JSON via `Structured(...)` (or
+  `Err(...)`/an anonymous object conforming to the §5 schema). For a producer tool,
+  pass the `produced` list computed from the files actually written
+  (use `WithSnapshot` when the output is a directory whose content you don't
+  know in advance).
+- **Upfront validation**: check the existence of inputs and create the
+  output directories *before* calling the daemon; return `Err` early.
+- **Write nothing to stdout** directly (reserved for JSON-RPC).
+- Add a test in `WolvenKitMcp.Tests` if the tool contains pure
+  logic (parsing, formatting, path construction).
 
 ---
 
-## 7. Guide : ajouter un verbe daemon
+## 7. Guide: adding a daemon verb
 
-Tout se passe dans le dispatcher `Dispatch(...)` de
-`src/WolvenKitDaemon/Program.cs`, qui mappe `argv[0]` (le verbe) sur une méthode.
+Everything happens in the `Dispatch(...)` dispatcher of
+`src/WolvenKitDaemon/Program.cs`, which maps `argv[0]` (the verb) to a method.
 
-### 7.1 Deux familles de services
+### 7.1 Two families of services
 
-| Type | Cycle de vie | Pourquoi |
+| Type | Lifecycle | Why |
 |------|--------------|----------|
-| **Hot singletons** | `HashService`, `TweakDBService`, `LocKeyService`, `HookService` | Coûteux à charger (~6 s) ; partagés et gardés chauds. |
-| **Scoped (par requête)** | `ArchiveManager`, `ModTools`, `Red4ParserService`, `MeshTools`, `ConsoleFunctions` | Accumulent de l'état (ex. `ArchiveManager` mémorise les archives chargées) ; **doivent être neufs à chaque requête** sinon fuite d'état entre appels. |
+| **Hot singletons** | `HashService`, `TweakDBService`, `LocKeyService`, `HookService` | Expensive to load (~6 s); shared and kept hot. |
+| **Scoped (per request)** | `ArchiveManager`, `ModTools`, `Red4ParserService`, `MeshTools`, `ConsoleFunctions` | Accumulate state (e.g. `ArchiveManager` remembers loaded archives); **must be fresh on each request** otherwise state leaks between calls. |
 
-Conséquence pratique : pour un verbe qui charge des archives de jeu, **crée
-toujours un scope dédié** :
+Practical consequence: for a verb that loads game archives, **always create
+a dedicated scope**:
 
 ```csharp
 using var scope = provider.CreateScope();
 var am = scope.ServiceProvider.GetRequiredService<IArchiveManager>();
 am.LoadGameArchives(exe);
-// ... travail ...
+// ... work ...
 ```
 
-Pour un verbe qui n'a besoin que d'une donnée de référence chaude (ex.
-`resolve-hash`, `tweakdb-resolve`), lis directement le singleton depuis le
-`provider` racine, sans scope.
+For a verb that only needs hot reference data (e.g.
+`resolve-hash`, `tweakdb-resolve`), read the singleton directly from the root
+`provider`, without a scope.
 
 ### 7.2 ConsoleFunctions
 
-La plupart des verbes « standards » (`unbundle`, `uncook`, `export`, `import`,
-`pack`, `build`, `convert`, `archive`, `oodle`, `wwise`, `hash`) délèguent à des
-méthodes de **`ConsoleFunctions`** (issu de `WolvenKit.Modkit` / `CP77Tools`),
-résolu via un scope en fin de `Dispatch`. C'est l'implémentation réelle des
-tâches WolvenKit. Les verbes « maison » (`loc-resolve`, `opus-import`,
-`tweakdb-*`, `tweak read|write|validate`) sont implémentés en amont du switch,
-directement avec les services.
+Most "standard" verbs (`unbundle`, `uncook`, `export`, `import`,
+`pack`, `build`, `convert`, `archive`, `oodle`, `wwise`, `hash`) delegate to
+methods of **`ConsoleFunctions`** (from `WolvenKit.Modkit` / `CP77Tools`),
+resolved via a scope at the end of `Dispatch`. This is the real implementation of the
+WolvenKit tasks. The "home-grown" verbs (`loc-resolve`, `opus-import`,
+`tweakdb-*`, `tweak read|write|validate`) are implemented upstream of the switch,
+directly with the services.
 
 ### 7.3 ParseArgs
 
-`ParseArgs(argv, skip)` sépare l'`argv` en **positionnels** et **options**
-`--clé valeur`. Les flags booléens (sans valeur) sont déclarés dans le `HashSet`
-`boolFlags` (`--list`, `--diff`, `--keep`, `--serialize`, …) — **si tu ajoutes une
-nouvelle option booléenne, ajoute-la à ce set**, sinon le parser consommera
-l'argument suivant comme sa valeur. Helpers associés : `Opt` (valeur d'option),
-`Dir` (→ `DirectoryInfo`), `Fs` (fichier ou dossier), `ParseUext`,
+`ParseArgs(argv, skip)` splits the `argv` into **positionals** and **options**
+`--key value`. Boolean flags (without value) are declared in the `HashSet`
+`boolFlags` (`--list`, `--diff`, `--keep`, `--serialize`, …) — **if you add a
+new boolean option, add it to this set**, otherwise the parser will consume
+the next argument as its value. Associated helpers: `Opt` (option value),
+`Dir` (→ `DirectoryInfo`), `Fs` (file or folder), `ParseUext`,
 `ParseUintList`.
 
-### 7.4 Squelette d'un nouveau verbe
+### 7.4 Skeleton of a new verb
 
 ```csharp
-if (verb == "mon-verbe")
+if (verb == "my-verb")
 {
     var (pos, o) = ParseArgs(argv, 1);
-    if (pos.Count == 0) { logger.Error("mon-verbe : argument manquant"); return -1; }
+    if (pos.Count == 0) { logger.Error("my-verb: missing argument"); return -1; }
 
     using var scope = provider.CreateScope();
     var am = scope.ServiceProvider.GetRequiredService<IArchiveManager>();
-    // ... travail, écrire via logger.Info/Warning/Error ...
-    logger.Info("mon-verbe : terminé");
-    return 0;   // 0 = succès, ≠0 = échec (le serveur MCP le mappe sur status)
+    // ... work, write via logger.Info/Warning/Error ...
+    logger.Info("my-verb: done");
+    return 0;   // 0 = success, ≠0 = failure (the MCP server maps it to status)
 }
 ```
 
-Le **code de retour** et la **sortie** (via `logger`) sont ce que le serveur MCP
-recevra dans `{exit, output}`. Pour de gros volumes (ex. dumps TweakDB), applique
-un **cap dur côté daemon** (cf. `tweakdb-query`, cap 100 + marqueur `+` pour
-signaler la troncature) afin de ne pas saturer le contexte du LLM.
+The **return code** and the **output** (via `logger`) are what the MCP server
+will receive in `{exit, output}`. For large volumes (e.g. TweakDB dumps), apply
+a **hard cap on the daemon side** (see `tweakdb-query`, cap 100 + `+` marker to
+signal truncation) so as not to saturate the LLM's context.
 
-### 7.5 Piège : assemblies de contenu
+### 7.5 Pitfall: content assemblies
 
-Certaines dépendances (`DirectXTexNet`, etc.) sont livrées comme fichiers de
-contenu, copiées dans la sortie de build mais **absentes du `deps.json`**. Le
-daemon installe un résolveur de repli
-(`AssemblyLoadContext.Default.Resolving`) qui les charge depuis le dossier de
-l'application. Et `Oodle.Load()` est appelé au démarrage pour charger le codec
-Kraken natif. Ne supprime pas ces deux initialisations.
+Some dependencies (`DirectXTexNet`, etc.) are shipped as content files,
+copied into the build output but **absent from `deps.json`**. The
+daemon installs a fallback resolver
+(`AssemblyLoadContext.Default.Resolving`) that loads them from the
+application folder. And `Oodle.Load()` is called at startup to load the native
+Kraken codec. Do not remove these two initializations.
 
 ---
 
-## 8. Le parser REDscript et sa philosophie anti-faux-positifs
+## 8. The REDscript parser and its anti-false-positive philosophy
 
-`src/WolvenKitMcp/RedscriptParser.cs` alimente l'outil `lint_script`. C'est un
-**tokenizer + analyseur récursif-descendant** maison qui valide la **syntaxe**
-d'un fichier `.reds` isolé. **Ce n'est PAS un type-checker** : il ne résout pas
-les types/méthodes externes (cela exigerait le compilateur `scc` et tout
-l'écosystème de mods, cf. `WINDOWS-VALIDATION.md`).
+`src/WolvenKitMcp/RedscriptParser.cs` powers the `lint_script` tool. It is a
+home-grown **tokenizer + recursive-descent parser** that validates the **syntax**
+of an isolated `.reds` file. **It is NOT a type-checker**: it does not resolve
+external types/methods (that would require the `scc` compiler and the entire
+mod ecosystem, see `WINDOWS-VALIDATION.md`).
 
-### 8.1 Philosophie
+### 8.1 Philosophy
 
-Calibré pour **0 faux positif** sur un corpus de **1374 `.reds` réels**. La règle
-de design :
+Calibrated for **0 false positives** on a corpus of **1374 real `.reds` files**. The design
+rule:
 
-- **Strict** sur la structure stable : déclarations (`class`/`struct`/`enum`/
-  `func`/`let`), types, en-têtes de statements, équilibrage des `() [] {}`.
-- **Permissif mais équilibré** sur les expressions : on ne modélise **pas** la
-  précédence des opérateurs. Une expression est consommée jusqu'à son terminateur
-  (`;` ou `}`) en vérifiant uniquement l'équilibrage des parenthèses/crochets/
-  accolades (`SkipExpression`, `SkipExpressionUntil`, `SkipBalanced`). Imposer une
-  grammaire d'expression complète risquerait de rejeter du REDscript valide — d'où
-  ce choix volontairement tolérant.
+- **Strict** on the stable structure: declarations (`class`/`struct`/`enum`/
+  `func`/`let`), types, statement headers, balancing of `() [] {}`.
+- **Permissive but balanced** on expressions: we do **not** model operator
+  precedence. An expression is consumed up to its terminator
+  (`;` or `}`) while checking only the balancing of parentheses/brackets/
+  braces (`SkipExpression`, `SkipExpressionUntil`, `SkipBalanced`). Imposing a
+  complete expression grammar would risk rejecting valid REDscript — hence
+  this deliberately tolerant choice.
 
-### 8.2 Mécanismes notables
+### 8.2 Notable mechanisms
 
-- **Lexer** : gère commentaires `//` et `/* */` (signale les non fermés),
-  chaînes avec préfixe (`n"…"`, `s"…"`) et **interpolation** `\( … )` avec
-  guillemets imbriqués et chaînes multi-lignes, nombres avec suffixes (`u`, `f`,
-  `ul`…), annotations `@…`, opérateurs composés.
-- **Tolérance ciblée** : `if`/`while`/`for`/`switch` sans parenthèses obligatoires
-  (`SkipExprUntilBlock`), lambdas `-> { }`, types raccourcis `[T]` / `[T; N]`,
-  génériques `<T, U>` (`SkipAngles`, comptage caractère par caractère pour gérer
-  `>>`), `native func` sans corps (signature suivie d'une frontière de
-  déclaration), fonctions à corps-expression `= expr` (`SkipExprBody`),
-  mots-clés contextuels utilisés comme noms.
-- **Récupération d'erreur** : `Synchronize()` se resynchronise sur `;`, `}`, ou
-  un mot-clé de déclaration, pour éviter les **cascades** de faux diagnostics.
-  Garde-fou `MaxErrors = 60` et garantie de progression (`if (_p == before)
-  Next();`) pour ne jamais boucler.
+- **Lexer**: handles `//` and `/* */` comments (flags unclosed ones),
+  prefixed strings (`n"…"`, `s"…"`) and **interpolation** `\( … )` with
+  nested quotes and multi-line strings, numbers with suffixes (`u`, `f`,
+  `ul`…), `@…` annotations, compound operators.
+- **Targeted tolerance**: `if`/`while`/`for`/`switch` without mandatory parentheses
+  (`SkipExprUntilBlock`), `-> { }` lambdas, shorthand types `[T]` / `[T; N]`,
+  generics `<T, U>` (`SkipAngles`, character-by-character counting to handle
+  `>>`), `native func` without body (signature followed by a declaration
+  boundary), expression-body functions `= expr` (`SkipExprBody`),
+  contextual keywords used as names.
+- **Error recovery**: `Synchronize()` resynchronizes on `;`, `}`, or
+  a declaration keyword, to avoid **cascades** of false diagnostics.
+  Safeguard `MaxErrors = 60` and a progress guarantee (`if (_p == before)
+  Next();`) to never loop.
 
 ---
 
 ## 9. Build, test, validation
 
-### 9.1 Ordre de build (le daemon d'abord)
+### 9.1 Build order (the daemon first)
 
 ```sh
-dotnet build src/WolvenKitDaemon   # déploie aussi les natifs (libkraken/kraken.dll, DirectXTexNet)
+dotnet build src/WolvenKitDaemon   # also deploys the natives (libkraken/kraken.dll, DirectXTexNet)
 dotnet build src/WolvenKitMcp
 ```
 
-Le daemon doit être bâti **avant** le serveur MCP, car le serveur résout par
-défaut le DLL du daemon dans le projet frère (`WOLVENKIT_DAEMON` permet de
-surcharger).
+The daemon must be built **before** the MCP server, because the server resolves by
+default the daemon DLL in the sibling project (`WOLVENKIT_DAEMON` allows
+overriding it).
 
 ### 9.2 Tests
 
 ```sh
-dotnet test                        # 129 tests xUnit (src/WolvenKitMcp.Tests)
-python3 test-daemon.py             # latence du daemon seul, par requête
-python3 test-mcp-server.py         # serveur MCP de bout en bout
-python  test-new-tools.py "<jeu>"  # validation jeu réel : archive_stats / validate_redmod / inspect_app
+dotnet test                        # 129 xUnit tests (src/WolvenKitMcp.Tests)
+python3 test-daemon.py             # daemon-only latency, per request
+python3 test-mcp-server.py         # end-to-end MCP server
+python  test-new-tools.py "<game>" # real-game validation: archive_stats / validate_redmod / inspect_app
 ```
 
-### 9.3 Validation de bout en bout sur de vrais assets (Windows)
+### 9.3 End-to-end validation on real assets (Windows)
 
 ```sh
-python3 validate-windows.py        # exerce les outils + prompts sur de vrais assets du jeu
+python3 validate-windows.py        # exercises the tools + prompts on real game assets
 ```
 
-Voir `WINDOWS-VALIDATION.md` pour le détail et les prérequis (installation du jeu,
+See `WINDOWS-VALIDATION.md` for the details and prerequisites (game installation,
 TweakDB, etc.).
 
-### 9.4 Piège du verrou DLL (Windows) — tuer les process avant rebuild
+### 9.4 DLL lock pitfall (Windows) — kill the processes before rebuild
 
-Tant qu'un `WolvenKitDaemon` (ou un serveur MCP qui le tient ouvert) tourne, ses
-DLL sont **verrouillées** par Windows et `dotnet build` échoue avec une erreur de
-fichier en cours d'utilisation. **Avant de recompiler, tue les processus** :
+As long as a `WolvenKitDaemon` (or an MCP server holding it open) is running, its
+DLLs are **locked** by Windows and `dotnet build` fails with a
+file-in-use error. **Before recompiling, kill the processes**:
 
 ```powershell
 Get-Process dotnet, WolvenKitDaemon, WolvenKitMcp -ErrorAction SilentlyContinue | Stop-Process -Force
 ```
 
-(Adapter les noms selon le mode de lancement.) Penser aussi à fermer le client
-MCP — Claude Desktop relance le serveur, qui maintient le daemon vivant.
+(Adapt the names according to the launch mode.) Also remember to close the
+MCP client — Claude Desktop restarts the server, which keeps the daemon alive.
 
 ---
 
-## 10. Carte des fichiers clés
+## 10. Map of key files
 
-| Fichier | Rôle |
+| File | Role |
 |---------|------|
-| `src/WolvenKitMcp/Program.cs` | Hôte MCP, transport stdio, DI, warmup du daemon. |
-| `src/WolvenKitMcp/Cp77ToolsRunner.cs` | Pilote du daemon : IPC pipeliné, cache LRU, métriques p50/p95, repli cp77tools. |
-| `src/WolvenKitMcp/WolvenKitTools.cs` | 62 outils MCP de base + helpers (`Structured`, `Err`, `Truncate`, `MatchesGlob`, `Snapshot`/`ProducedIn`, `BuildCpmodprojXml`). |
-| `src/WolvenKitMcp/ModdingTools.cs` | 23 outils de workflow haut niveau + base de connaissance des frameworks. |
-| `src/WolvenKitMcp/LiveTools.cs` | 35 outils `live_*` (jeu en cours d'exécution, via CetBridge). |
-| `src/WolvenKitMcp/CetBridge.cs` | Pont TCP/fichier vers le mod Lua CETBridge (jeu vivant). |
-| `src/WolvenKitMcp/RedscriptParser.cs` | Tokenizer + parser récursif REDscript (`lint_script`). |
-| `src/WolvenKitMcp/WolvenKitResources.cs` | Ressources MCP (`[McpServerResourceType]`). |
-| `src/WolvenKitMcp/WolvenKitPrompts.cs` | Prompts MCP (`[McpServerPromptType]`). |
-| `src/WolvenKitDaemon/Program.cs` | DI, dispatcher de verbes, IPC, shims (`CapturingLoggerService`, etc.). |
-| `src/WolvenKitMcp.Tests/` | Tests xUnit des helpers purs. |
+| `src/WolvenKitMcp/Program.cs` | MCP host, stdio transport, DI, daemon warmup. |
+| `src/WolvenKitMcp/Cp77ToolsRunner.cs` | Daemon driver: pipelined IPC, LRU cache, p50/p95 metrics, cp77tools fallback. |
+| `src/WolvenKitMcp/WolvenKitTools.cs` | 62 base MCP tools + helpers (`Structured`, `Err`, `Truncate`, `MatchesGlob`, `Snapshot`/`ProducedIn`, `BuildCpmodprojXml`). |
+| `src/WolvenKitMcp/ModdingTools.cs` | 23 high-level workflow tools + framework knowledge base. |
+| `src/WolvenKitMcp/LiveTools.cs` | 35 `live_*` tools (running game, via CetBridge). |
+| `src/WolvenKitMcp/CetBridge.cs` | TCP/file bridge to the CETBridge Lua mod (live game). |
+| `src/WolvenKitMcp/RedscriptParser.cs` | REDscript tokenizer + recursive parser (`lint_script`). |
+| `src/WolvenKitMcp/WolvenKitResources.cs` | MCP resources (`[McpServerResourceType]`). |
+| `src/WolvenKitMcp/WolvenKitPrompts.cs` | MCP prompts (`[McpServerPromptType]`). |
+| `src/WolvenKitDaemon/Program.cs` | DI, verb dispatcher, IPC, shims (`CapturingLoggerService`, etc.). |
+| `src/WolvenKitMcp.Tests/` | xUnit tests of the pure helpers. |

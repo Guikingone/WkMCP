@@ -6,27 +6,27 @@ using System.Text.Json;
 
 namespace WolvenKitMcp;
 
-/// <summary>Résultat d'une invocation de cp77tools (daemon ou sous-processus).</summary>
+/// <summary>Result of a cp77tools invocation (daemon or subprocess).</summary>
 public sealed record CliResult(int ExitCode, string Stdout, string Stderr, bool TimedOut)
 {
     public bool Success => !TimedOut && ExitCode == 0;
 }
 
 /// <summary>
-/// Exécute les commandes WolvenKit pour le serveur MCP.
+/// Runs WolvenKit commands for the MCP server.
 ///
-/// Chemin rapide : un <c>WolvenKitDaemon</c> persistant est démarré une fois
-/// (HashService chargé une seule fois ~6 s) ; les requêtes suivantes lui sont
-/// envoyées par IPC stdio et coûtent quelques millisecondes.
+/// Fast path: a persistent <c>WolvenKitDaemon</c> is started once
+/// (HashService loaded just once ~6 s); subsequent requests are sent to it
+/// over stdio IPC and cost a few milliseconds.
 ///
-/// Repli : si le daemon est indisponible, chaque appel relance <c>cp77tools</c>
-/// en sous-processus (comportement d'origine, ~6 s/appel mais fonctionnel).
+/// Fallback: if the daemon is unavailable, each call relaunches <c>cp77tools</c>
+/// as a subprocess (original behavior, ~6 s/call but functional).
 ///
-/// Variables d'environnement (toutes optionnelles) :
-///   WOLVENKIT_DAEMON               chemin de WolvenKitDaemon.dll
-///   WOLVENKIT_CP77TOOLS            chemin de l'exécutable cp77tools (repli)
-///   DOTNET_ROOT / WOLVENKIT_DOTNET_ROOT   racine du runtime .NET
-///   WOLVENKIT_CLI_TIMEOUT_SECONDS  délai max d'une commande (défaut 300)
+/// Environment variables (all optional):
+///   WOLVENKIT_DAEMON               path of WolvenKitDaemon.dll
+///   WOLVENKIT_CP77TOOLS            path of the cp77tools executable (fallback)
+///   DOTNET_ROOT / WOLVENKIT_DOTNET_ROOT   .NET runtime root
+///   WOLVENKIT_CLI_TIMEOUT_SECONDS  max delay of a command (default 300)
 /// </summary>
 public sealed class Cp77ToolsRunner : IDisposable
 {
@@ -36,8 +36,8 @@ public sealed class Cp77ToolsRunner : IDisposable
     private readonly string _daemonDll;
     private readonly TimeSpan _timeout;
 
-    private readonly SemaphoreSlim _initLock = new(1, 1); // sérialise le démarrage du daemon
-    private readonly SemaphoreSlim _writeLock = new(1, 1); // sérialise les écritures stdin
+    private readonly SemaphoreSlim _initLock = new(1, 1); // serializes daemon startup
+    private readonly SemaphoreSlim _writeLock = new(1, 1); // serializes stdin writes
     private Process? _daemon;
     private StreamWriter? _toDaemon;
     private StreamReader? _fromDaemon;
@@ -45,9 +45,9 @@ public sealed class Cp77ToolsRunner : IDisposable
     private bool _daemonDisabled;
     private int _nextId;
 
-    // Requêtes en vol, indexées par id ; renseignées par SendToDaemonAsync,
-    // complétées par la boucle de lecture quand la réponse arrive. LastActivity
-    // est rafraîchi à chaque message de progression (timeout d'inactivité).
+    // In-flight requests, indexed by id; populated by SendToDaemonAsync,
+    // completed by the read loop when the response arrives. LastActivity
+    // is refreshed on each progress message (inactivity timeout).
     private sealed class Outstanding
     {
         public required TaskCompletionSource<CliResult> Tcs { get; init; }
@@ -57,21 +57,21 @@ public sealed class Cp77ToolsRunner : IDisposable
 
     private readonly ConcurrentDictionary<int, Outstanding> _outstanding = new();
 
-    // Cache des listings d'archives (clé = chemin absolu). Invalidé par mtime + taille
-    // (le mtime seul peut survivre à un repack très rapide).
+    // Cache of archive listings (key = absolute path). Invalidated by mtime + size
+    // (mtime alone can survive a very fast repack).
     private readonly ConcurrentDictionary<string, ArchiveListing> _archiveCache = new();
     private long _cacheHits;
     private long _cacheMisses;
 
-    // Métriques par verbe (count + percentiles via anneau circulaire des 100 dernières durées).
+    // Per-verb metrics (count + percentiles via circular ring of the last 100 durations).
     private readonly ConcurrentDictionary<string, RunnerMetrics> _metrics = new();
 
     private sealed record ArchiveListing(DateTime Mtime, long Size, IReadOnlyList<string> Entries);
 
-    // Plafonds d'inactivité par verbe : les verbes lourds (uncook d'une grosse archive,
-    // build d'un projet complet) dépassent légitimement le délai par défaut. Le délai
-    // est ré-armé par la progression du daemon — c'est un timeout d'INACTIVITÉ, pas de
-    // durée totale. La variable WOLVENKIT_CLI_TIMEOUT_SECONDS reste le plancher.
+    // Per-verb inactivity ceilings: heavy verbs (uncook of a large archive,
+    // build of a full project) legitimately exceed the default delay. The delay
+    // is re-armed by the daemon's progress — it is an INACTIVITY timeout, not a
+    // total-duration one. The WOLVENKIT_CLI_TIMEOUT_SECONDS variable remains the floor.
     private static readonly Dictionary<string, int> LongVerbSeconds = new(StringComparer.OrdinalIgnoreCase)
     {
         ["uncook"] = 900,
@@ -128,16 +128,16 @@ public sealed class Cp77ToolsRunner : IDisposable
         }
     }
 
-    /// <summary>Stats du cache des listings d'archives (hits / misses depuis le
-    /// démarrage du serveur, plus la taille courante). Exposé via
+    /// <summary>Stats of the archive listing cache (hits / misses since server
+    /// startup, plus the current size). Exposed via
     /// <c>wolvenkit_status</c>.</summary>
     public (long hits, long misses, int entries) CacheStats
         => (Interlocked.Read(ref _cacheHits),
             Interlocked.Read(ref _cacheMisses),
             _archiveCache.Count);
 
-    /// <summary>Snapshot des métriques par verbe (top par count). Exposé via
-    /// <c>wolvenkit_status</c> sous la clé <c>metrics</c>.</summary>
+    /// <summary>Snapshot of per-verb metrics (top by count). Exposed via
+    /// <c>wolvenkit_status</c> under the <c>metrics</c> key.</summary>
     public IReadOnlyList<(string verb, long calls, long totalMs, long p50, long p95)> MetricsSnapshot()
         => _metrics
             .Select(kv =>
@@ -148,11 +148,11 @@ public sealed class Cp77ToolsRunner : IDisposable
             .OrderByDescending(t => t.Count)
             .ToList();
 
-    /// <summary>Réinitialise les compteurs de métriques (utilisé par
+    /// <summary>Resets the metrics counters (used by
     /// <c>clear_cache(scope=metrics|all)</c>).</summary>
     public void ResetMetrics() => _metrics.Clear();
 
-    /// <summary>Instance partagée — utilisée aussi par les ressources MCP.</summary>
+    /// <summary>Shared instance — also used by the MCP resources.</summary>
     public static Cp77ToolsRunner Shared { get; } = new();
 
     public Cp77ToolsRunner()
@@ -164,7 +164,7 @@ public sealed class Cp77ToolsRunner : IDisposable
         var dotnetExeName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "dotnet.exe" : "dotnet";
         _dotnetExe = _dotnetRoot is not null && File.Exists(Path.Combine(_dotnetRoot, dotnetExeName))
             ? Path.Combine(_dotnetRoot, dotnetExeName)
-            : dotnetExeName; // sinon : depuis le PATH
+            : dotnetExeName; // otherwise: from the PATH
 
         _timeout = TimeSpan.FromSeconds(
             int.TryParse(Environment.GetEnvironmentVariable("WOLVENKIT_CLI_TIMEOUT_SECONDS"),
@@ -175,16 +175,16 @@ public sealed class Cp77ToolsRunner : IDisposable
     public bool ToolExists => File.Exists(_cp77tools);
 
     /// <summary>
-    /// Renvoie la liste des chemins internes d'une archive .archive, depuis le
-    /// cache si présent et frais (comparé au <c>LastWriteTimeUtc</c> du fichier),
-    /// sinon en interrogeant le daemon (<c>archive --list</c>) puis en mettant
-    /// le résultat en cache.
+    /// Returns the list of internal paths of a .archive, from the
+    /// cache if present and fresh (compared to the file's <c>LastWriteTimeUtc</c>),
+    /// otherwise by querying the daemon (<c>archive --list</c>) then caching
+    /// the result.
     /// </summary>
     public async Task<(IReadOnlyList<string> entries, bool fromCache, CliResult raw)>
         GetArchiveListingAsync(string archivePath, CancellationToken ct)
     {
         if (!File.Exists(archivePath))
-            return (Array.Empty<string>(), false, new CliResult(-1, "", $"Archive introuvable : {archivePath}", false));
+            return (Array.Empty<string>(), false, new CliResult(-1, "", $"Archive not found: {archivePath}", false));
 
         var fi = new FileInfo(archivePath);
         var mtime = fi.LastWriteTimeUtc;
@@ -204,17 +204,17 @@ public sealed class Cp77ToolsRunner : IDisposable
         return (entries, false, r);
     }
 
-    /// <summary>Nettoie le cache des listings d'archives (par défaut tout, ou
-    /// une entrée précise).</summary>
+    /// <summary>Clears the archive listing cache (by default all, or
+    /// a specific entry).</summary>
     public void InvalidateArchiveCache(string? archivePath = null)
     {
         if (archivePath is null) _archiveCache.Clear();
         else _archiveCache.TryRemove(archivePath, out _);
     }
 
-    /// <summary>Extrait les chemins internes d'un listing « archive --list ».
-    /// Chaque ligne non vide ne commençant pas par <c>[</c> et contenant un
-    /// séparateur est considérée comme un chemin REDengine.</summary>
+    /// <summary>Extracts the internal paths from an "archive --list" listing.
+    /// Each non-empty line not starting with <c>[</c> and containing a
+    /// separator is treated as a REDengine path.</summary>
     private static List<string> ExtractListingEntries(string log)
     {
         var list = new List<string>();
@@ -228,11 +228,11 @@ public sealed class Cp77ToolsRunner : IDisposable
         return list;
     }
 
-    /// <summary>Exécute une commande WolvenKit (verbe + arguments façon cp77tools).
-    /// Plusieurs appels peuvent être en vol simultanément : ils sont pipelinés vers
-    /// le daemon et ré-appariés par ID. Le daemon, côté exécution, reste sérialisé
-    /// (les bibliothèques WolvenKit ne sont pas thread-safe), mais l'IPC ne bloque
-    /// plus l'enchaînement.</summary>
+    /// <summary>Runs a WolvenKit command (verb + arguments cp77tools-style).
+    /// Several calls can be in flight simultaneously: they are pipelined to
+    /// the daemon and re-matched by ID. The daemon, on the execution side, stays
+    /// serialized (the WolvenKit libraries are not thread-safe), but the IPC no
+    /// longer blocks the chaining.</summary>
     public async Task<CliResult> RunAsync(IEnumerable<string> args, CancellationToken ct,
         IProgress<string>? progress = null)
     {
@@ -250,14 +250,14 @@ public sealed class Cp77ToolsRunner : IDisposable
                 }
                 catch (Exception) when (!ct.IsCancellationRequested)
                 {
-                    // Daemon en panne : on le tue ; il sera relancé au prochain appel.
-                    // Si le DLL est carrément absent, repli définitif.
+                    // Daemon down: we kill it; it will be relaunched on the next call.
+                    // If the DLL is outright missing, definitive fallback.
                     KillDaemon();
                     if (!File.Exists(_daemonDll))
                         _daemonDisabled = true;
                 }
             }
-            // Repli : sous-processus cp77tools.
+            // Fallback: cp77tools subprocess.
             return await RunViaSubprocessAsync(argv, ct);
         }
         finally
@@ -271,7 +271,7 @@ public sealed class Cp77ToolsRunner : IDisposable
 
     private async Task EnsureDaemonAsync(CancellationToken ct)
     {
-        // Fast path sans lock — déjà vivant.
+        // Fast path without lock — already alive.
         if (_daemon is { HasExited: false } && _toDaemon is not null
             && _fromDaemon is not null && _readLoop is { IsCompleted: false })
             return;
@@ -279,7 +279,7 @@ public sealed class Cp77ToolsRunner : IDisposable
         await _initLock.WaitAsync(ct);
         try
         {
-            // Re-check sous lock.
+            // Re-check under lock.
             if (_daemon is { HasExited: false } && _toDaemon is not null
                 && _fromDaemon is not null && _readLoop is { IsCompleted: false })
                 return;
@@ -287,7 +287,7 @@ public sealed class Cp77ToolsRunner : IDisposable
             KillDaemon();
 
             if (!File.Exists(_daemonDll))
-                throw new FileNotFoundException("WolvenKitDaemon introuvable", _daemonDll);
+                throw new FileNotFoundException("WolvenKitDaemon not found", _daemonDll);
 
             var psi = new ProcessStartInfo
             {
@@ -301,30 +301,30 @@ public sealed class Cp77ToolsRunner : IDisposable
             psi.ArgumentList.Add(_daemonDll);
 
             var proc = Process.Start(psi)
-                       ?? throw new InvalidOperationException("échec du démarrage du daemon");
+                       ?? throw new InvalidOperationException("failed to start the daemon");
             _daemon = proc;
             _toDaemon = proc.StandardInput;
             _fromDaemon = proc.StandardOutput;
 
-            // Vider la sortie d'erreur en continu (sinon le tampon du pipe bloque le daemon).
+            // Drain the error output continuously (otherwise the pipe buffer blocks the daemon).
             _ = Task.Run(async () =>
             {
                 try
                 {
                     while (await proc.StandardError.ReadLineAsync() is not null) { }
                 }
-                catch { /* daemon arrêté */ }
+                catch { /* daemon stopped */ }
             });
 
-            // Attendre {"ready":true} (préchauffage de HashService, ~6-8 s).
+            // Wait for {"ready":true} (HashService warmup, ~6-8 s).
             using var readyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             readyCts.CancelAfter(TimeSpan.FromSeconds(90));
             var ready = await _fromDaemon.ReadLineAsync(readyCts.Token);
             if (ready is null || !ready.Contains("\"ready\"", StringComparison.Ordinal))
-                throw new InvalidOperationException("le daemon n'a pas signalé sa disponibilité");
+                throw new InvalidOperationException("the daemon did not signal its readiness");
 
-            // Démarre la boucle de lecture : aiguille chaque réponse par ID
-            // vers le TaskCompletionSource correspondant.
+            // Start the read loop: routes each response by ID
+            // to the corresponding TaskCompletionSource.
             _readLoop = Task.Run(ReadResponseLoopAsync);
             StartWatchdog(proc);
         }
@@ -334,11 +334,11 @@ public sealed class Cp77ToolsRunner : IDisposable
         }
     }
 
-    /// <summary>Watchdog : ping périodique du daemon quand il est inactif. Un daemon
-    /// figé (process vivant mais bloqué) ne se détectait qu'à la requête suivante,
-    /// qui partait en timeout complet ; ici on le tue proactivement pour que le
-    /// prochain appel reparte sur un daemon frais. Le verbe « ping » est traité par
-    /// le daemon hors execLock, donc un uncook long ne déclenche pas de faux positif.</summary>
+    /// <summary>Watchdog: periodic ping of the daemon when it is idle. A frozen
+    /// daemon (process alive but stuck) was only detected on the next request,
+    /// which then ran into a full timeout; here we kill it proactively so the
+    /// next call restarts on a fresh daemon. The "ping" verb is handled by
+    /// the daemon outside execLock, so a long uncook does not trigger a false positive.</summary>
     private void StartWatchdog(Process proc)
     {
         _ = Task.Run(async () =>
@@ -347,9 +347,9 @@ public sealed class Cp77ToolsRunner : IDisposable
             {
                 await Task.Delay(TimeSpan.FromSeconds(60));
                 if (!ReferenceEquals(_daemon, proc) || proc.HasExited)
-                    return; // daemon remplacé ou déjà mort : le watchdog suit ce process-ci
+                    return; // daemon replaced or already dead: the watchdog follows this process
                 if (!_outstanding.IsEmpty)
-                    continue; // des requêtes en vol attestent déjà de la liveness
+                    continue; // in-flight requests already attest to liveness
 
                 try
                 {
@@ -371,10 +371,10 @@ public sealed class Cp77ToolsRunner : IDisposable
         });
     }
 
-    /// <summary>Purge les dossiers temporaires du serveur (wolvenkit-mcp-*, wkmcp-*)
-    /// plus vieux que 24 h. Les dossiers déterministes (read/write/inspect) ne sont
-    /// jamais nettoyés en cours de session ; sans cette purge au démarrage, ils
-    /// s'accumulent indéfiniment entre les sessions.</summary>
+    /// <summary>Purges the server's temporary folders (wolvenkit-mcp-*, wkmcp-*)
+    /// older than 24 h. The deterministic folders (read/write/inspect) are
+    /// never cleaned up during a session; without this purge at startup, they
+    /// accumulate indefinitely between sessions.</summary>
     public static void PurgeStaleTempDirs()
     {
         var cutoff = DateTime.UtcNow - TimeSpan.FromHours(24);
@@ -391,19 +391,19 @@ public sealed class Cp77ToolsRunner : IDisposable
                     if (Directory.GetLastWriteTimeUtc(root) < cutoff)
                         Directory.Delete(root, recursive: true);
                     else
-                        // Racine récente : purger ses sous-dossiers anciens (les
-                        // dossiers déterministes par hash s'accumulent dedans).
+                        // Recent root: purge its old subfolders (the
+                        // deterministic per-hash folders accumulate inside).
                         foreach (var child in Directory.GetDirectories(root))
                             if (Directory.GetLastWriteTimeUtc(child) < cutoff)
                                 Directory.Delete(child, recursive: true);
                 }
-                catch { /* verrouillé ou déjà supprimé : au prochain démarrage */ }
+                catch { /* locked or already deleted: at the next startup */ }
             }
         }
     }
 
-    /// <summary>Boucle de lecture des réponses du daemon. Tourne pendant toute la
-    /// durée de vie du daemon ; à sa mort, échoue toutes les requêtes en attente.</summary>
+    /// <summary>Read loop for the daemon's responses. Runs for the entire
+    /// lifetime of the daemon; on its death, fails all pending requests.</summary>
     private async Task ReadResponseLoopAsync()
     {
         var reader = _fromDaemon;
@@ -437,15 +437,15 @@ public sealed class Cp77ToolsRunner : IDisposable
                 }
                 catch
                 {
-                    // Ligne malformée ; ignore (on perdrait une réponse, mais on
-                    // veut surtout ne pas casser la boucle de lecture).
+                    // Malformed line; ignore (we would lose a response, but we
+                    // mainly want to avoid breaking the read loop).
                     continue;
                 }
 
                 if (result is null)
                 {
-                    // Message de progression : ré-arme le timeout d'inactivité et
-                    // relaie au client MCP si l'outil a fourni un IProgress.
+                    // Progress message: re-arms the inactivity timeout and
+                    // relays to the MCP client if the tool provided an IProgress.
                     if (_outstanding.TryGetValue(id, out var inflight))
                     {
                         inflight.LastActivity = Environment.TickCount64;
@@ -459,11 +459,11 @@ public sealed class Cp77ToolsRunner : IDisposable
                     entry.Tcs.TrySetResult(result);
             }
         }
-        catch { /* daemon est mort */ }
+        catch { /* daemon is dead */ }
 
-        // Daemon fermé : on échoue toutes les requêtes en vol.
+        // Daemon closed: we fail all in-flight requests.
         foreach (var kvp in _outstanding)
-            kvp.Value.Tcs.TrySetException(new IOException("le daemon a fermé sa sortie"));
+            kvp.Value.Tcs.TrySetException(new IOException("the daemon closed its output"));
         _outstanding.Clear();
     }
 
@@ -475,8 +475,8 @@ public sealed class Cp77ToolsRunner : IDisposable
         var entry = new Outstanding { Tcs = tcs, Progress = progress };
         _outstanding[id] = entry;
 
-        // Sérialise les écritures stdin : un seul writer à la fois pour ne pas
-        // entrelacer deux JSON-lines.
+        // Serializes stdin writes: a single writer at a time so as not to
+        // interleave two JSON-lines.
         await _writeLock.WaitAsync(ct);
         try
         {
@@ -488,8 +488,8 @@ public sealed class Cp77ToolsRunner : IDisposable
             _writeLock.Release();
         }
 
-        // Timeout d'INACTIVITÉ : tant que le daemon émet de la progression, le verbe
-        // travaille — on ré-arme le délai au lieu de tuer un uncook long mais vivant.
+        // INACTIVITY timeout: as long as the daemon emits progress, the verb
+        // is working — we re-arm the delay instead of killing a long but alive uncook.
         var timeout = TimeoutFor(argv.Length > 0 ? argv[0] : "");
         while (true)
         {
@@ -503,39 +503,39 @@ public sealed class Cp77ToolsRunner : IDisposable
             {
                 var idle = Environment.TickCount64 - entry.LastActivity;
                 if (idle < timeout.TotalMilliseconds)
-                    continue; // de la progression est arrivée : on laisse travailler
+                    continue; // progress arrived: we let it work
 
                 _outstanding.TryRemove(id, out _);
                 KillDaemon();
                 return new CliResult(-1, "",
-                    $"Délai d'inactivité dépassé ({timeout.TotalSeconds:F0} s sans réponse " +
-                    "ni progression) — daemon interrompu.", true);
+                    $"Inactivity delay exceeded ({timeout.TotalSeconds:F0} s without response " +
+                    "or progress) — daemon interrupted.", true);
             }
         }
     }
 
     private void KillDaemon()
     {
-        try { _daemon?.Kill(entireProcessTree: true); } catch { /* déjà mort */ }
+        try { _daemon?.Kill(entireProcessTree: true); } catch { /* already dead */ }
         try { _daemon?.Dispose(); } catch { /* ignore */ }
         _daemon = null;
         _toDaemon = null;
         _fromDaemon = null;
-        // _readLoop sortira naturellement quand le stream se ferme et fera échouer
-        // les requêtes en vol via _outstanding. Pas besoin d'attendre ici.
+        // _readLoop will exit naturally when the stream closes and will fail
+        // the in-flight requests via _outstanding. No need to wait here.
         _readLoop = null;
     }
 
-    // ── Repli : sous-processus cp77tools ──────────────────────────────────
+    // ── Fallback: cp77tools subprocess ──────────────────────────────────
 
     private async Task<CliResult> RunViaSubprocessAsync(string[] argv, CancellationToken ct)
     {
         if (!ToolExists)
         {
             return new CliResult(-1, "",
-                $"cp77tools introuvable : {_cp77tools}\n" +
-                "Installer avec : dotnet tool install -g WolvenKit.CLI " +
-                "(ou définir la variable WOLVENKIT_CP77TOOLS).", false);
+                $"cp77tools not found: {_cp77tools}\n" +
+                "Install with: dotnet tool install -g WolvenKit.CLI " +
+                "(or set the WOLVENKIT_CP77TOOLS variable).", false);
         }
 
         var psi = new ProcessStartInfo
@@ -563,7 +563,7 @@ public sealed class Cp77ToolsRunner : IDisposable
         }
         catch (Exception ex)
         {
-            return new CliResult(-1, "", $"Échec du lancement de cp77tools : {ex.Message}", false);
+            return new CliResult(-1, "", $"Failed to launch cp77tools: {ex.Message}", false);
         }
 
         proc.BeginOutputReadLine();
@@ -577,24 +577,24 @@ public sealed class Cp77ToolsRunner : IDisposable
         }
         catch (OperationCanceledException)
         {
-            try { proc.Kill(entireProcessTree: true); } catch { /* déjà mort */ }
+            try { proc.Kill(entireProcessTree: true); } catch { /* already dead */ }
             return new CliResult(-1, stdout.ToString(), stderr.ToString(), true);
         }
 
-        proc.WaitForExit(); // garantit le drainage des flux redirigés
+        proc.WaitForExit(); // guarantees draining of the redirected streams
         return new CliResult(proc.ExitCode, stdout.ToString(), stderr.ToString(), false);
     }
 
-    // ── Résolution des chemins ────────────────────────────────────────────
+    // ── Path resolution ────────────────────────────────────────────
 
-    /// <summary>Localise WolvenKitDaemon.dll (variable WOLVENKIT_DAEMON, sinon projet frère).</summary>
+    /// <summary>Locates WolvenKitDaemon.dll (WOLVENKIT_DAEMON variable, otherwise sibling project).</summary>
     private static string ResolveDaemonDll()
     {
         var explicitPath = Environment.GetEnvironmentVariable("WOLVENKIT_DAEMON");
         if (!string.IsNullOrWhiteSpace(explicitPath))
             return explicitPath;
 
-        // Défaut : projet frère wolvenkit-mcp/src/WolvenKitDaemon, même configuration.
+        // Default: sibling project wolvenkit-mcp/src/WolvenKitDaemon, same configuration.
         try
         {
             var net8 = new DirectoryInfo(AppContext.BaseDirectory);   // .../WolvenKitMcp/bin/<cfg>/net8.0
@@ -604,9 +604,9 @@ public sealed class Cp77ToolsRunner : IDisposable
                 return Path.Combine(src.FullName, "WolvenKitDaemon", "bin", config, "net8.0",
                     "WolvenKitDaemon.dll");
         }
-        catch { /* repli ci-dessous */ }
+        catch { /* fallback below */ }
 
-        return "WolvenKitDaemon.dll"; // introuvable → repli sous-processus
+        return "WolvenKitDaemon.dll"; // not found → subprocess fallback
     }
 
     private static string ResolveCp77Tools()
@@ -634,7 +634,7 @@ public sealed class Cp77ToolsRunner : IDisposable
                 if (File.Exists(candidate))
                     return candidate;
             }
-            catch { /* entrée PATH invalide */ }
+            catch { /* invalid PATH entry */ }
         }
 
         return defaultPath;
@@ -657,7 +657,7 @@ public sealed class Cp77ToolsRunner : IDisposable
                     return root.FullName;
             }
         }
-        catch { /* repli */ }
+        catch { /* fallback */ }
 
         return null;
     }

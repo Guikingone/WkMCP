@@ -13,24 +13,23 @@ using ModelContextProtocol.Server;
 namespace WolvenKitMcp;
 
 /// <summary>
-/// Outils MCP pour le modding de Cyberpunk 2077 — inspection, conversion et
-/// création de mods. La plupart délèguent à une commande de <c>cp77tools</c>
-/// (le CLI de WolvenKit) ; quelques-uns opèrent directement sur le système de
-/// fichiers.
+/// MCP tools for modding Cyberpunk 2077 — inspection, conversion and
+/// mod creation. Most delegate to a <c>cp77tools</c> command
+/// (the WolvenKit CLI); a few operate directly on the file system.
 ///
-/// Chaque outil renvoie un objet JSON structuré (cf. <see cref="Structured"/>) :
+/// Each tool returns a structured JSON object (cf. <see cref="Structured"/>):
 /// <c>{ ok, status, summary, produced, warnings, errors, exitCode, log }</c> —
-/// bien plus fiable à analyser pour un agent que le texte de log brut. Le succès
-/// est déterminé d'après les fichiers réellement produits, pas d'après un simple
-/// marqueur de log (qu'une erreur non fatale, p. ex. l'export de matériaux d'un
-/// mesh, pouvait fausser).
+/// far more reliable for an agent to analyze than raw log text. Success
+/// is determined from the files actually produced, not from a simple
+/// log marker (which a non-fatal error, e.g. exporting a mesh's materials,
+/// could throw off).
 /// </summary>
 [McpServerToolType]
 public static class WolvenKitTools
 {
-    /// <summary>Adapte la progression texte du daemon (une ligne de log toutes les
-    /// ~500 ms) en notifications de progression MCP. Le total étant inconnu côté
-    /// daemon, Progress est un simple compteur croissant + le message.</summary>
+    /// <summary>Adapts the daemon's text progress (one log line every
+    /// ~500 ms) into MCP progress notifications. Since the total is unknown on the
+    /// daemon side, Progress is a simple increasing counter + the message.</summary>
     private sealed class ProgressRelay : IProgress<string>
     {
         private readonly IProgress<ProgressNotificationValue> _target;
@@ -50,15 +49,15 @@ public static class WolvenKitTools
     // ── Diagnostic ────────────────────────────────────────────────────────
 
     [McpServerTool(Name = "wolvenkit_status", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Vérifie que le CLI WolvenKit (cp77tools) est disponible et fonctionnel " +
-                 "sur cette machine, et renvoie sa version + stats du cache LRU des listings " +
-                 "d'archives (hits/misses depuis le démarrage du serveur). À appeler en premier " +
-                 "pour diagnostiquer l'installation.")]
+    [Description("Checks that the WolvenKit CLI (cp77tools) is available and functional " +
+                 "on this machine, and returns its version + LRU cache stats for archive " +
+                 "listings (hits/misses since server startup). Call this first " +
+                 "to diagnose the installation.")]
     public static async Task<string> Status(Cp77ToolsRunner runner, CancellationToken ct)
     {
         if (!runner.ToolExists)
-            return Err($"cp77tools introuvable : {runner.ToolPath}. " +
-                       "Installer avec : dotnet tool install -g WolvenKit.CLI");
+            return Err($"cp77tools not found: {runner.ToolPath}. " +
+                       "Install with: dotnet tool install -g WolvenKit.CLI");
 
         var r = await runner.RunAsync(new[] { "--version" }, ct);
         var (hits, misses, entries) = runner.CacheStats;
@@ -75,8 +74,8 @@ public static class WolvenKitTools
             ok = r.ExitCode == 0,
             status = r.ExitCode == 0 ? "success" : "error",
             summary = r.ExitCode == 0
-                ? $"cp77tools opérationnel — {runner.ToolPath}"
-                : $"cp77tools présent mais --version a échoué (exit={r.ExitCode}) — {runner.ToolPath}",
+                ? $"cp77tools operational — {runner.ToolPath}"
+                : $"cp77tools present but --version failed (exit={r.ExitCode}) — {runner.ToolPath}",
             produced = Array.Empty<string>(),
             warnings = LogLines(log, "Warning"),
             errors = LogLines(log, "Error"),
@@ -89,22 +88,22 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "extract_localization", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Extrait depuis une tweakdb.bin tous les champs « traduisibles » des records " +
-                 "(displayName, localizedDescription, description, etc.) — base pour faire un " +
-                 "mod de traduction UI. Sortie : JSON `{recordId: {field: value}}`. Le filtre " +
-                 "optionnel (substring sur le recordId) permet de cibler une partie du jeu " +
-                 "(ex. `Items.` pour n'extraire que les items). Limitation : ne couvre que " +
-                 "les strings UI dans TweakDB ; les sous-titres audio (.opusinfo) restent en " +
+    [Description("Extracts from a tweakdb.bin all \"translatable\" fields of records " +
+                 "(displayName, localizedDescription, description, etc.) — basis for making a " +
+                 "UI translation mod. Output: JSON `{recordId: {field: value}}`. The optional " +
+                 "filter (substring on the recordId) lets you target part of the game " +
+                 "(e.g. `Items.` to extract only items). Limitation: only covers " +
+                 "UI strings in TweakDB; audio subtitles (.opusinfo) remain on the " +
                  "roadmap.")]
     public static async Task<string> ExtractLocalization(
         Cp77ToolsRunner runner,
-        [Description("Chemin du fichier tweakdb.bin (typiquement <jeu>/r6/cache/tweakdb.bin).")] string tweakdbPath,
-        [Description("Chemin du fichier JSON de sortie (sera créé/écrasé).")] string outputJson,
-        [Description("Filtre optionnel : sous-chaîne à chercher dans les recordId (ex. \"Items.\").")] string? filter = null,
+        [Description("Path to the tweakdb.bin file (typically <game>/r6/cache/tweakdb.bin).")] string tweakdbPath,
+        [Description("Path to the output JSON file (will be created/overwritten).")] string outputJson,
+        [Description("Optional filter: substring to search for in the recordId (e.g. \"Items.\").")] string? filter = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(tweakdbPath))
-            return Err($"Fichier tweakdb.bin introuvable : {tweakdbPath}");
+            return Err($"tweakdb.bin file not found: {tweakdbPath}");
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputJson) ?? ".");
         var args = new List<string>
@@ -117,26 +116,26 @@ public static class WolvenKitTools
             ? new List<string> { outputJson }
             : new List<string>();
         return Structured(
-            $"Extraction localisation TweakDB → {outputJson}" +
-            (string.IsNullOrWhiteSpace(filter) ? "" : $" (filtre : {filter})"),
+            $"TweakDB localization extraction → {outputJson}" +
+            (string.IsNullOrWhiteSpace(filter) ? "" : $" (filter: {filter})"),
             r, produced);
     }
 
     [McpServerTool(Name = "build_localization", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Construit un fichier .tweak (TweakXL) qui surcharge displayName / " +
-                 "localizedDescription / etc. depuis un fichier JSON de traductions au format " +
-                 "`{recordId: {field: \"Traduction\"}}` produit par extract_localization puis édité. " +
-                 "Le .tweak peut ensuite être installé via install_tweak. Le paramètre `lang` est " +
-                 "purement informatif (ajouté en commentaire ; le jeu n'a pas de localisation " +
-                 "par langue dans TweakDB).")]
+    [Description("Builds a .tweak file (TweakXL) that overrides displayName / " +
+                 "localizedDescription / etc. from a translations JSON file in the format " +
+                 "`{recordId: {field: \"Translation\"}}` produced by extract_localization then edited. " +
+                 "The .tweak can then be installed via install_tweak. The `lang` parameter is " +
+                 "purely informative (added as a comment; the game has no per-language localization " +
+                 "in TweakDB).")]
     public static async Task<string> BuildLocalization(
-        [Description("Chemin du fichier JSON des traductions (issu d'extract_localization, édité).")] string translationsJson,
-        [Description("Chemin du fichier .tweak à produire.")] string outputTweak,
-        [Description("Code langue (informatif, ajouté en commentaire). Ex. fr-fr, de-de.")] string lang = "fr-fr",
+        [Description("Path to the translations JSON file (from extract_localization, edited).")] string translationsJson,
+        [Description("Path to the .tweak file to produce.")] string outputTweak,
+        [Description("Language code (informative, added as a comment). E.g. fr-fr, de-de.")] string lang = "fr-fr",
         CancellationToken ct = default)
     {
         if (!File.Exists(translationsJson))
-            return Err($"Fichier de traductions introuvable : {translationsJson}");
+            return Err($"Translations file not found: {translationsJson}");
 
         JsonDocument doc;
         try
@@ -145,15 +144,15 @@ public static class WolvenKitTools
         }
         catch (JsonException ex)
         {
-            return Err($"JSON invalide : {ex.Message}");
+            return Err($"Invalid JSON: {ex.Message}");
         }
         using var _ = doc;
         if (doc.RootElement.ValueKind != JsonValueKind.Object)
-            return Err("translationsJson doit avoir un objet en racine ({recordId: {field: value}}).");
+            return Err("translationsJson must have an object at the root ({recordId: {field: value}}).");
 
         var sb = new StringBuilder();
-        sb.Append("# Mod de localisation — lang ").AppendLine(lang);
-        sb.AppendLine("# Généré par build_localization (WolvenKit MCP)");
+        sb.Append("# Localization mod — lang ").AppendLine(lang);
+        sb.AppendLine("# Generated by build_localization (WolvenKit MCP)");
         sb.AppendLine();
 
         int recordCount = 0, fieldCount = 0;
@@ -174,7 +173,7 @@ public static class WolvenKitTools
         }
 
         if (recordCount == 0)
-            return Err("Aucun record traduisible trouvé dans le JSON (chaque entrée doit être un objet).");
+            return Err("No translatable record found in the JSON (each entry must be an object).");
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputTweak) ?? ".");
         await File.WriteAllTextAsync(outputTweak, sb.ToString(), ct);
@@ -183,8 +182,8 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Mod de localisation construit : {outputTweak} " +
-                      $"({recordCount} record(s), {fieldCount} champ(s) traduit(s), lang {lang})",
+            summary = $"Localization mod built: {outputTweak} " +
+                      $"({recordCount} record(s), {fieldCount} translated field(s), lang {lang})",
             produced = new[] { outputTweak },
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -196,18 +195,18 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "clear_cache", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Vide manuellement les caches du serveur. scope = `archives` (défaut, vide " +
-                 "le cache LRU des listings d'archives), `metrics` (vide les compteurs de " +
-                 "métriques par verbe), ou `all` (les deux). Utile après des modifs " +
-                 "hors-bande qui invalideraient le cache, ou pour reset les stats avant " +
-                 "un benchmark.")]
+    [Description("Manually clears the server's caches. scope = `archives` (default, clears " +
+                 "the LRU cache of archive listings), `metrics` (clears the per-verb " +
+                 "metrics counters), or `all` (both). Useful after out-of-band " +
+                 "changes that would invalidate the cache, or to reset stats before " +
+                 "a benchmark.")]
     public static string ClearCache(
         Cp77ToolsRunner runner,
-        [Description("Portée à vider : archives | metrics | all.")] string scope = "archives")
+        [Description("Scope to clear: archives | metrics | all.")] string scope = "archives")
     {
         scope = scope.ToLowerInvariant();
         if (scope is not ("archives" or "metrics" or "all"))
-            return Err($"Scope inconnu : {scope} (archives | metrics | all).");
+            return Err($"Unknown scope: {scope} (archives | metrics | all).");
 
         var cleared = new Dictionary<string, int>();
         if (scope is "archives" or "all")
@@ -227,7 +226,7 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Cache vidé (scope {scope}) : " +
+            summary = $"Cache cleared (scope {scope}): " +
                       string.Join(", ", cleared.Select(kv => $"{kv.Value} {kv.Key}")),
             produced = Array.Empty<string>(),
             warnings = Array.Empty<string>(),
@@ -238,76 +237,76 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "compute_hash", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Calcule le hash FNV1a64 utilisé par REDengine pour chaque chaîne fournie " +
-                 "(typiquement des chemins de fichiers de jeu).")]
+    [Description("Computes the FNV1a64 hash used by REDengine for each string provided " +
+                 "(typically game file paths).")]
     public static async Task<string> ComputeHash(
         Cp77ToolsRunner runner,
-        [Description("Une ou plusieurs chaînes à hacher.")] string[] inputs,
+        [Description("One or more strings to hash.")] string[] inputs,
         CancellationToken ct)
     {
         if (inputs is null || inputs.Length == 0)
-            return Err("Fournir au moins une chaîne à hacher.");
+            return Err("Provide at least one string to hash.");
 
         var args = new List<string> { "hash" };
         args.AddRange(inputs);
         var r = await runner.RunAsync(args, ct);
-        return Structured($"Hash FNV1a64 de {inputs.Length} entrée(s)", r);
+        return Structured($"FNV1a64 hash of {inputs.Length} entry(ies)", r);
     }
 
     [McpServerTool(Name = "resolve_hash", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Recherche inverse : retrouve le chemin de fichier de jeu correspondant " +
-                 "à un hash FNV1a64. L'inverse de compute_hash.")]
+    [Description("Reverse lookup: finds the game file path corresponding " +
+                 "to an FNV1a64 hash. The inverse of compute_hash.")]
     public static async Task<string> ResolveHash(
         Cp77ToolsRunner runner,
-        [Description("Un ou plusieurs hash FNV1a64 (entiers non signés).")] string[] hashes,
+        [Description("One or more FNV1a64 hashes (unsigned integers).")] string[] hashes,
         CancellationToken ct)
     {
         if (hashes is null || hashes.Length == 0)
-            return Err("Fournir au moins un hash.");
+            return Err("Provide at least one hash.");
 
         var args = new List<string> { "resolve-hash" };
         args.AddRange(hashes);
         var r = await runner.RunAsync(args, ct);
-        return Structured($"Recherche inverse de {hashes.Length} hash", r);
+        return Structured($"Reverse lookup of {hashes.Length} hash", r);
     }
 
     [McpServerTool(Name = "tweakdb_resolve", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Recherche inverse d'identifiants TweakDB : un hash → le nom de " +
-                 "l'identifiant. Utilise la base de noms TweakDB chargée au démarrage.")]
+    [Description("Reverse lookup of TweakDB identifiers: a hash → the name of " +
+                 "the identifier. Uses the TweakDB name database loaded at startup.")]
     public static async Task<string> TweakDbResolve(
         Cp77ToolsRunner runner,
-        [Description("Un ou plusieurs hash d'identifiant TweakDB (entiers non signés).")] string[] hashes,
+        [Description("One or more TweakDB identifier hashes (unsigned integers).")] string[] hashes,
         CancellationToken ct)
     {
         if (hashes is null || hashes.Length == 0)
-            return Err("Fournir au moins un hash.");
+            return Err("Provide at least one hash.");
 
         var args = new List<string> { "tweakdb-resolve" };
         args.AddRange(hashes);
         var r = await runner.RunAsync(args, ct);
-        return Structured($"Résolution de {hashes.Length} identifiant(s) TweakDB", r);
+        return Structured($"Resolution of {hashes.Length} TweakDB identifier(s)", r);
     }
 
     [McpServerTool(Name = "tweakdb_query", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Interroge la TweakDB de Cyberpunk 2077 : charge un fichier tweakdb.bin et " +
-                 "liste les records et flats dont l'identifiant contient le filtre — pour " +
-                 "découvrir les identifiants de tuning du jeu. Les résultats sont plafonnés " +
-                 "à 100 records + 100 flats ; affiner le filtre si le champ truncated le dit.")]
+    [Description("Queries the Cyberpunk 2077 TweakDB: loads a tweakdb.bin file and " +
+                 "lists records and flats whose identifier contains the filter — to " +
+                 "discover the game's tuning identifiers. Results are capped " +
+                 "at 100 records + 100 flats; refine the filter if the truncated field says so.")]
     public static async Task<string> TweakDbQuery(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier tweakdb.bin (extrait des archives du jeu).")] string tweakdbPath,
-        [Description("Sous-chaîne à chercher dans les identifiants (vide = tout, 100 max).")] string filter = "",
+        [Description("Path to a tweakdb.bin file (extracted from the game archives).")] string tweakdbPath,
+        [Description("Substring to search for in the identifiers (empty = all, 100 max).")] string filter = "",
         CancellationToken ct = default)
     {
         if (!File.Exists(tweakdbPath))
-            return Err($"Fichier TweakDB introuvable : {tweakdbPath}");
+            return Err($"TweakDB file not found: {tweakdbPath}");
 
         var r = await runner.RunAsync(new[] { "tweakdb-query", tweakdbPath, filter }, ct);
         var log = (r.Stdout + r.Stderr).Trim();
         var (recordsTruncated, flatsTruncated) = ParseTweakHeader(log);
         var truncated = recordsTruncated || flatsTruncated;
         var status = r.ExitCode != 0
-                     || log.Contains("Erreur daemon", StringComparison.Ordinal)
+                     || log.Contains("Daemon error", StringComparison.Ordinal)
                      || log.Contains("Unhandled", StringComparison.OrdinalIgnoreCase)
                 ? "error" : "success";
 
@@ -315,8 +314,8 @@ public static class WolvenKitTools
         {
             ok = status == "success",
             status,
-            summary = $"TweakDB — recherche « {filter} » dans {tweakdbPath}" +
-                      (truncated ? " (résultats tronqués — affiner le filtre)" : ""),
+            summary = $"TweakDB — search \"{filter}\" in {tweakdbPath}" +
+                      (truncated ? " (results truncated — refine the filter)" : ""),
             produced = Array.Empty<string>(),
             warnings = LogLines(log, "Warning"),
             errors = LogLines(log, "Error"),
@@ -326,24 +325,24 @@ public static class WolvenKitTools
         }, JsonOpts);
     }
 
-    // ── Lecture / inspection ──────────────────────────────────────────────
+    // ── Read / inspection ──────────────────────────────────────────────
 
     [McpServerTool(Name = "archive_info", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Affiche les informations d'une archive .archive de Cyberpunk 2077 : " +
-                 "nombre de fichiers, et liste optionnelle filtrée de son contenu. " +
-                 "Listing servi par un cache LRU (clé = chemin + mtime) : appels successifs " +
-                 "quasi instantanés.")]
+    [Description("Displays information about a Cyberpunk 2077 .archive file: " +
+                 "file count, and optional filtered listing of its contents. " +
+                 "Listing served by an LRU cache (key = path + mtime): successive calls " +
+                 "are near-instant.")]
     public static async Task<string> ArchiveInfo(
         Cp77ToolsRunner runner,
-        [Description("Chemin absolu du fichier .archive.")] string archivePath,
-        [Description("Lister le contenu de l'archive (sinon résumé seulement).")] bool list = false,
-        [Description("Filtre glob optionnel sur les noms, ex. *.mesh")] string? pattern = null,
-        [Description("Nombre max de fichiers renvoyés en mode list (défaut 500). " +
-                     "filteredCount donne toujours le total réel.")] int maxFiles = 500,
+        [Description("Absolute path of the .archive file.")] string archivePath,
+        [Description("List the archive contents (otherwise summary only).")] bool list = false,
+        [Description("Optional glob filter on names, e.g. *.mesh")] string? pattern = null,
+        [Description("Max number of files returned in list mode (default 500). " +
+                     "filteredCount always gives the real total.")] int maxFiles = 500,
         CancellationToken ct = default)
     {
         if (!File.Exists(archivePath))
-            return Err($"Archive introuvable : {archivePath}");
+            return Err($"Archive not found: {archivePath}");
 
         if (!list)
         {
@@ -353,37 +352,37 @@ public static class WolvenKitTools
             return Structured($"Archive : {archivePath}", r);
         }
 
-        // Mode listing : passe par le cache mtime du runner.
+        // List mode: goes through the runner mtime cache.
         var (entries, fromCache, raw) = await runner.GetArchiveListingAsync(archivePath, ct);
         var filtered = string.IsNullOrWhiteSpace(pattern)
             ? entries.ToList()
             : entries.Where(e => MatchesGlob(e, pattern)).ToList();
 
-        // Réponse bornée : les archives de base dépassent les 10 000 entrées.
+        // Bounded response: base archives exceed 10,000 entries.
         var cap = Math.Max(1, maxFiles);
         var truncated = filtered.Count > cap;
         var shown = truncated ? filtered.Take(cap).ToList() : filtered;
 
-        var log = $"{entries.Count} fichier(s) dans {Path.GetFileName(archivePath)}" +
-                  (fromCache ? " (depuis le cache)" : "") +
-                  (filtered.Count != entries.Count ? $" — {filtered.Count} après filtre" : "") +
+        var log = $"{entries.Count} file(s) in {Path.GetFileName(archivePath)}" +
+                  (fromCache ? " (from cache)" : "") +
+                  (filtered.Count != entries.Count ? $" — {filtered.Count} after filter" : "") +
                   "\n" + string.Join("\n", shown);
 
         return JsonSerializer.Serialize(new
         {
             ok = entries.Count > 0,
             status = entries.Count > 0 ? "success" : "error",
-            summary = $"Archive : {archivePath} — {entries.Count} fichier(s)" +
-                      (filtered.Count != entries.Count ? $", {filtered.Count} après filtre" : "") +
-                      (truncated ? $", {cap} renvoyés" : "") +
+            summary = $"Archive: {archivePath} — {entries.Count} file(s)" +
+                      (filtered.Count != entries.Count ? $", {filtered.Count} after filter" : "") +
+                      (truncated ? $", {cap} returned" : "") +
                       (fromCache ? " (cache)" : ""),
             produced = Array.Empty<string>(),
             warnings = truncated
-                ? new[] { $"{filtered.Count} fichiers après filtre, seuls les {cap} premiers " +
-                          "sont renvoyés — utiliser pattern ou augmenter maxFiles." }
+                ? new[] { $"{filtered.Count} files after filter, only the first {cap} " +
+                          "are returned — use pattern or increase maxFiles." }
                 : Array.Empty<string>(),
             errors = entries.Count > 0 ? Array.Empty<string>()
-                                       : new[] { $"Listing vide pour {archivePath}." },
+                                       : new[] { $"Empty listing for {archivePath}." },
             archivePath,
             fileCount = entries.Count,
             filteredCount = filtered.Count,
@@ -396,44 +395,44 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "archive_stats", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Donne la répartition du contenu d'une archive .archive par extension de " +
-                 "fichier (combien de .mesh, .ent, .xbm, .app...). Vue d'ensemble rapide de ce " +
-                 "que contient une archive sans la lister entièrement. Listing servi par le " +
-                 "cache LRU : appels successifs quasi instantanés.")]
+    [Description("Gives the breakdown of a .archive's contents by file " +
+                 "extension (how many .mesh, .ent, .xbm, .app...). Quick overview of what " +
+                 "an archive contains without listing it entirely. Listing served by the " +
+                 "LRU cache: successive calls are near-instant.")]
     public static async Task<string> ArchiveStats(
         Cp77ToolsRunner runner,
-        [Description("Chemin absolu du fichier .archive.")] string archivePath,
-        [Description("Nombre max de catégories d'extension renvoyées (défaut 100). " +
-                     "categoryCount donne toujours le total réel.")] int maxCategories = 100,
+        [Description("Absolute path of the .archive file.")] string archivePath,
+        [Description("Max number of extension categories returned (default 100). " +
+                     "categoryCount always gives the real total.")] int maxCategories = 100,
         CancellationToken ct = default)
     {
         if (!File.Exists(archivePath))
-            return Err($"Archive introuvable : {archivePath}");
+            return Err($"Archive not found: {archivePath}");
 
-        // Passe par le cache mtime du runner (même source que archive_info).
+        // Goes through the runner mtime cache (same source as archive_info).
         var (entries, fromCache, raw) = await runner.GetArchiveListingAsync(archivePath, ct);
         var histogram = HistogramByExtension(entries);
         var cap = Math.Max(1, maxCategories);
         var truncated = histogram.Count > cap;
         var shown = truncated ? histogram.Take(cap).ToList() : histogram;
 
-        var log = $"{entries.Count} fichier(s) dans {Path.GetFileName(archivePath)}, " +
-                  $"{histogram.Count} type(s) d'extension" + (fromCache ? " (depuis le cache)" : "") +
+        var log = $"{entries.Count} file(s) in {Path.GetFileName(archivePath)}, " +
+                  $"{histogram.Count} extension type(s)" + (fromCache ? " (from cache)" : "") +
                   "\n" + string.Join("\n", shown.Select(h => $"{h.Extension,-16} {h.Count}"));
 
         return JsonSerializer.Serialize(new
         {
             ok = entries.Count > 0,
             status = entries.Count > 0 ? "success" : "error",
-            summary = $"Archive : {archivePath} — {entries.Count} fichier(s), " +
-                      $"{histogram.Count} type(s) d'extension" + (fromCache ? " (cache)" : ""),
+            summary = $"Archive: {archivePath} — {entries.Count} file(s), " +
+                      $"{histogram.Count} extension type(s)" + (fromCache ? " (cache)" : ""),
             produced = Array.Empty<string>(),
             warnings = truncated
-                ? new[] { $"{histogram.Count} types d'extension, seuls les {cap} premiers " +
-                          "sont renvoyés — augmenter maxCategories." }
+                ? new[] { $"{histogram.Count} extension types, only the first {cap} " +
+                          "are returned — increase maxCategories." }
                 : Array.Empty<string>(),
             errors = entries.Count > 0 ? Array.Empty<string>()
-                                       : new[] { $"Listing vide pour {archivePath}." },
+                                       : new[] { $"Empty listing for {archivePath}." },
             archivePath,
             fileCount = entries.Count,
             categoryCount = histogram.Count,
@@ -445,15 +444,15 @@ public static class WolvenKitTools
         }, JsonOpts);
     }
 
-    /// <summary>Répartition d'une liste de chemins par extension (en minuscule), triée par
-    /// nombre décroissant puis extension. Les chemins sans extension sont regroupés sous
-    /// « (sans extension) ». Logique pure, testée isolément.</summary>
+    /// <summary>Breakdown of a list of paths by extension (lowercase), sorted by
+    /// descending count then extension. Paths without an extension are grouped under
+    /// "(no extension)". Pure logic, tested in isolation.</summary>
     internal static IReadOnlyList<ExtensionCount> HistogramByExtension(IEnumerable<string> entries)
         => entries
             .GroupBy(e =>
             {
                 var ext = Path.GetExtension(e);
-                return string.IsNullOrEmpty(ext) ? "(sans extension)" : ext.ToLowerInvariant();
+                return string.IsNullOrEmpty(ext) ? "(no extension)" : ext.ToLowerInvariant();
             })
             .Select(g => new ExtensionCount(g.Key, g.Count()))
             .OrderByDescending(x => x.Count).ThenBy(x => x.Extension, StringComparer.Ordinal)
@@ -462,23 +461,23 @@ public static class WolvenKitTools
     internal readonly record struct ExtensionCount(string Extension, int Count);
 
     [McpServerTool(Name = "find_in_archives", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Recherche des fichiers à travers toutes les archives .archive d'un dossier " +
-                 "(typiquement le dossier de contenu du jeu). Indique dans quelle archive se " +
-                 "trouve chaque fichier correspondant. Listings servis par cache LRU : " +
-                 "les appels suivants sur le même dossier sont quasi instantanés.")]
+    [Description("Searches for files across all .archive files in a folder " +
+                 "(typically the game content folder). Indicates which archive each " +
+                 "matching file is found in. Listings served by an LRU cache: " +
+                 "subsequent calls on the same folder are near-instant.")]
     public static async Task<string> FindInArchives(
         Cp77ToolsRunner runner,
-        [Description("Dossier contenant des archives .archive, ex. <jeu>/archive/pc/content.")] string archivesFolder,
-        [Description("Motif glob à rechercher, ex. *player*.ent")] string? pattern = null,
-        [Description("Expression régulière à rechercher (alternative au glob).")] string? regex = null,
-        [Description("Nombre max de correspondances renvoyées (défaut 500). matchCount donne " +
-                     "toujours le total réel ; affiner le motif si truncated=true.")] int maxMatches = 500,
+        [Description("Folder containing .archive files, e.g. <game>/archive/pc/content.")] string archivesFolder,
+        [Description("Glob pattern to search for, e.g. *player*.ent")] string? pattern = null,
+        [Description("Regular expression to search for (alternative to glob).")] string? regex = null,
+        [Description("Max number of matches returned (default 500). matchCount " +
+                     "always gives the real total; refine the pattern if truncated=true.")] int maxMatches = 500,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(archivesFolder))
-            return Err($"Dossier introuvable : {archivesFolder}");
+            return Err($"Folder not found: {archivesFolder}");
         if (string.IsNullOrWhiteSpace(pattern) && string.IsNullOrWhiteSpace(regex))
-            return Err("Fournir un motif glob (pattern) ou une expression régulière (regex).");
+            return Err("Provide a glob pattern (pattern) or a regular expression (regex).");
 
         Regex? rx = null;
         try
@@ -488,7 +487,7 @@ public static class WolvenKitTools
         }
         catch (ArgumentException ex)
         {
-            return Err($"Expression régulière invalide : {ex.Message}");
+            return Err($"Invalid regular expression: {ex.Message}");
         }
 
         var archives = Directory.GetFiles(archivesFolder, "*.archive");
@@ -503,7 +502,7 @@ public static class WolvenKitTools
             if (fromCache) cacheHits++;
             if (entries.Count == 0 && raw.ExitCode != 0)
             {
-                errors.Add($"{Path.GetFileName(archive)} : listing vide (exit={raw.ExitCode})");
+                errors.Add($"{Path.GetFileName(archive)}: empty listing (exit={raw.ExitCode})");
                 continue;
             }
             foreach (var e in entries)
@@ -514,27 +513,27 @@ public static class WolvenKitTools
             }
         }
 
-        // Réponse bornée : un motif large sur le contenu de base peut produire des
-        // dizaines de milliers d'entrées — de quoi saturer le contexte de l'agent.
+        // Bounded response: a broad pattern over base content can produce
+        // tens of thousands of entries — enough to saturate the agent context.
         var cap = Math.Max(1, maxMatches);
         var truncated = matches.Count > cap;
         var shown = truncated ? matches.Take(cap).ToList() : matches;
         var warnings = truncated
-            ? new[] { $"{matches.Count} correspondances, seules les {cap} premières sont " +
-                      "renvoyées — affiner le motif ou augmenter maxMatches." }
+            ? new[] { $"{matches.Count} matches, only the first {cap} are " +
+                      "returned — refine the pattern or increase maxMatches." }
             : Array.Empty<string>();
 
-        var log = $"{matches.Count} correspondance(s) dans {archives.Length} archive(s) " +
-                  $"(cache : {cacheHits}/{archives.Length})\n" +
+        var log = $"{matches.Count} match(es) in {archives.Length} archive(s) " +
+                  $"(cache: {cacheHits}/{archives.Length})\n" +
                   string.Join("\n", shown);
 
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $"Recherche dans {archivesFolder} : {matches.Count} match(s) " +
-                      $"sur {archives.Length} archive(s) (cache : {cacheHits})" +
-                      (truncated ? $" — {cap} renvoyés" : ""),
+            summary = $"Search in {archivesFolder}: {matches.Count} match(es) " +
+                      $"across {archives.Length} archive(s) (cache: {cacheHits})" +
+                      (truncated ? $" — {cap} returned" : ""),
             produced = Array.Empty<string>(),
             warnings,
             errors,
@@ -549,21 +548,21 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "diff_archives", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Compare deux archives .archive et liste les fichiers ajoutés (présents dans B " +
-                 "seulement) et supprimés (présents dans A seulement) — utile pour diagnostiquer " +
-                 "exactement ce qu'un mod modifie par rapport au jeu de base. Le verbe " +
-                 "`archive --diff` de cp77tools ne fait que dumper un manifest ; ici on calcule " +
-                 "un vrai diff en croisant les deux listings.")]
+    [Description("Compares two .archive files and lists the files added (present in B " +
+                 "only) and removed (present in A only) — useful for diagnosing " +
+                 "exactly what a mod changes relative to the base game. The " +
+                 "`archive --diff` verb of cp77tools only dumps a manifest; here we compute " +
+                 "a real diff by cross-referencing the two listings.")]
     public static async Task<string> DiffArchives(
         Cp77ToolsRunner runner,
-        [Description("Première archive (référence, ex. version de base du jeu).")] string archiveA,
-        [Description("Deuxième archive (à comparer, ex. version moddée).")] string archiveB,
+        [Description("First archive (reference, e.g. base game version).")] string archiveA,
+        [Description("Second archive (to compare, e.g. modded version).")] string archiveB,
         CancellationToken ct = default)
     {
         if (!File.Exists(archiveA))
-            return Err($"Archive A introuvable : {archiveA}");
+            return Err($"Archive A not found: {archiveA}");
         if (!File.Exists(archiveB))
-            return Err($"Archive B introuvable : {archiveB}");
+            return Err($"Archive B not found: {archiveB}");
 
         var (entriesA, cacheA, _) = await runner.GetArchiveListingAsync(archiveA, ct);
         var (entriesB, cacheB, _) = await runner.GetArchiveListingAsync(archiveB, ct);
@@ -577,11 +576,11 @@ public static class WolvenKitTools
         var common = setA.Intersect(setB, StringComparer.OrdinalIgnoreCase).Count();
 
         var ok = setA.Count > 0 || setB.Count > 0;
-        var log = $"A : {Path.GetFileName(archiveA)} ({setA.Count} fichier(s){(cacheA ? ", cache" : "")})\n" +
-                  $"B : {Path.GetFileName(archiveB)} ({setB.Count} fichier(s){(cacheB ? ", cache" : "")})\n" +
-                  $"Communs : {common} · Ajoutés en B : {added.Count} · Supprimés en B : {removed.Count}";
+        var log = $"A: {Path.GetFileName(archiveA)} ({setA.Count} file(s){(cacheA ? ", cache" : "")})\n" +
+                  $"B: {Path.GetFileName(archiveB)} ({setB.Count} file(s){(cacheB ? ", cache" : "")})\n" +
+                  $"Common: {common} · Added in B: {added.Count} · Removed in B: {removed.Count}";
 
-        // Réponse bornée : un diff entre deux versions du jeu peut lister des milliers d'entrées.
+        // Bounded response: a diff between two game versions can list thousands of entries.
         const int DiffCap = 500;
         var truncated = added.Count > DiffCap || removed.Count > DiffCap;
 
@@ -589,14 +588,14 @@ public static class WolvenKitTools
         {
             ok,
             status = ok ? "success" : "error",
-            summary = $"Diff archives : {Path.GetFileName(archiveA)} ↔ " +
+            summary = $"Diff archives: {Path.GetFileName(archiveA)} ↔ " +
                       $"{Path.GetFileName(archiveB)} (+{added.Count} / -{removed.Count})",
             produced = Array.Empty<string>(),
             warnings = truncated
-                ? new[] { $"Listes ajoutés/supprimés plafonnées à {DiffCap} entrées chacune " +
-                          "(addedCount/removedCount donnent les totaux réels)." }
+                ? new[] { $"Added/removed lists capped at {DiffCap} entries each " +
+                          "(addedCount/removedCount give the real totals)." }
                 : Array.Empty<string>(),
-            errors = ok ? Array.Empty<string>() : new[] { "Listings vides — vérifier les archives." },
+            errors = ok ? Array.Empty<string>() : new[] { "Empty listings — check the archives." },
             archiveA = new { path = archiveA, count = setA.Count },
             archiveB = new { path = archiveB, count = setB.Count },
             commonCount = common,
@@ -610,49 +609,49 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "extract_files", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Extrait des fichiers d'une archive .archive vers un dossier. " +
-                 "Filtrage optionnel par motif glob ou par expression régulière.")]
+    [Description("Extracts files from a .archive file to a folder. " +
+                 "Optional filtering by glob pattern or regular expression.")]
     public static async Task<string> ExtractFiles(
         Cp77ToolsRunner runner,
-        [Description("Chemin absolu du fichier .archive.")] string archivePath,
-        [Description("Dossier de destination des fichiers extraits.")] string outputPath,
-        [Description("Filtre glob optionnel, ex. *.mesh")] string? pattern = null,
-        [Description("Filtre regex optionnel (alternative au glob).")] string? regex = null,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Absolute path of the .archive file.")] string archivePath,
+        [Description("Destination folder for the extracted files.")] string outputPath,
+        [Description("Optional glob filter, e.g. *.mesh")] string? pattern = null,
+        [Description("Optional regex filter (alternative to glob).")] string? regex = null,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(archivePath))
-            return Err($"Archive introuvable : {archivePath}");
+            return Err($"Archive not found: {archivePath}");
 
         var args = new List<string> { "unbundle", archivePath, "--outpath", outputPath };
         if (!string.IsNullOrWhiteSpace(pattern)) { args.Add("--pattern"); args.Add(pattern); }
         if (!string.IsNullOrWhiteSpace(regex)) { args.Add("--regex"); args.Add(regex); }
 
         return await WithSnapshot(outputPath,
-            $"Extraction de {archivePath} → {outputPath}",
+            $"Extraction of {archivePath} → {outputPath}",
             () => runner.RunAsync(args, ct, progress is null ? null : Relay(progress)), verbose);
     }
 
     [McpServerTool(Name = "uncook", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Extrait et convertit en une seule passe les fichiers d'une archive vers des " +
-                 "formats exploitables (mesh → glTF, textures → image). Combine extraction et " +
-                 "conversion, contrairement à extract_files qui ne fait qu'extraire.")]
+    [Description("Extracts and converts in a single pass the files of an archive to " +
+                 "usable formats (mesh → glTF, textures → image). Combines extraction and " +
+                 "conversion, unlike extract_files which only extracts.")]
     public static async Task<string> Uncook(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .archive (ou d'un dossier d'archives).")] string archivePath,
-        [Description("Dossier de destination des fichiers convertis.")] string outputPath,
-        [Description("Filtre glob optionnel, ex. *.mesh")] string? pattern = null,
-        [Description("Format d'image pour les textures : png, dds, tga, bmp ou jpg.")] string? textureFormat = null,
-        [Description("Type d'export mesh : MeshOnly, WithRig, Multimesh (défaut : WithMaterials).")] string? meshExportType = null,
-        [Description("Exporteur mesh : Default, Experimental, REDmod.")] string? meshExporterType = null,
-        [Description("Filtre les LOD du mesh export (réduit le bruit).")] bool meshExportLodFilter = false,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Path of a .archive file (or a folder of archives).")] string archivePath,
+        [Description("Destination folder for the converted files.")] string outputPath,
+        [Description("Optional glob filter, e.g. *.mesh")] string? pattern = null,
+        [Description("Image format for textures: png, dds, tga, bmp or jpg.")] string? textureFormat = null,
+        [Description("Mesh export type: MeshOnly, WithRig, Multimesh (default: WithMaterials).")] string? meshExportType = null,
+        [Description("Mesh exporter: Default, Experimental, REDmod.")] string? meshExporterType = null,
+        [Description("Filters the mesh export LODs (reduces noise).")] bool meshExportLodFilter = false,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(archivePath) && !Directory.Exists(archivePath))
-            return Err($"Chemin introuvable : {archivePath}");
+            return Err($"Path not found: {archivePath}");
 
         var args = new List<string> { "uncook", archivePath, "--outpath", outputPath };
         if (!string.IsNullOrWhiteSpace(pattern)) { args.Add("--pattern"); args.Add(pattern); }
@@ -662,151 +661,151 @@ public static class WolvenKitTools
         if (meshExportLodFilter) args.Add("--mesh-export-lod-filter");
 
         return await WithSnapshot(outputPath,
-            $"Extraction + conversion : {archivePath} → {outputPath}",
+            $"Extraction + conversion: {archivePath} → {outputPath}",
             () => runner.RunAsync(args, ct, progress is null ? null : Relay(progress)), verbose);
     }
 
     // ── Conversion ────────────────────────────────────────────────────────
 
     [McpServerTool(Name = "cr2w_to_json", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Convertit des fichiers REDengine déjà extraits (CR2W : .mesh, .ent, .app...) " +
-                 "en JSON lisible et éditable.")]
+    [Description("Converts already-extracted REDengine files (CR2W: .mesh, .ent, .app...) " +
+                 "to readable, editable JSON.")]
     public static async Task<string> Cr2wToJson(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier CR2W, ou d'un dossier en contenant.")] string path,
-        [Description("Dossier de destination des fichiers JSON.")] string outputPath,
+        [Description("Path of a CR2W file, or a folder containing some.")] string path,
+        [Description("Destination folder for the JSON files.")] string outputPath,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
-            return Err($"Chemin introuvable : {path}");
+            return Err($"Path not found: {path}");
 
         return await WithSnapshot(outputPath,
-            $"Sérialisation CR2W → JSON : {path} → {outputPath}",
+            $"Serialization CR2W → JSON: {path} → {outputPath}",
             () => runner.RunAsync(
                 new[] { "convert", "serialize", path, "--outpath", outputPath }, ct));
     }
 
     [McpServerTool(Name = "json_to_cr2w", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Reconvertit des fichiers JSON (produits par cr2w_to_json) en fichiers " +
-                 "REDengine CR2W binaires.")]
+    [Description("Converts JSON files (produced by cr2w_to_json) back into " +
+                 "binary REDengine CR2W files.")]
     public static async Task<string> JsonToCr2w(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier JSON, ou d'un dossier en contenant.")] string path,
-        [Description("Dossier de destination des fichiers CR2W.")] string outputPath,
+        [Description("Path of a JSON file, or a folder containing some.")] string path,
+        [Description("Destination folder for the CR2W files.")] string outputPath,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
-            return Err($"Chemin introuvable : {path}");
+            return Err($"Path not found: {path}");
 
         return await WithSnapshot(outputPath,
-            $"Désérialisation JSON → CR2W : {path} → {outputPath}",
+            $"Deserialization JSON → CR2W: {path} → {outputPath}",
             () => runner.RunAsync(
                 new[] { "convert", "deserialize", path, "--outpath", outputPath }, ct));
     }
 
     [McpServerTool(Name = "export_files", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Exporte des fichiers REDengine déjà extraits vers des formats raw " +
+    [Description("Exports already-extracted REDengine files to raw formats " +
                  "(mesh → glTF, texture → image, etc.).")]
     public static async Task<string> ExportFiles(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier REDengine, ou d'un dossier en contenant.")] string path,
-        [Description("Dossier de destination des fichiers raw.")] string outputPath,
-        [Description("Format d'image pour les textures : png, dds, tga, bmp ou jpg.")] string? textureFormat = null,
+        [Description("Path of a REDengine file, or a folder containing some.")] string path,
+        [Description("Destination folder for the raw files.")] string outputPath,
+        [Description("Image format for textures: png, dds, tga, bmp or jpg.")] string? textureFormat = null,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
-            return Err($"Chemin introuvable : {path}");
+            return Err($"Path not found: {path}");
 
         var args = new List<string> { "export", path, "--outpath", outputPath };
         if (!string.IsNullOrWhiteSpace(textureFormat)) { args.Add("--uext"); args.Add(textureFormat); }
 
         return await WithSnapshot(outputPath,
-            $"Export REDengine → raw : {path} → {outputPath}",
+            $"Export REDengine → raw: {path} → {outputPath}",
             () => runner.RunAsync(args, ct, progress is null ? null : Relay(progress)));
     }
 
     [McpServerTool(Name = "export_animation", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Exporte une animation REDengine (.anims) extraite vers glTF binaire (.glb), " +
-                 "exploitable dans Blender. ⚠ WolvenKit exporte les animations à partir de leur " +
-                 "rig/squelette : une .anims fournie SEULE (sans son .rig associé) peut ne rien " +
-                 "produire, voire échouer. Pour un export fiable, extraire aussi le rig correspondant.")]
+    [Description("Exports an extracted REDengine animation (.anims) to binary glTF (.glb), " +
+                 "usable in Blender. ⚠ WolvenKit exports animations from their " +
+                 "rig/skeleton: a .anims provided ALONE (without its associated .rig) may produce " +
+                 "nothing, or even fail. For a reliable export, also extract the corresponding rig.")]
     public static async Task<string> ExportAnimation(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .anims (ou d'un dossier en contenant).")] string path,
-        [Description("Dossier de destination des fichiers .glb produits.")] string outputPath,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Path of a .anims file (or a folder containing some).")] string path,
+        [Description("Destination folder for the produced .glb files.")] string outputPath,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
-            return Err($"Chemin introuvable : {path}");
+            return Err($"Path not found: {path}");
 
         return await WithSnapshot(outputPath,
-            $"Export animation (.anims) → glTF : {path} → {outputPath}",
+            $"Export animation (.anims) → glTF: {path} → {outputPath}",
             () => runner.RunAsync(new[] { "export", path, "--outpath", outputPath }, ct), verbose);
     }
 
     [McpServerTool(Name = "export_morphtarget", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Exporte une morphtarget REDengine (.morphtarget — formes de visage / blendshapes) " +
-                 "extraite vers glTF binaire (.glb). Outil dédié et explicite par-dessus l'export " +
-                 "générique (format déterminé par l'extension .morphtarget).")]
+    [Description("Exports a REDengine morphtarget (.morphtarget — face shapes / blendshapes) " +
+                 "extracted to binary glTF (.glb). A dedicated, explicit tool on top of the generic " +
+                 "export (format determined by the .morphtarget extension).")]
     public static async Task<string> ExportMorphTarget(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .morphtarget (ou d'un dossier en contenant).")] string path,
-        [Description("Dossier de destination des fichiers .glb produits.")] string outputPath,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Path of a .morphtarget file (or a folder containing some).")] string path,
+        [Description("Destination folder for the produced .glb files.")] string outputPath,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
-            return Err($"Chemin introuvable : {path}");
+            return Err($"Path not found: {path}");
 
         return await WithSnapshot(outputPath,
-            $"Export morphtarget → glTF : {path} → {outputPath}",
+            $"Export morphtarget → glTF: {path} → {outputPath}",
             () => runner.RunAsync(new[] { "export", path, "--outpath", outputPath }, ct), verbose);
     }
 
     [McpServerTool(Name = "export_mlmask", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Exporte un masque multilayer REDengine (.mlmask) extrait vers des images " +
-                 "(une par couche). Le format d'image est réglable via textureFormat " +
-                 "(png par défaut, ou dds/tga/bmp/jpg/tiff).")]
+    [Description("Exports an extracted REDengine multilayer mask (.mlmask) to images " +
+                 "(one per layer). The image format is configurable via textureFormat " +
+                 "(png by default, or dds/tga/bmp/jpg/tiff).")]
     public static async Task<string> ExportMlmask(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .mlmask (ou d'un dossier en contenant).")] string path,
-        [Description("Dossier de destination des images produites.")] string outputPath,
-        [Description("Format d'image : png (défaut), dds, tga, bmp, jpg ou tiff.")] string? textureFormat = null,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Path to a .mlmask file (or a folder containing some).")] string path,
+        [Description("Destination folder for the produced images.")] string outputPath,
+        [Description("Image format: png (default), dds, tga, bmp, jpg or tiff.")] string? textureFormat = null,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
-            return Err($"Chemin introuvable : {path}");
+            return Err($"Path not found: {path}");
 
         var args = new List<string> { "export", path, "--outpath", outputPath };
         if (!string.IsNullOrWhiteSpace(textureFormat)) { args.Add("--uext"); args.Add(textureFormat); }
 
         return await WithSnapshot(outputPath,
-            $"Export mlmask → images : {path} → {outputPath}",
+            $"Export mlmask → images: {path} → {outputPath}",
             () => runner.RunAsync(args, ct), verbose);
     }
 
     [McpServerTool(Name = "export_entity", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Exporte une apparence d'entité REDengine (.ent) vers glTF (.glb) via " +
-                 "IModTools.ExportEntity. Découvre d'abord les apparences de l'entité : si " +
-                 "`appearance` est vide, prend la première ; si invalide, renvoie la liste " +
-                 "disponible. ⚠ EXPÉRIMENTAL : WolvenKit refuse l'export headless de certains types " +
-                 "d'entités (« can not be exported ») — utiliser list_entity_appearances pour " +
-                 "inspecter, et uncook sur les .mesh référencés pour les visualiser de façon fiable.")]
+    [Description("Exports a REDengine entity (.ent) appearance to glTF (.glb) via " +
+                 "IModTools.ExportEntity. First discovers the entity's appearances: if " +
+                 "`appearance` is empty, takes the first; if invalid, returns the available " +
+                 "list. ⚠ EXPERIMENTAL: WolvenKit refuses headless export of certain entity types " +
+                 "(\"can not be exported\") — use list_entity_appearances to " +
+                 "inspect, and uncook on the referenced .mesh to view them reliably.")]
     public static async Task<string> ExportEntity(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .ent (entité) extrait.")] string entFile,
-        [Description("Fichier .glb de sortie.")] string outputPath,
-        [Description("Nom d'apparence (le `name` de l'entité). Vide = la première.")] string? appearance = null,
-        [Description("Racine du jeu (charge les archives pour résoudre meshes/matériaux).")] string? gamePath = null,
+        [Description("Path to an extracted .ent (entity) file.")] string entFile,
+        [Description("Output .glb file.")] string outputPath,
+        [Description("Appearance name (the entity's `name`). Empty = the first.")] string? appearance = null,
+        [Description("Game root (loads archives to resolve meshes/materials).")] string? gamePath = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(entFile))
-            return Err($"Fichier .ent introuvable : {entFile}");
+            return Err($"File .ent not found: {entFile}");
 
-        // Découvrir les apparences pour valider/choisir et donner des erreurs claires.
+        // Discover the appearances to validate/choose and give clear errors.
         var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-entappr", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
         List<string> available;
@@ -822,14 +821,14 @@ public static class WolvenKitTools
         finally { try { Directory.Delete(tmp, true); } catch { /* best-effort */ } }
 
         if (available.Count == 0)
-            return Err($"L'entité {Path.GetFileName(entFile)} n'expose aucune apparence " +
-                       "(entité composant/proxy ?) — rien à exporter. Voir list_entity_appearances.");
+            return Err($"Entity {Path.GetFileName(entFile)} exposes no appearance " +
+                       "(component/proxy entity?) — nothing to export. See list_entity_appearances.");
 
         var chosen = appearance;
         if (string.IsNullOrWhiteSpace(chosen)) chosen = available[0];
         else if (!available.Contains(chosen, StringComparer.OrdinalIgnoreCase))
-            return Err($"Apparence '{chosen}' introuvable dans {Path.GetFileName(entFile)}. " +
-                       $"Disponibles : {string.Join(", ", available.Take(20))}.");
+            return Err($"Appearance '{chosen}' not found in {Path.GetFileName(entFile)}. " +
+                       $"Available: {string.Join(", ", available.Take(20))}.");
 
         var args = new List<string> { "export-entity", entFile, "--out", outputPath, "--appearance", chosen };
         if (!string.IsNullOrWhiteSpace(gamePath)) { args.Add("--game"); args.Add(gamePath); }
@@ -844,16 +843,16 @@ public static class WolvenKitTools
             ok,
             status = ok ? "success" : "error",
             summary = ok
-                ? $"Entité exportée [{chosen}] → {outputPath}"
+                ? $"Entity exported [{chosen}] → {outputPath}"
                 : notExportable
-                    ? $"WolvenKit refuse l'export headless de cette entité [{chosen}] (« can not be exported »)."
-                    : $"Export entité échoué [{chosen}].",
+                    ? $"WolvenKit refuses headless export of this entity [{chosen}] (\"can not be exported\")."
+                    : $"Entity export failed [{chosen}].",
             entFile,
             chosenAppearance = chosen,
             availableAppearances = available,
             produced,
             warnings = notExportable
-                ? new[] { "Type d'entité non exportable headless — voir list_entity_appearances + uncook des .mesh." }
+                ? new[] { "Entity type not exportable headless — see list_entity_appearances + uncook the .mesh." }
                 : Array.Empty<string>(),
             errors = ok ? new List<string>() : LogLines(log, "Error"),
             log = Truncate(log, 8_000),
@@ -861,51 +860,51 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "export_materials", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Exporte les matériaux d'un mesh REDengine (.mesh) vers JSON + textures " +
-                 "(via IModTools.ExportMaterials). gamePath charge les archives pour résoudre les " +
-                 "dépendances de matériaux de base.")]
+    [Description("Exports the materials of a REDengine mesh (.mesh) to JSON + textures " +
+                 "(via IModTools.ExportMaterials). gamePath loads the archives to resolve the " +
+                 "base material dependencies.")]
     public static async Task<string> ExportMaterials(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .mesh extrait.")] string meshFile,
-        [Description("Fichier de sortie (JSON des matériaux).")] string outputPath,
-        [Description("Racine du jeu (charge les archives pour résoudre les matériaux de base).")] string? gamePath = null,
+        [Description("Path to an extracted .mesh file.")] string meshFile,
+        [Description("Output file (materials JSON).")] string outputPath,
+        [Description("Game root (loads archives to resolve the base materials).")] string? gamePath = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(meshFile))
-            return Err($"Fichier .mesh introuvable : {meshFile}");
+            return Err($"File .mesh not found: {meshFile}");
 
         var args = new List<string> { "export-materials", meshFile, "--out", outputPath };
         if (!string.IsNullOrWhiteSpace(gamePath)) { args.Add("--game"); args.Add(gamePath); }
 
-        // ExportMaterials écrit plusieurs fichiers (JSON + textures) dans le dossier-
-        // dépôt, pas seulement outputPath : on capture tout ce qui est produit.
+        // ExportMaterials writes several files (JSON + textures) into the output
+        // folder, not just outputPath: we capture everything that is produced.
         var dir = Path.GetDirectoryName(Path.GetFullPath(outputPath))!;
         Directory.CreateDirectory(dir);
         var before = Snapshot(dir);
         var r = await runner.RunAsync(args, ct);
-        return Structured($"Export matériaux : {meshFile} → {outputPath}", r, ProducedIn(dir, before));
+        return Structured($"Export materials: {meshFile} → {outputPath}", r, ProducedIn(dir, before));
     }
 
-    // ── Lecture / écriture directe d'un fichier de jeu ────────────────────
+    // ── Direct read / write of a game file ────────────────────
 
     [McpServerTool(Name = "read_game_file", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Lit un fichier de jeu en un seul appel : extrait le fichier de l'archive, " +
-                 "le convertit en JSON REDengine et renvoie son contenu — au lieu d'enchaîner " +
-                 "extract_files puis cr2w_to_json. Le JSON complet est aussi écrit sur disque " +
-                 "(champ jsonFile), à lire à part si le contenu renvoyé est tronqué.")]
+    [Description("Reads a game file in a single call: extracts the file from the archive, " +
+                 "converts it to REDengine JSON and returns its content — instead of chaining " +
+                 "extract_files then cr2w_to_json. The full JSON is also written to disk " +
+                 "(jsonFile field), to read separately if the returned content is truncated.")]
     public static async Task<string> ReadGameFile(
         Cp77ToolsRunner runner,
-        [Description("Chemin du fichier .archive contenant le fichier voulu.")] string archivePath,
-        [Description("Chemin interne du fichier dans l'archive (ex. base\\gameplay\\...\\x.ent). " +
-                     "Le localiser au besoin avec find_in_archives.")] string gameFilePath,
+        [Description("Path to the .archive file containing the wanted file.")] string archivePath,
+        [Description("Internal path of the file within the archive (e.g. base\\gameplay\\...\\x.ent). " +
+                     "Locate it if needed with find_in_archives.")] string gameFilePath,
         CancellationToken ct = default)
     {
         if (!File.Exists(archivePath))
-            return Err($"Archive introuvable : {archivePath}");
+            return Err($"Archive not found: {archivePath}");
 
-        // Dossier de travail DÉTERMINISTE par (archive, fichier) : relire le même
-        // fichier réécrit au même endroit au lieu d'accumuler un dossier GUID par
-        // appel (fuite). jsonFile reste lisible après l'appel comme documenté.
+        // DETERMINISTIC work folder per (archive, file): re-reading the same
+        // file rewrites it to the same place instead of accumulating a GUID folder per
+        // call (leak). jsonFile remains readable after the call as documented.
         var work = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-read",
                                 StableHash(archivePath + "|" + gameFilePath));
         var rawDir = Path.Combine(work, "raw");
@@ -918,8 +917,8 @@ public static class WolvenKitTools
         var extracted = Directory
             .EnumerateFiles(rawDir, "*", SearchOption.AllDirectories).FirstOrDefault();
         if (extracted is null)
-            return Err($"Fichier introuvable dans l'archive : {gameFilePath} " +
-                       "(vérifier le chemin interne avec find_in_archives).");
+            return Err($"File not found in archive: {gameFilePath} " +
+                       "(check the internal path with find_in_archives).");
 
         var conv = await runner.RunAsync(
             new[] { "convert", "serialize", extracted, "--outpath", jsonDir }, ct);
@@ -932,7 +931,7 @@ public static class WolvenKitTools
             {
                 ok = true,
                 status = "success",
-                summary = $"Fichier extrait (type non-CR2W : non converti en JSON) : {gameFilePath}",
+                summary = $"File extracted (non-CR2W type: not converted to JSON): {gameFilePath}",
                 gameFilePath,
                 rawFile = extracted,
                 jsonFile = (string?)null,
@@ -948,8 +947,8 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Fichier de jeu lu : {gameFilePath}"
-                      + (truncated ? " (contenu tronqué — lire jsonFile en entier)" : ""),
+            summary = $"Game file read: {gameFilePath}"
+                      + (truncated ? " (content truncated — read jsonFile in full)" : ""),
             gameFilePath,
             jsonFile,
             truncated,
@@ -960,19 +959,19 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "write_game_file", ReadOnly = false, Destructive = true, Idempotent = true)]
-    [Description("Écrit un fichier de jeu édité : convertit un JSON (produit par read_game_file " +
-                 "puis modifié) en fichier REDengine CR2W binaire, placé dans un dossier de mod " +
-                 "au bon chemin interne — prêt à être empaqueté par pack_archive.")]
+    [Description("Writes an edited game file: converts a JSON (produced by read_game_file " +
+                 "then modified) into a binary REDengine CR2W file, placed in a mod folder " +
+                 "at the right internal path — ready to be packed by pack_archive.")]
     public static async Task<string> WriteGameFile(
         Cp77ToolsRunner runner,
-        [Description("Chemin du fichier JSON édité (issu de read_game_file).")] string jsonFile,
-        [Description("Chemin interne visé dans le jeu (ex. base\\...\\x.ent) — détermine " +
-                     "l'emplacement du CR2W produit.")] string gameFilePath,
-        [Description("Dossier où placer le CR2W (typiquement le source/archive d'un projet de mod).")] string modArchiveFolder,
+        [Description("Path to the edited JSON file (from read_game_file).")] string jsonFile,
+        [Description("Target internal path within the game (e.g. base\\...\\x.ent) — determines " +
+                     "the location of the produced CR2W.")] string gameFilePath,
+        [Description("Folder where to place the CR2W (typically the source/archive of a mod project).")] string modArchiveFolder,
         CancellationToken ct = default)
     {
         if (!File.Exists(jsonFile))
-            return Err($"Fichier JSON introuvable : {jsonFile}");
+            return Err($"JSON file not found: {jsonFile}");
 
         var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-write",
                                Guid.NewGuid().ToString("N"));
@@ -985,47 +984,47 @@ public static class WolvenKitTools
 
         if (cr2w is null)
         {
-            try { Directory.Delete(tmp, recursive: true); } catch { /* nettoyage best-effort */ }
-            return Structured($"Conversion JSON → CR2W échouée : {jsonFile}", conv,
+            try { Directory.Delete(tmp, recursive: true); } catch { /* best-effort cleanup */ }
+            return Structured($"JSON → CR2W conversion failed: {jsonFile}", conv,
                 new List<string>());
         }
 
         var dest = Path.Combine(modArchiveFolder, gameFilePath);
         Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
         File.Copy(cr2w, dest, overwrite: true);
-        try { Directory.Delete(tmp, recursive: true); } catch { /* nettoyage best-effort */ }
+        try { Directory.Delete(tmp, recursive: true); } catch { /* best-effort cleanup */ }
 
-        return Structured($"Fichier de jeu écrit : {gameFilePath} → {dest}", conv,
+        return Structured($"Game file written: {gameFilePath} → {dest}", conv,
             new List<string> { dest });
     }
 
-    // ── Audio / compression bas niveau ────────────────────────────────────
+    // ── Low-level audio / compression ─────────────────────────────────────
 
     [McpServerTool(Name = "wwise_export", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Convertit des fichiers audio Wwise WEM en OGG. Nécessite les binaires audio " +
-                 "natifs — présents sous Windows, indisponibles sous macOS. Conversions " +
-                 "exécutées en parallèle (jusqu'à 4 simultanées) ; le vrai gain apparaît " +
-                 "quand le daemon supporte le pipelining (sinon overlap I/O uniquement).")]
+    [Description("Converts Wwise WEM audio files to OGG. Requires the native audio " +
+                 "binaries — present on Windows, unavailable on macOS. Conversions " +
+                 "run in parallel (up to 4 simultaneously); the real gain appears " +
+                 "when the daemon supports pipelining (otherwise I/O overlap only).")]
     public static async Task<string> WwiseExport(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .wem, ou d'un dossier en contenant.")] string path,
-        [Description("Dossier de destination des fichiers OGG.")] string outputPath,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Path to a .wem file, or a folder containing some.")] string path,
+        [Description("Destination folder for the OGG files.")] string outputPath,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
-            return Err($"Chemin introuvable : {path}");
+            return Err($"Path not found: {path}");
 
         Directory.CreateDirectory(outputPath);
 
-        // Le verbe `wwise` attend un FICHIER .ogg de sortie (pas un dossier) ; on
-        // convertit donc chaque .wem en un .ogg explicitement nommé dans outputPath.
+        // The `wwise` verb expects an output FILE .ogg (not a folder);
+        // so it converts each .wem into an explicitly named .ogg in outputPath.
         var wems = Directory.Exists(path)
             ? Directory.GetFiles(path, "*.wem", SearchOption.AllDirectories)
             : new[] { path };
         if (wems.Length == 0)
-            return Err($"Aucun fichier .wem trouvé dans : {path}");
+            return Err($"No .wem file found in: {path}");
 
         var before = Snapshot(outputPath);
         var logs = new ConcurrentBag<string>();
@@ -1060,204 +1059,204 @@ public static class WolvenKitTools
             errorCodes.IsEmpty ? 0 : errorCodes.First(),
             string.Join("\n", logs), "", false);
         return Structured(
-            $"Conversion Wwise WEM → OGG : {wems.Length} fichier(s) → {outputPath} (parallèle)",
+            $"Wwise WEM → OGG conversion: {wems.Length} file(s) → {outputPath} (parallel)",
             aggregate, ProducedIn(outputPath, before), verbose);
     }
 
     [McpServerTool(Name = "extract_audio", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Extrait l'audio voix-off (opus) d'une archive vocale Cyberpunk 2077 " +
-                 "(typiquement lang_xx_voice.archive). Par défaut extrait TOUS les opus de " +
-                 "l'archive ; opusHashes (liste de hashes uint séparés par des virgules) cible " +
-                 "des clips précis. Combine l'archive opusinfo + ses opuspak via le pipeline uncook.")]
+    [Description("Extracts the voice-over audio (opus) from a Cyberpunk 2077 voice archive " +
+                 "(typically lang_xx_voice.archive). By default extracts ALL opus from " +
+                 "the archive; opusHashes (comma-separated list of uint hashes) targets " +
+                 "specific clips. Combines the opusinfo archive + its opuspak via the uncook pipeline.")]
     public static async Task<string> ExtractAudio(
         Cp77ToolsRunner runner,
-        [Description("Chemin de l'archive vocale .archive (contenant l'opusinfo).")] string archivePath,
-        [Description("Dossier de destination des fichiers audio produits.")] string outputPath,
-        [Description("Optionnel : hashes opus précis à extraire (uint séparés par des virgules). " +
-                     "Vide = tout extraire.")] string? opusHashes = null,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Path to the voice .archive (containing the opusinfo).")] string archivePath,
+        [Description("Destination folder for the produced audio files.")] string outputPath,
+        [Description("Optional: specific opus hashes to extract (comma-separated uint). " +
+                     "Empty = extract everything.")] string? opusHashes = null,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(archivePath) && !Directory.Exists(archivePath))
-            return Err($"Chemin introuvable : {archivePath}");
+            return Err($"Path not found: {archivePath}");
 
         var args = new List<string> { "uncook", archivePath, "--outpath", outputPath };
         if (!string.IsNullOrWhiteSpace(opusHashes)) { args.Add("--opus-hashes"); args.Add(opusHashes); }
         else args.Add("--opus-export-all");
 
         return await WithSnapshot(outputPath,
-            $"Extraction audio opus : {archivePath} → {outputPath}",
+            $"Opus audio extraction: {archivePath} → {outputPath}",
             () => runner.RunAsync(args, ct, progress is null ? null : Relay(progress)), verbose);
     }
 
     [McpServerTool(Name = "import_audio", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Importe des fichiers WAV (nommés par leur hash opus, ex. 123456.wav) en audio " +
-                 ".opus repacké dans un dossier de mod — remplacement de voix-off. Les WAV sont " +
-                 "encodés via opusenc et réinjectés dans l'OpusPak du jeu. ⚠ EXPÉRIMENTAL : charge " +
-                 "les archives du jeu (quelques secondes) ; nécessite le chemin d'installation.")]
+    [Description("Imports WAV files (named by their opus hash, e.g. 123456.wav) into repacked " +
+                 ".opus audio in a mod folder — voice-over replacement. The WAV files are " +
+                 "encoded via opusenc and reinjected into the game's OpusPak. ⚠ EXPERIMENTAL: loads " +
+                 "the game archives (a few seconds); requires the installation path.")]
     public static async Task<string> ImportAudio(
         Cp77ToolsRunner runner,
-        [Description("Dossier racine de l'installation Cyberpunk 2077 (ou chemin du .exe).")] string gamePath,
-        [Description("Dossier contenant les .wav à importer (noms de fichiers = hashes opus).")] string wavFolder,
-        [Description("Dossier de sortie du mod (recevra l'OpusPak modifié).")] string outputPath,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Root folder of the Cyberpunk 2077 installation (or path to the .exe).")] string gamePath,
+        [Description("Folder containing the .wav to import (file names = opus hashes).")] string wavFolder,
+        [Description("Mod output folder (will receive the modified OpusPak).")] string outputPath,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(wavFolder))
-            return Err($"Dossier WAV introuvable : {wavFolder}");
+            return Err($"WAV folder not found: {wavFolder}");
 
         var args = new List<string>
             { "opus-import", gamePath, "--wav-dir", wavFolder, "--out", outputPath };
         return await WithSnapshot(outputPath,
-            $"Import audio WAV → opus : {wavFolder} → {outputPath}",
+            $"WAV → opus audio import: {wavFolder} → {outputPath}",
             () => runner.RunAsync(args, ct), verbose);
     }
 
     [McpServerTool(Name = "loc_resolve", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Résout une clé de localisation (LocKey : hash uint64 ou clé secondaire texte) en " +
-                 "son texte localisé (variantes masculine/féminine), via les on-screens du jeu — " +
-                 "sans charger toute la TweakDB. ⚠ EXPÉRIMENTAL : charge les archives du jeu " +
-                 "(quelques secondes) ; nécessite le chemin d'installation.")]
+    [Description("Resolves a localization key (LocKey: uint64 hash or text secondary key) into " +
+                 "its localized text (masculine/feminine variants), via the game on-screens — " +
+                 "without loading the whole TweakDB. ⚠ EXPERIMENTAL: loads the game archives " +
+                 "(a few seconds); requires the installation path.")]
     public static async Task<string> LocResolve(
         Cp77ToolsRunner runner,
-        [Description("Dossier racine de l'installation Cyberpunk 2077 (ou chemin du .exe).")] string gamePath,
-        [Description("Clé à résoudre : hash uint64 (ex. 12345) ou clé secondaire texte.")] string key,
-        [Description("Langue (code REDengine : en_us, fr_fr, de_de, jp_jp...). Défaut : en_us.")] string? language = null,
+        [Description("Root folder of the Cyberpunk 2077 installation (or path to the .exe).")] string gamePath,
+        [Description("Key to resolve: uint64 hash (e.g. 12345) or text secondary key.")] string key,
+        [Description("Language (REDengine code: en_us, fr_fr, de_de, jp_jp...). Default: en_us.")] string? language = null,
         CancellationToken ct = default)
     {
         var args = new List<string> { "loc-resolve", gamePath, "--key", key };
         if (!string.IsNullOrWhiteSpace(language)) { args.Add("--lang"); args.Add(language); }
         var r = await runner.RunAsync(args, ct);
-        return Structured($"Résolution LocKey '{key}' ({language ?? "en_us"})", r);
+        return Structured($"LocKey resolution '{key}' ({language ?? "en_us"})", r);
     }
 
     [McpServerTool(Name = "oodle_compress", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Compresse un fichier avec le codec Oodle Kraken (utilitaire bas niveau).")]
+    [Description("Compresses a file with the Oodle Kraken codec (low-level utility).")]
     public static async Task<string> OodleCompress(
         Cp77ToolsRunner runner,
-        [Description("Fichier d'entrée à compresser.")] string inputPath,
-        [Description("Fichier de sortie compressé.")] string outputPath,
+        [Description("Input file to compress.")] string inputPath,
+        [Description("Compressed output file.")] string outputPath,
         CancellationToken ct = default)
     {
         if (!File.Exists(inputPath))
-            return Err($"Fichier introuvable : {inputPath}");
+            return Err($"File not found: {inputPath}");
 
         var r = await runner.RunAsync(new[] { "oodle", "compress", inputPath, outputPath }, ct);
-        return Structured($"Compression Kraken : {inputPath} → {outputPath}", r,
+        return Structured($"Kraken compression: {inputPath} → {outputPath}", r,
             File.Exists(outputPath) ? new List<string> { outputPath } : new List<string>());
     }
 
     [McpServerTool(Name = "oodle_decompress", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Décompresse un fichier compressé avec le codec Oodle Kraken (utilitaire bas niveau).")]
+    [Description("Decompresses a file compressed with the Oodle Kraken codec (low-level utility).")]
     public static async Task<string> OodleDecompress(
         Cp77ToolsRunner runner,
-        [Description("Fichier d'entrée compressé.")] string inputPath,
-        [Description("Fichier de sortie décompressé.")] string outputPath,
+        [Description("Compressed input file.")] string inputPath,
+        [Description("Decompressed output file.")] string outputPath,
         CancellationToken ct = default)
     {
         if (!File.Exists(inputPath))
-            return Err($"Fichier introuvable : {inputPath}");
+            return Err($"File not found: {inputPath}");
 
         var r = await runner.RunAsync(new[] { "oodle", "decompress", inputPath, outputPath }, ct);
 
-        // WolvenKit écrit la sortie de `oodle decompress` dans <outputPath>.bin ;
-        // on la replace au chemin demandé pour respecter le contrat de l'outil.
+        // WolvenKit writes the output of `oodle decompress` to <outputPath>.bin;
+        // we move it back to the requested path to honor the tool's contract.
         var written = outputPath + ".bin";
         if (!File.Exists(outputPath) && File.Exists(written))
         {
             try { File.Move(written, outputPath, overwrite: true); }
-            catch { /* à défaut, la sortie reste à <outputPath>.bin */ }
+            catch { /* failing that, the output stays at <outputPath>.bin */ }
         }
-        return Structured($"Décompression Kraken : {inputPath} → {outputPath}", r,
+        return Structured($"Kraken decompression: {inputPath} → {outputPath}", r,
             File.Exists(outputPath) ? new List<string> { outputPath } : new List<string>());
     }
 
-    // ── Écriture / création de mods ───────────────────────────────────────
+    // ── Writing / creating mods ───────────────────────────────────────
 
     [McpServerTool(Name = "pack_archive", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Empaquette un dossier de fichiers ressources REDengine en archive .archive " +
-                 "de Cyberpunk 2077 (compression Kraken).")]
+    [Description("Packs a folder of REDengine resource files into a .archive " +
+                 "of Cyberpunk 2077 (Kraken compression).")]
     public static async Task<string> PackArchive(
         Cp77ToolsRunner runner,
-        [Description("Dossier contenant les fichiers ressources à empaqueter.")] string folderPath,
-        [Description("Dossier de destination de l'archive .archive produite.")] string outputPath,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Folder containing the resource files to pack.")] string folderPath,
+        [Description("Destination folder for the produced .archive.")] string outputPath,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(folderPath))
-            return Err($"Dossier introuvable : {folderPath}");
+            return Err($"Folder not found: {folderPath}");
 
         return await WithSnapshot(outputPath,
-            $"Empaquetage en .archive : {folderPath} → {outputPath}",
+            $"Packing to .archive: {folderPath} → {outputPath}",
             () => runner.RunAsync(
                 new[] { "pack", folderPath, "--outpath", outputPath }, ct), verbose);
     }
 
     [McpServerTool(Name = "import_raw", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Importe des fichiers raw (textures, meshes glTF...) en fichiers REDengine CR2W, " +
-                 "prêts à être empaquetés dans un mod.")]
+    [Description("Imports raw files (textures, glTF meshes...) into REDengine CR2W files, " +
+                 "ready to be packed into a mod.")]
     public static async Task<string> ImportRaw(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier raw, ou d'un dossier en contenant.")] string path,
-        [Description("Dossier de destination des fichiers REDengine.")] string outputPath,
-        [Description("Si vrai, renvoie le log complet (pas de troncature) — pour debug.")] bool verbose = false,
+        [Description("Path to a raw file, or a folder containing some.")] string path,
+        [Description("Destination folder for the REDengine files.")] string outputPath,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
-            return Err($"Chemin introuvable : {path}");
+            return Err($"Path not found: {path}");
 
         return await WithSnapshot(outputPath,
-            $"Import raw → REDengine : {path} → {outputPath}",
+            $"Raw → REDengine import: {path} → {outputPath}",
             () => runner.RunAsync(
                 new[] { "import", path, "--outpath", outputPath }, ct), verbose);
     }
 
     [McpServerTool(Name = "build_project", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Compile les projets WolvenKit (.cpmodproj) trouvés dans le dossier donné, " +
-                 "produisant un mod prêt à installer.")]
+    [Description("Compiles the WolvenKit projects (.cpmodproj) found in the given folder, " +
+                 "producing a mod ready to install.")]
     public static async Task<string> BuildProject(
         Cp77ToolsRunner runner,
-        [Description("Dossier contenant un ou plusieurs projets .cpmodproj.")] string projectFolder,
+        [Description("Folder containing one or more .cpmodproj projects.")] string projectFolder,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(projectFolder))
-            return Err($"Dossier de projet introuvable : {projectFolder}");
+            return Err($"Project folder not found: {projectFolder}");
 
         var r = await runner.RunAsync(new[] { "build", projectFolder }, ct,
             progress is null ? null : Relay(progress));
-        return Structured($"Build des projets .cpmodproj dans : {projectFolder}", r);
+        return Structured($"Build of .cpmodproj projects in: {projectFolder}", r);
     }
 
     [McpServerTool(Name = "detect_conflicts", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Détecte les conflits entre mods installés (un même fichier de jeu fourni par " +
-                 "plusieurs mods). Prend le dossier racine du jeu et analyse son archive/pc/mod. " +
-                 "Sortie JSON structurée, facile à analyser.")]
+    [Description("Detects conflicts between installed mods (the same game file provided by " +
+                 "several mods). Takes the game root folder and analyzes its archive/pc/mod. " +
+                 "Structured JSON output, easy to parse.")]
     public static async Task<string> DetectConflicts(
         Cp77ToolsRunner runner,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
 
-        // Le verbe `conflicts` attend le dossier RACINE du jeu (il y localise
-        // lui-même archive/pc/mod) et non le dossier des mods directement.
+        // The `conflicts` verb expects the game ROOT folder (it locates
+        // archive/pc/mod itself there) and not the mods folder directly.
         var r = await runner.RunAsync(new[] { "conflicts", gamePath, "--structured" }, ct);
-        return Structured($"Analyse des conflits de mods : {gamePath}", r);
+        return Structured($"Mod conflict analysis: {gamePath}", r);
     }
 
-    // ── Workflow projet (système de fichiers, sans cp77tools) ─────────────
+    // ── Project workflow (filesystem, without cp77tools) ────────────────
 
     [McpServerTool(Name = "list_installed_mods", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Liste les mods installés dans un dossier de jeu Cyberpunk 2077 : archives " +
-                 ".archive dans archive/pc/mod et mods REDmod dans mods/.")]
+    [Description("Lists installed mods in a Cyberpunk 2077 game folder: " +
+                 ".archive archives in archive/pc/mod and REDmod mods in mods/.")]
     public static string ListInstalledMods(
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
 
         var archiveDir = Path.Combine(gamePath, "archive", "pc", "mod");
         var archiveMods = Directory.Exists(archiveDir)
@@ -1276,40 +1275,40 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Mods installés dans {gamePath}",
+            summary = $"Installed mods in {gamePath}",
             archiveMods = archiveMods ?? new(),
             archiveModsCount = archiveMods?.Count ?? 0,
             redMods = redMods ?? new(),
             redModsCount = redMods?.Count ?? 0,
-            warnings = (archiveMods is null ? new[] { $"Dossier absent : {archiveDir}" }
-                        : redMods is null ? new[] { $"Dossier absent : {redmodDir}" }
+            warnings = (archiveMods is null ? new[] { $"Folder missing: {archiveDir}" }
+                        : redMods is null ? new[] { $"Folder missing: {redmodDir}" }
                         : Array.Empty<string>()),
         };
         return JsonSerializer.Serialize(result, JsonOpts);
     }
 
     [McpServerTool(Name = "create_mod_project", ReadOnly = false, Destructive = false, Idempotent = false)]
-    [Description("Crée la structure de dossiers d'un projet de mod WolvenKit " +
+    [Description("Creates the folder structure of a WolvenKit mod project " +
                  "(source/archive, source/raw, source/resources, source/customSounds, packed) " +
-                 "ET un fichier <modName>.cpmodproj à la racine — directement compilable par " +
-                 "build_project. Prête pour le workflow : extract_files/uncook → édition → " +
+                 "AND a <modName>.cpmodproj file at the root — directly compilable by " +
+                 "build_project. Ready for the workflow: extract_files/uncook → editing → " +
                  "import_raw → build_project.")]
     public static string CreateModProject(
-        [Description("Dossier parent où créer le projet.")] string parentFolder,
-        [Description("Nom du mod / du projet.")] string modName,
-        [Description("Auteur du mod (optionnel).")] string? author = null,
-        [Description("Version du mod (optionnel, ex. 1.0.0).")] string? version = null,
-        [Description("Description du mod (optionnel).")] string? description = null)
+        [Description("Parent folder where to create the project.")] string parentFolder,
+        [Description("Name of the mod / project.")] string modName,
+        [Description("Mod author (optional).")] string? author = null,
+        [Description("Mod version (optional, e.g. 1.0.0).")] string? version = null,
+        [Description("Mod description (optional).")] string? description = null)
     {
         if (!Directory.Exists(parentFolder))
-            return Err($"Dossier parent introuvable : {parentFolder}");
+            return Err($"Parent folder not found: {parentFolder}");
         if (string.IsNullOrWhiteSpace(modName)
             || modName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return Err("Nom de mod invalide.");
+            return Err("Invalid mod name.");
 
         var root = Path.Combine(parentFolder, modName);
         if (Directory.Exists(root))
-            return Err($"Le dossier existe déjà : {root}");
+            return Err($"The folder already exists: {root}");
 
         string[] subdirs =
         {
@@ -1323,15 +1322,15 @@ public static class WolvenKitTools
             Directory.CreateDirectory(Path.Combine(root, s));
 
         File.WriteAllText(Path.Combine(root, "README.txt"),
-            $"Projet de mod WolvenKit : {modName}\n\n" +
-            "<modName>.cpmodproj  Fichier projet WolvenKit (compilable par build_project).\n" +
-            "source/archive/    Fichiers REDengine cuits (.mesh, .ent, .xbm...).\n" +
-            "                   C'est ce dossier qu'on empaquette avec pack_archive.\n" +
-            "source/raw/        Fichiers bruts (glTF, images, .blend...) a passer par import_raw.\n" +
-            "source/resources/  Fichiers libres copies tels quels.\n" +
-            "source/customSounds/  Sons personnalises (REDmod audio).\n" +
-            "packed/            Sortie : build_project y depose le mod compile.\n\n" +
-            "Workflow : extract_files / uncook -> edition -> import_raw -> build_project.\n");
+            $"WolvenKit mod project: {modName}\n\n" +
+            "<modName>.cpmodproj  WolvenKit project file (compilable by build_project).\n" +
+            "source/archive/    Cooked REDengine files (.mesh, .ent, .xbm...).\n" +
+            "                   This is the folder packed with pack_archive.\n" +
+            "source/raw/        Raw files (glTF, images, .blend...) to pass through import_raw.\n" +
+            "source/resources/  Free files copied as-is.\n" +
+            "source/customSounds/  Custom sounds (REDmod audio).\n" +
+            "packed/            Output: build_project drops the compiled mod here.\n\n" +
+            "Workflow: extract_files / uncook -> editing -> import_raw -> build_project.\n");
 
         var projFile = Path.Combine(root, modName + ".cpmodproj");
         File.WriteAllText(projFile,
@@ -1343,7 +1342,7 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Projet de mod créé : {root}",
+            summary = $"Mod project created: {root}",
             produced,
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -1352,27 +1351,27 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "generate_modproj", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Génère un fichier projet WolvenKit (.cpmodproj) dans un dossier de projet " +
-                 "EXISTANT (créé manuellement ou par un workflow), afin que build_project puisse " +
-                 "le compiler. Utile pour rendre compilable un projet qui n'en a pas. Le format " +
-                 "est l'XML <CP77Mod> attendu par WolvenKit (seul le nom est requis).")]
+    [Description("Generates a WolvenKit project file (.cpmodproj) in a project folder " +
+                 "EXISTING (created manually or by a workflow), so that build_project can " +
+                 "compile it. Useful to make compilable a project that does not have one. The format " +
+                 "is the <CP77Mod> XML expected by WolvenKit (only the name is required).")]
     public static string GenerateModProj(
-        [Description("Dossier racine du projet (où déposer le .cpmodproj).")] string projectFolder,
-        [Description("Nom du mod / du projet.")] string modName,
-        [Description("Auteur du mod (optionnel).")] string? author = null,
-        [Description("Version du mod (optionnel, ex. 1.0.0).")] string? version = null,
-        [Description("Description du mod (optionnel).")] string? description = null,
-        [Description("Écraser un .cpmodproj existant (défaut : false).")] bool overwrite = false)
+        [Description("Root folder of the project (where to drop the .cpmodproj).")] string projectFolder,
+        [Description("Name of the mod / project.")] string modName,
+        [Description("Mod author (optional).")] string? author = null,
+        [Description("Mod version (optional, e.g. 1.0.0).")] string? version = null,
+        [Description("Mod description (optional).")] string? description = null,
+        [Description("Overwrite an existing .cpmodproj (default: false).")] bool overwrite = false)
     {
         if (!Directory.Exists(projectFolder))
-            return Err($"Dossier de projet introuvable : {projectFolder}");
+            return Err($"Project folder not found: {projectFolder}");
         if (string.IsNullOrWhiteSpace(modName)
             || modName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return Err("Nom de mod invalide.");
+            return Err("Invalid mod name.");
 
         var projFile = Path.Combine(projectFolder, modName + ".cpmodproj");
         if (File.Exists(projFile) && !overwrite)
-            return Err($"Le projet existe déjà : {projFile} (passer overwrite=true pour écraser).");
+            return Err($"The project already exists: {projFile} (pass overwrite=true to overwrite).");
 
         File.WriteAllText(projFile, BuildCpmodprojXml(modName, author, version, description));
 
@@ -1380,7 +1379,7 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Projet .cpmodproj généré : {projFile}",
+            summary = $".cpmodproj project generated: {projFile}",
             produced = new[] { modName + ".cpmodproj" },
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -1388,13 +1387,13 @@ public static class WolvenKitTools
         return JsonSerializer.Serialize(result, JsonOpts);
     }
 
-    /// <summary>Construit le contenu XML d'un .cpmodproj (DTO CP77Mod de WolvenKit).
-    /// Seul &lt;Name&gt; est requis ; ModName retombe sur Name si absent. Le chargeur
-    /// XmlSerializer de WolvenKit ignore les éléments inconnus, donc ce sous-ensemble
-    /// suffit pour build_project.</summary>
-    /// <summary>Hash stable (FNV-1a 64 bits, hex) — déterministe entre exécutions,
-    /// contrairement à string.GetHashCode(). Sert à nommer des dossiers temp
-    /// réutilisables.</summary>
+    /// <summary>Builds the XML content of a .cpmodproj (WolvenKit CP77Mod DTO).
+    /// Only &lt;Name&gt; is required; ModName falls back to Name if absent. WolvenKit's
+    /// XmlSerializer loader ignores unknown elements, so this subset
+    /// is enough for build_project.</summary>
+    /// <summary>Stable hash (FNV-1a 64-bit, hex) — deterministic across runs,
+    /// unlike string.GetHashCode(). Used to name reusable temp
+    /// folders.</summary>
     internal static string StableHash(string s)
     {
         ulong h = 1469598103934665603UL;
@@ -1426,20 +1425,20 @@ public static class WolvenKitTools
         return sb.ToString();
     }
 
-    // ── Inspection rapide (résumés sans conversion lourde) ──────────────
+    // ── Quick inspection (summaries without heavy conversion) ──────────────
 
     [McpServerTool(Name = "inspect_mesh", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Inspecte un fichier .mesh REDengine et renvoie un résumé compact : " +
-                 "nombre de LODs, sous-meshes, matériaux, bones. Sérialise le CR2W en " +
-                 "JSON via le daemon puis n'extrait que les agrégats — bien plus léger " +
-                 "qu'un uncook complet ou un read_game_file qui renvoie tout l'arbre.")]
+    [Description("Inspects a REDengine .mesh file and returns a compact summary: " +
+                 "number of LODs, sub-meshes, materials, bones. Serializes the CR2W to " +
+                 "JSON via the daemon then extracts only the aggregates — far lighter " +
+                 "than a full uncook or a read_game_file that returns the whole tree.")]
     public static async Task<string> InspectMesh(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .mesh REDengine (déjà extrait d'une archive).")] string meshFile,
+        [Description("Path to a REDengine .mesh file (already extracted from an archive).")] string meshFile,
         CancellationToken ct = default)
     {
         if (!File.Exists(meshFile))
-            return Err($"Fichier .mesh introuvable : {meshFile}");
+            return Err($".mesh file not found: {meshFile}");
 
         var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-inspect",
             Guid.NewGuid().ToString("N"));
@@ -1452,7 +1451,7 @@ public static class WolvenKitTools
                 .EnumerateFiles(tmp, "*.json", SearchOption.AllDirectories)
                 .FirstOrDefault();
             if (jsonFile is null)
-                return Structured($"Inspection mesh échouée : {meshFile}", r,
+                return Structured($"Mesh inspection failed: {meshFile}", r,
                     new List<string>());
 
             using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(jsonFile, ct));
@@ -1462,9 +1461,9 @@ public static class WolvenKitTools
             {
                 ok = true,
                 status = "success",
-                summary = $"Mesh inspecté : {Path.GetFileName(meshFile)} — " +
-                          $"{stats.LodCount} LOD(s), {stats.SubMeshCount} sous-mesh, " +
-                          $"{stats.MaterialCount} matériau(x), {stats.BoneCount} bone(s)",
+                summary = $"Mesh inspected: {Path.GetFileName(meshFile)} — " +
+                          $"{stats.LodCount} LOD(s), {stats.SubMeshCount} sub-mesh, " +
+                          $"{stats.MaterialCount} material(s), {stats.BoneCount} bone(s)",
                 produced = Array.Empty<string>(),
                 warnings = LogLines(r.Stdout, "Warning"),
                 errors = LogLines(r.Stdout, "Error"),
@@ -1482,22 +1481,22 @@ public static class WolvenKitTools
         finally
         {
             try { Directory.Delete(tmp, recursive: true); }
-            catch { /* nettoyage best-effort */ }
+            catch { /* best-effort cleanup */ }
         }
     }
 
     [McpServerTool(Name = "inspect_texture", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Inspecte un fichier .xbm REDengine (texture) et renvoie ses métadonnées : " +
-                 "résolution, format, compression, mipmaps, groupe de texture — sans conversion " +
-                 "vers PNG/DDS. Sérialise le CR2W en JSON via le daemon puis n'extrait que les " +
-                 "champs setup.*.")]
+    [Description("Inspects a REDengine .xbm file (texture) and returns its metadata: " +
+                 "resolution, format, compression, mipmaps, texture group — without conversion " +
+                 "to PNG/DDS. Serializes the CR2W to JSON via the daemon then extracts only the " +
+                 "setup.* fields.")]
     public static async Task<string> InspectTexture(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .xbm REDengine (déjà extrait d'une archive).")] string xbmFile,
+        [Description("Path to a REDengine .xbm file (already extracted from an archive).")] string xbmFile,
         CancellationToken ct = default)
     {
         if (!File.Exists(xbmFile))
-            return Err($"Fichier .xbm introuvable : {xbmFile}");
+            return Err($".xbm file not found: {xbmFile}");
 
         var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-inspect",
             Guid.NewGuid().ToString("N"));
@@ -1510,7 +1509,7 @@ public static class WolvenKitTools
                 .EnumerateFiles(tmp, "*.json", SearchOption.AllDirectories)
                 .FirstOrDefault();
             if (jsonFile is null)
-                return Structured($"Inspection texture échouée : {xbmFile}", r,
+                return Structured($"Texture inspection failed: {xbmFile}", r,
                     new List<string>());
 
             using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(jsonFile, ct));
@@ -1520,7 +1519,7 @@ public static class WolvenKitTools
             {
                 ok = true,
                 status = "success",
-                summary = $"Texture inspectée : {Path.GetFileName(xbmFile)} — " +
+                summary = $"Texture inspected: {Path.GetFileName(xbmFile)} — " +
                           $"{props.Width}x{props.Height} {props.Format}",
                 produced = Array.Empty<string>(),
                 warnings = LogLines(r.Stdout, "Warning"),
@@ -1539,44 +1538,44 @@ public static class WolvenKitTools
         finally
         {
             try { Directory.Delete(tmp, recursive: true); }
-            catch { /* nettoyage best-effort */ }
+            catch { /* best-effort cleanup */ }
         }
     }
 
     [McpServerTool(Name = "describe_tweak_record", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Pour un identifiant TweakDB donné (record), liste tous ses flats avec " +
-                 "leurs types et valeurs courantes — l'inverse de tweakdb_query, qui ne fait " +
-                 "que chercher des identifiants. Indispensable avant d'éditer un record via " +
-                 "write_tweak : permet de savoir quels champs existent et leurs valeurs.")]
+    [Description("For a given TweakDB identifier (record), lists all its flats with " +
+                 "their types and current values — the inverse of tweakdb_query, which only " +
+                 "searches identifiers. Essential before editing a record via " +
+                 "write_tweak: lets you know which fields exist and their values.")]
     public static async Task<string> DescribeTweakRecord(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier tweakdb.bin (typiquement <jeu>/r6/cache/tweakdb.bin).")] string tweakdbPath,
-        [Description("Identifiant TweakDB du record (ex. Items.Preset_Achilles_Collectible_inline0).")] string recordId,
+        [Description("Path to a tweakdb.bin file (typically <game>/r6/cache/tweakdb.bin).")] string tweakdbPath,
+        [Description("TweakDB identifier of the record (e.g. Items.Preset_Achilles_Collectible_inline0).")] string recordId,
         CancellationToken ct = default)
     {
         if (!File.Exists(tweakdbPath))
-            return Err($"Fichier TweakDB introuvable : {tweakdbPath}");
+            return Err($"TweakDB file not found: {tweakdbPath}");
         if (string.IsNullOrWhiteSpace(recordId))
-            return Err("recordId vide.");
+            return Err("recordId empty.");
 
         var r = await runner.RunAsync(
             new[] { "tweakdb-describe", tweakdbPath, recordId }, ct);
-        return Structured($"Description record TweakDB : {recordId}", r);
+        return Structured($"TweakDB record description: {recordId}", r);
     }
 
-    // ── TweakDB structurée (format TweakXL — YAML) ──────────────────────
+    // ── Structured TweakDB (TweakXL — YAML format) ──────────────────────
 
     [McpServerTool(Name = "read_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Lit un fichier .tweak (format TweakXL — YAML) et renvoie son contenu en " +
-                 "JSON éditable. Permet d'inspecter et modifier des tweaks en restant dans " +
-                 "un format structuré, sans manipuler du YAML brut.")]
+    [Description("Reads a .tweak file (TweakXL — YAML format) and returns its content as " +
+                 "editable JSON. Lets you inspect and modify tweaks while staying in " +
+                 "a structured format, without handling raw YAML.")]
     public static async Task<string> ReadTweak(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .tweak (TweakXL).")] string tweakFile,
+        [Description("Path to a .tweak file (TweakXL).")] string tweakFile,
         CancellationToken ct = default)
     {
         if (!File.Exists(tweakFile))
-            return Err($"Fichier .tweak introuvable : {tweakFile}");
+            return Err($".tweak file not found: {tweakFile}");
 
         var jsonFile = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-tweak",
             Guid.NewGuid().ToString("N") + ".json");
@@ -1585,7 +1584,7 @@ public static class WolvenKitTools
         var r = await runner.RunAsync(new[] { "tweak", "read", tweakFile, jsonFile }, ct);
         if (r.ExitCode != 0 || !File.Exists(jsonFile))
         {
-            return Structured($"Lecture .tweak échouée : {tweakFile}", r,
+            return Structured($".tweak read failed: {tweakFile}", r,
                 new List<string>());
         }
 
@@ -1595,8 +1594,8 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $".tweak lu : {tweakFile}" +
-                      (truncated ? " (contenu tronqué — lire jsonFile en entier)" : ""),
+            summary = $".tweak read: {tweakFile}" +
+                      (truncated ? " (content truncated — read jsonFile in full)" : ""),
             produced = new[] { jsonFile },
             warnings = LogLines(r.Stdout + r.Stderr, "Warning"),
             errors = LogLines(r.Stdout + r.Stderr, "Error"),
@@ -1609,62 +1608,62 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "write_tweak", ReadOnly = false, Destructive = true, Idempotent = true)]
-    [Description("Reconvertit un JSON (produit par read_tweak puis édité) en fichier .tweak " +
-                 "(YAML TweakXL) prêt à être copié dans <jeu>/r6/tweaks/ via install_tweak.")]
+    [Description("Reconverts a JSON (produced by read_tweak then edited) into a .tweak file " +
+                 "(TweakXL YAML) ready to be copied into <game>/r6/tweaks/ via install_tweak.")]
     public static async Task<string> WriteTweak(
         Cp77ToolsRunner runner,
-        [Description("Chemin du fichier JSON édité (issu de read_tweak).")] string jsonFile,
-        [Description("Chemin du fichier .tweak à produire.")] string outputTweakFile,
+        [Description("Path to the edited JSON file (from read_tweak).")] string jsonFile,
+        [Description("Path to the .tweak file to produce.")] string outputTweakFile,
         CancellationToken ct = default)
     {
         if (!File.Exists(jsonFile))
-            return Err($"Fichier JSON introuvable : {jsonFile}");
+            return Err($"JSON file not found: {jsonFile}");
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputTweakFile) ?? ".");
         var r = await runner.RunAsync(
             new[] { "tweak", "write", jsonFile, outputTweakFile }, ct);
-        return Structured($"Écriture .tweak : {jsonFile} → {outputTweakFile}", r,
+        return Structured($".tweak write: {jsonFile} → {outputTweakFile}", r,
             File.Exists(outputTweakFile) ? new List<string> { outputTweakFile }
                                           : new List<string>());
     }
 
     [McpServerTool(Name = "validate_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Vérifie un fichier .tweak contre une TweakDB : chaque clé du fichier doit " +
-                 "exister dans TweakDB (record ou flat), sauf si elle déclare $instanceOf " +
-                 "(nouveau record dérivé). Renvoie la liste des clés inconnues — utile " +
-                 "avant install_tweak.")]
+    [Description("Checks a .tweak file against a TweakDB: each key in the file must " +
+                 "exist in TweakDB (record or flat), unless it declares $instanceOf " +
+                 "(new derived record). Returns the list of unknown keys — useful " +
+                 "before install_tweak.")]
     public static async Task<string> ValidateTweak(
         Cp77ToolsRunner runner,
-        [Description("Chemin du fichier .tweak à valider.")] string tweakFile,
-        [Description("Chemin du tweakdb.bin de référence (typiquement <jeu>/r6/cache/tweakdb.bin).")] string tweakdbBin,
+        [Description("Path to the .tweak file to validate.")] string tweakFile,
+        [Description("Path to the reference tweakdb.bin (typically <game>/r6/cache/tweakdb.bin).")] string tweakdbBin,
         CancellationToken ct = default)
     {
         if (!File.Exists(tweakFile))
-            return Err($"Fichier .tweak introuvable : {tweakFile}");
+            return Err($".tweak file not found: {tweakFile}");
         if (!File.Exists(tweakdbBin))
-            return Err($"tweakdb.bin introuvable : {tweakdbBin}");
+            return Err($"tweakdb.bin not found: {tweakdbBin}");
 
         var r = await runner.RunAsync(
             new[] { "tweak", "validate", tweakFile, tweakdbBin }, ct);
-        return Structured($"Validation .tweak : {tweakFile} contre {tweakdbBin}", r);
+        return Structured($".tweak validation: {tweakFile} against {tweakdbBin}", r);
     }
 
     [McpServerTool(Name = "generate_redscript_template", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Génère un fichier .reds (RED4Script) prêt à éditer, depuis un catalogue " +
-                 "de patterns courants : add_method (@addMethod), wrap_method (@wrapMethod), " +
-                 "replace_method (@replaceMethod), add_field (@addField), new_class. Évite " +
-                 "d'écrire la syntaxe annotation à la main.")]
+    [Description("Generates a .reds (RED4Script) file ready to edit, from a catalog " +
+                 "of common patterns: add_method (@addMethod), wrap_method (@wrapMethod), " +
+                 "replace_method (@replaceMethod), add_field (@addField), new_class. Avoids " +
+                 "writing the annotation syntax by hand.")]
     public static string GenerateRedscriptTemplate(
-        [Description("Pattern : add_method | wrap_method | replace_method | add_field | new_class.")] string pattern,
-        [Description("Paramètres du template en JSON (voir description du pattern).")] string parametersJson,
-        [Description("Chemin du fichier .reds à produire.")] string outputFile)
+        [Description("Pattern: add_method | wrap_method | replace_method | add_field | new_class.")] string pattern,
+        [Description("Template parameters as JSON (see the pattern description).")] string parametersJson,
+        [Description("Path to the .reds file to produce.")] string outputFile)
     {
         Dictionary<string, object?> p;
         try
         {
             using var doc = JsonDocument.Parse(parametersJson);
             if (doc.RootElement.ValueKind != JsonValueKind.Object)
-                return Err("parametersJson doit être un objet JSON.");
+                return Err("parametersJson must be a JSON object.");
             p = doc.RootElement.EnumerateObject().ToDictionary(
                 k => k.Name,
                 v => v.Value.ValueKind switch
@@ -1680,7 +1679,7 @@ public static class WolvenKitTools
         }
         catch (JsonException ex)
         {
-            return Err($"parametersJson invalide : {ex.Message}");
+            return Err($"Invalid parametersJson: {ex.Message}");
         }
 
         string? Str(string key)
@@ -1703,7 +1702,7 @@ public static class WolvenKitTools
                 var target = Str("targetClass");
                 var name = Str("methodName");
                 if (string.IsNullOrEmpty(target) || string.IsNullOrEmpty(name))
-                    return Err("add_method : 'targetClass' et 'methodName' requis.");
+                    return Err("add_method: 'targetClass' and 'methodName' required.");
                 var args = Str("args") ?? "";
                 var ret = Str("returnType") ?? "Void";
                 var body = Str("body") ?? "// TODO";
@@ -1716,7 +1715,7 @@ public static class WolvenKitTools
                 var target = Str("targetClass");
                 var name = Str("methodName");
                 if (string.IsNullOrEmpty(target) || string.IsNullOrEmpty(name))
-                    return Err("wrap_method : 'targetClass' et 'methodName' requis.");
+                    return Err("wrap_method: 'targetClass' and 'methodName' required.");
                 var args = Str("args") ?? "";
                 var ret = Str("returnType") ?? "Void";
                 var passthrough = ExtractArgNames(args);
@@ -1732,7 +1731,7 @@ public static class WolvenKitTools
                 var target = Str("targetClass");
                 var name = Str("methodName");
                 if (string.IsNullOrEmpty(target) || string.IsNullOrEmpty(name))
-                    return Err("replace_method : 'targetClass' et 'methodName' requis.");
+                    return Err("replace_method: 'targetClass' and 'methodName' required.");
                 var args = Str("args") ?? "";
                 var ret = Str("returnType") ?? "Void";
                 var body = Str("body") ?? "// TODO: full replacement";
@@ -1746,7 +1745,7 @@ public static class WolvenKitTools
                 var name = Str("fieldName");
                 var type = Str("fieldType") ?? "Int32";
                 if (string.IsNullOrEmpty(target) || string.IsNullOrEmpty(name))
-                    return Err("add_field : 'targetClass' et 'fieldName' requis.");
+                    return Err("add_field: 'targetClass' and 'fieldName' required.");
                 reds = $"@addField({target})\nlet {name}: {type};\n";
                 desc = $"add_field {name}: {type} on {target}";
                 break;
@@ -1755,7 +1754,7 @@ public static class WolvenKitTools
             {
                 var name = Str("className");
                 if (string.IsNullOrEmpty(name))
-                    return Err("new_class : 'className' requis.");
+                    return Err("new_class: 'className' required.");
                 var extends = Str("extends");
                 var modName = Str("moduleName");
                 var sb = new StringBuilder();
@@ -1771,7 +1770,7 @@ public static class WolvenKitTools
                 break;
             }
             default:
-                return Err($"Pattern inconnu : {pattern} " +
+                return Err($"Unknown pattern: {pattern} " +
                            "(add_method, wrap_method, replace_method, add_field, new_class).");
         }
 
@@ -1782,7 +1781,7 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Template .reds : {desc} → {outputFile}",
+            summary = $".reds template: {desc} → {outputFile}",
             produced = new[] { outputFile },
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -1793,22 +1792,22 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "generate_tweak_template", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Génère un fichier .tweak (TweakXL — YAML) prêt à éditer, depuis un " +
-                 "catalogue de patterns courants. Évite de connaître la syntaxe TweakXL à la main. " +
-                 "Patterns supportés : override_field (modifie un champ d'un record existant), " +
-                 "new_record (crée un nouveau record via $instanceOf), boost_stat (modifie une " +
-                 "stat numérique avec une nouvelle valeur).")]
+    [Description("Generates a .tweak file (TweakXL — YAML) ready to edit, from a " +
+                 "catalog of common patterns. Avoids knowing the TweakXL syntax by hand. " +
+                 "Supported patterns: override_field (modifies a field of an existing record), " +
+                 "new_record (creates a new record via $instanceOf), boost_stat (modifies a " +
+                 "numeric stat with a new value).")]
     public static string GenerateTweakTemplate(
-        [Description("Pattern : override_field | new_record | boost_stat.")] string pattern,
-        [Description("Paramètres du template en JSON (clés selon le pattern, voir description).")] string parametersJson,
-        [Description("Chemin du fichier .tweak à produire.")] string outputFile)
+        [Description("Pattern: override_field | new_record | boost_stat.")] string pattern,
+        [Description("Template parameters as JSON (keys depending on the pattern, see description).")] string parametersJson,
+        [Description("Path to the .tweak file to produce.")] string outputFile)
     {
         Dictionary<string, object?> p;
         try
         {
             using var doc = JsonDocument.Parse(parametersJson);
             if (doc.RootElement.ValueKind != JsonValueKind.Object)
-                return Err("parametersJson doit être un objet JSON.");
+                return Err("parametersJson must be a JSON object.");
             p = doc.RootElement.EnumerateObject().ToDictionary(
                 k => k.Name,
                 v => v.Value.ValueKind switch
@@ -1824,7 +1823,7 @@ public static class WolvenKitTools
         }
         catch (JsonException ex)
         {
-            return Err($"parametersJson invalide : {ex.Message}");
+            return Err($"Invalid parametersJson: {ex.Message}");
         }
 
         string? Str(string key)
@@ -1842,13 +1841,13 @@ public static class WolvenKitTools
                 var field = Str("field");
                 var value = Val("value");
                 if (string.IsNullOrEmpty(id))
-                    return Err("override_field : 'recordId' requis (ex. Items.w_melee_001).");
+                    return Err("override_field: 'recordId' required (e.g. Items.w_melee_001).");
                 if (string.IsNullOrEmpty(field))
-                    return Err("override_field : 'field' requis (ex. damage).");
+                    return Err("override_field: 'field' required (e.g. damage).");
                 if (value is null)
-                    return Err("override_field : 'value' requis.");
+                    return Err("override_field: 'value' required.");
                 yaml = $"{id}:\n  {field}: {FormatYamlValue(value)}\n";
-                description = $"Override : {id}.{field} = {value}";
+                description = $"Override: {id}.{field} = {value}";
                 break;
             }
             case "new_record":
@@ -1856,15 +1855,15 @@ public static class WolvenKitTools
                 var newId = Str("newId");
                 var baseId = Str("baseId");
                 if (string.IsNullOrEmpty(newId))
-                    return Err("new_record : 'newId' requis (ex. MyMod.NewWeapon).");
+                    return Err("new_record: 'newId' required (e.g. MyMod.NewWeapon).");
                 if (string.IsNullOrEmpty(baseId))
-                    return Err("new_record : 'baseId' requis (record existant à instancier).");
+                    return Err("new_record: 'baseId' required (existing record to instantiate).");
                 var sb = new StringBuilder();
                 sb.Append(newId).AppendLine(":");
                 sb.Append("  $instanceOf: ").AppendLine(baseId);
                 if (p.TryGetValue("overrides", out var ov) && ov is string ovJson)
                 {
-                    // overrides en sous-JSON {field: value, ...}
+                    // overrides as sub-JSON {field: value, ...}
                     try
                     {
                         using var ovDoc = JsonDocument.Parse(ovJson);
@@ -1872,10 +1871,10 @@ public static class WolvenKitTools
                             sb.Append("  ").Append(prop.Name).Append(": ")
                               .AppendLine(FormatYamlValue(prop.Value.ToString()));
                     }
-                    catch { /* overrides mal formé : on continue sans */ }
+                    catch { /* malformed overrides: continue without */ }
                 }
                 yaml = sb.ToString();
-                description = $"Nouveau record : {newId} <- $instanceOf {baseId}";
+                description = $"New record: {newId} <- $instanceOf {baseId}";
                 break;
             }
             case "boost_stat":
@@ -1884,15 +1883,15 @@ public static class WolvenKitTools
                 var stat = Str("stat") ?? "damage";
                 var value = Val("value");
                 if (string.IsNullOrEmpty(id))
-                    return Err("boost_stat : 'recordId' requis.");
+                    return Err("boost_stat: 'recordId' required.");
                 if (value is null)
-                    return Err("boost_stat : 'value' requis (nouvelle valeur de la stat).");
+                    return Err("boost_stat: 'value' required (new stat value).");
                 yaml = $"{id}:\n  {stat}: {FormatYamlValue(value)}\n";
-                description = $"Boost stat : {id}.{stat} = {value}";
+                description = $"Boost stat: {id}.{stat} = {value}";
                 break;
             }
             default:
-                return Err($"Pattern inconnu : {pattern} " +
+                return Err($"Unknown pattern: {pattern} " +
                            "(override_field, new_record, boost_stat).");
         }
 
@@ -1914,20 +1913,20 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "install_tweak", ReadOnly = false, Destructive = true, Idempotent = true)]
-    [Description("Installe un fichier .tweak dans Cyberpunk 2077 : copie vers " +
-                 "<jeu>/r6/tweaks/<nom>.tweak. Pris en compte au prochain lancement du jeu, " +
-                 "sans rebuild ni redéploiement (TweakXL est chargé à chaud).")]
+    [Description("Installs a .tweak file into Cyberpunk 2077: copies to " +
+                 "<game>/r6/tweaks/<name>.tweak. Taken into account at the next game launch, " +
+                 "without rebuild or redeployment (TweakXL is hot-loaded).")]
     public static string InstallTweak(
-        [Description("Chemin du fichier .tweak à installer.")] string tweakFile,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("Path to the .tweak file to install.")] string tweakFile,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath)
     {
         if (!File.Exists(tweakFile))
-            return Err($"Fichier .tweak introuvable : {tweakFile}");
+            return Err($".tweak file not found: {tweakFile}");
         if (!gamePath.Contains(Path.DirectorySeparatorChar)
             && !gamePath.Contains(Path.AltDirectorySeparatorChar))
-            return Err("gamePath doit être un chemin de dossier (pas un nom simple).");
+            return Err("gamePath must be a folder path (not a plain name).");
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
 
         var tweaksDir = Path.Combine(gamePath, "r6", "tweaks");
         Directory.CreateDirectory(tweaksDir);
@@ -1939,32 +1938,32 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = (existed ? ".tweak réinstallé : " : ".tweak installé : ") + dest,
+            summary = (existed ? ".tweak reinstalled: " : ".tweak installed: ") + dest,
             produced = new[] { dest },
             warnings = existed
-                ? new[] { "Un .tweak du même nom existait déjà ; il a été remplacé." }
+                ? new[] { "A .tweak with the same name already existed; it has been replaced." }
                 : Array.Empty<string>(),
             errors = Array.Empty<string>(),
             installedPath = dest,
         }, JsonOpts);
     }
 
-    // ── Scripts REDscript (.reds) — lecture et lint textuel ─────────────
+    // ── REDscript scripts (.reds) — reading and textual lint ─────────────
 
     [McpServerTool(Name = "read_script", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Lit un fichier script REDscript (.reds, .script, .swift, .redscript) et " +
-                 "renvoie son contenu + sa structure extraite par regex : declarations func/" +
-                 "class, annotations @addMethod/@addField/@wrapMethod, module/import. " +
-                 "Analyse textuelle uniquement — pas de validation sémantique.")]
+    [Description("Reads a REDscript script file (.reds, .script, .swift, .redscript) and " +
+                 "returns its content + its structure extracted by regex: func/" +
+                 "class declarations, @addMethod/@addField/@wrapMethod annotations, module/import. " +
+                 "Textual analysis only — no semantic validation.")]
     public static async Task<string> ReadScript(
-        [Description("Chemin d'un fichier script (.reds / .script / .swift / .redscript).")] string scriptFile,
+        [Description("Path to a script file (.reds / .script / .swift / .redscript).")] string scriptFile,
         CancellationToken ct = default)
     {
         if (!File.Exists(scriptFile))
-            return Err($"Fichier script introuvable : {scriptFile}");
+            return Err($"Script file not found: {scriptFile}");
         var ext = Path.GetExtension(scriptFile).TrimStart('.').ToLowerInvariant();
         if (ext is not ("reds" or "script" or "swift" or "redscript"))
-            return Err($"Extension non supportée : .{ext} (.reds, .script, .swift, .redscript).");
+            return Err($"Unsupported extension: .{ext} (.reds, .script, .swift, .redscript).");
 
         var content = await File.ReadAllTextAsync(scriptFile, ct);
         var (declarations, moduleName) = ScanScriptDeclarations(content);
@@ -1974,9 +1973,9 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Script lu : {scriptFile} ({content.Length} car., " +
-                      $"{declarations.Count} déclaration(s))" +
-                      (truncated ? " — contenu tronqué" : ""),
+            summary = $"Script read: {scriptFile} ({content.Length} chars, " +
+                      $"{declarations.Count} declaration(s))" +
+                      (truncated ? " — content truncated" : ""),
             produced = Array.Empty<string>(),
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -1989,30 +1988,30 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "lint_script", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Analyse syntaxique d'un fichier REDscript via un vrai parser de grammaire " +
-                 "(tokenizer + descente récursive) : (1) ERREURS de syntaxe avec ligne:colonne " +
-                 "(signatures/types/génériques mal formés, accolades/parenthèses non appariées, " +
-                 "chaînes non terminées, déclarations invalides), (2) AVERTISSEMENTS sémantiques " +
-                 "(annotations @addMethod/@wrapMethod/@replaceMethod bien placées et ciblant une " +
-                 "classe, @wrapMethod appelant wrappedMethod(), déclarations en double). " +
-                 "Calibré à zéro faux positif sur le corpus REDscript réel. N'effectue PAS de " +
-                 "vérification de types (résolution des types/méthodes externes = compilateur scc " +
-                 "+ écosystème, hors périmètre).")]
+    [Description("Syntax analysis of a REDscript file via a real grammar parser " +
+                 "(tokenizer + recursive descent): (1) syntax ERRORS with line:column " +
+                 "(malformed signatures/types/generics, unmatched braces/parens, " +
+                 "unterminated strings, invalid declarations), (2) semantic WARNINGS " +
+                 "(@addMethod/@wrapMethod/@replaceMethod annotations well placed and targeting a " +
+                 "class, @wrapMethod calling wrappedMethod(), duplicate declarations). " +
+                 "Calibrated to zero false positives on the real REDscript corpus. Does NOT perform " +
+                 "type checking (resolution of external types/methods = scc compiler " +
+                 "+ ecosystem, out of scope).")]
     public static async Task<string> LintScript(
-        [Description("Chemin d'un fichier script (.reds / .script / .swift / .redscript).")] string scriptFile,
+        [Description("Path to a script file (.reds / .script / .swift / .redscript).")] string scriptFile,
         CancellationToken ct = default)
     {
         if (!File.Exists(scriptFile))
-            return Err($"Fichier script introuvable : {scriptFile}");
+            return Err($"Script file not found: {scriptFile}");
         var ext = Path.GetExtension(scriptFile).TrimStart('.').ToLowerInvariant();
         if (ext is not ("reds" or "script" or "swift" or "redscript"))
-            return Err($"Extension non supportée : .{ext} (.reds, .script, .swift, .redscript).");
+            return Err($"Unsupported extension: .{ext} (.reds, .script, .swift, .redscript).");
 
         var content = await File.ReadAllTextAsync(scriptFile, ct);
         var parse = RedscriptParser.Parse(content);
         var (decls, moduleName) = ScanScriptDeclarations(content);
 
-        // Erreurs de syntaxe (parser) + avertissements sémantiques (heuristiques).
+        // Syntax errors (parser) + semantic warnings (heuristics).
         var errors = parse.Diagnostics
             .Where(d => d.Severity == "ERROR")
             .Select(d => $"ERROR L{d.Line}:{d.Col} — {d.Message}")
@@ -2024,8 +2023,8 @@ public static class WolvenKitTools
         {
             ok = status != "error",
             status,
-            summary = $"Lint script : {scriptFile} — {decls.Count} déclaration(s), " +
-                      $"{errors.Count} erreur(s), {warnings.Count} avertissement(s)",
+            summary = $"Script lint: {scriptFile} — {decls.Count} declaration(s), " +
+                      $"{errors.Count} error(s), {warnings.Count} warning(s)",
             produced = Array.Empty<string>(),
             warnings,
             errors,
@@ -2033,33 +2032,33 @@ public static class WolvenKitTools
             moduleName = parse.Module ?? moduleName,
             declarations = decls,
             parsedDeclarations = parse.Declarations.Count,
-            limitation = "Analyse syntaxique + sémantique légère : pas de vérification de types " +
-                         "(résolution externe = compilateur scc + écosystème, hors périmètre).",
+            limitation = "Syntax analysis + light semantics: no type checking " +
+                         "(external resolution = scc compiler + ecosystem, out of scope).",
         }, JsonOpts);
     }
 
     // ── REDmod packaging (post-1.6) ──────────────────────────────────────
 
     [McpServerTool(Name = "create_redmod_project", ReadOnly = false, Destructive = false, Idempotent = false)]
-    [Description("Crée un projet de mod au format REDmod (post-1.6) : structure " +
-                 "mods/<nom>/info.json + sous-dossiers archives/, scripts/, tweaks/, " +
-                 "customSounds/. Distinct du format .archive (archive/pc/mod/) — le " +
-                 "format REDmod permet aussi scripts (.reds) et tweaks (.tweak).")]
+    [Description("Creates a mod project in REDmod format (post-1.6): structure " +
+                 "mods/<name>/info.json + sub-folders archives/, scripts/, tweaks/, " +
+                 "customSounds/. Distinct from the .archive format (archive/pc/mod/) — the " +
+                 "REDmod format also allows scripts (.reds) and tweaks (.tweak).")]
     public static string CreateRedmodProject(
-        [Description("Dossier parent où créer le projet REDmod.")] string parentFolder,
-        [Description("Nom du REDmod (devient le sous-dossier).")] string modName,
-        [Description("Description visible dans le launcher REDmod.")] string description = "",
-        [Description("Version sémantique du mod.")] string version = "1.0.0")
+        [Description("Parent folder where to create the REDmod project.")] string parentFolder,
+        [Description("Name of the REDmod (becomes the sub-folder).")] string modName,
+        [Description("Description visible in the REDmod launcher.")] string description = "",
+        [Description("Semantic version of the mod.")] string version = "1.0.0")
     {
         if (!Directory.Exists(parentFolder))
-            return Err($"Dossier parent introuvable : {parentFolder}");
+            return Err($"Parent folder not found: {parentFolder}");
         if (string.IsNullOrWhiteSpace(modName)
             || modName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return Err("Nom de REDmod invalide.");
+            return Err("Invalid REDmod name.");
 
         var root = Path.Combine(parentFolder, modName);
         if (Directory.Exists(root))
-            return Err($"Le dossier existe déjà : {root}");
+            return Err($"The folder already exists: {root}");
 
         string[] subdirs = { "archives", "scripts", "tweaks", "customSounds" };
         foreach (var s in subdirs)
@@ -2085,7 +2084,7 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Projet REDmod créé : {root}",
+            summary = $"REDmod project created: {root}",
             produced,
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -2094,18 +2093,18 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "pack_redmod", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Empaquette un projet REDmod en .zip pour distribution. Le zip contient " +
-                 "le dossier <nom>/ avec son info.json à la racine ; l'utilisateur final " +
-                 "décompacte dans <jeu>/mods/. Valide la présence d'info.json avant zip.")]
+    [Description("Packs a REDmod project into a .zip for distribution. The zip contains " +
+                 "the <name>/ folder with its info.json at the root; the end user " +
+                 "extracts into <game>/mods/. Validates the presence of info.json before zipping.")]
     public static string PackRedmod(
-        [Description("Dossier source du REDmod (contient info.json à sa racine).")] string modSourceFolder,
-        [Description("Dossier de destination du .zip produit.")] string outputPath)
+        [Description("Source folder of the REDmod (contains info.json at its root).")] string modSourceFolder,
+        [Description("Destination folder of the produced .zip.")] string outputPath)
     {
         if (!Directory.Exists(modSourceFolder))
-            return Err($"Dossier de REDmod introuvable : {modSourceFolder}");
+            return Err($"REDmod folder not found: {modSourceFolder}");
         var info = Path.Combine(modSourceFolder, "info.json");
         if (!File.Exists(info))
-            return Err($"info.json manquant à la racine : {info}");
+            return Err($"info.json missing at the root: {info}");
 
         var modName = Path.GetFileName(modSourceFolder.TrimEnd(
             Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -2120,8 +2119,8 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"REDmod empaqueté : {zipPath} " +
-                      $"({new FileInfo(zipPath).Length / 1024} Kio)",
+            summary = $"REDmod packed: {zipPath} " +
+                      $"({new FileInfo(zipPath).Length / 1024} KiB)",
             produced = new[] { zipPath },
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -2131,20 +2130,20 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "install_redmod", ReadOnly = false, Destructive = true, Idempotent = true)]
-    [Description("Installe un projet REDmod dans Cyberpunk 2077 : copie récursive du dossier " +
-                 "source vers <jeu>/mods/<nom>/. Le mod sera pris en compte au prochain " +
-                 "lancement via le launcher REDmod (ou redMod.exe deploy).")]
+    [Description("Installs a REDmod project into Cyberpunk 2077: recursive copy of the " +
+                 "source folder to <game>/mods/<name>/. The mod will be taken into account at the next " +
+                 "launch via the REDmod launcher (or redMod.exe deploy).")]
     public static string InstallRedmod(
-        [Description("Dossier source du REDmod (avec info.json à sa racine).")] string modSourceFolder,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("Source folder of the REDmod (with info.json at its root).")] string modSourceFolder,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath)
     {
         if (!Directory.Exists(modSourceFolder))
-            return Err($"Dossier de REDmod introuvable : {modSourceFolder}");
+            return Err($"REDmod folder not found: {modSourceFolder}");
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
         var info = Path.Combine(modSourceFolder, "info.json");
         if (!File.Exists(info))
-            return Err($"info.json manquant à la racine : {info}");
+            return Err($"info.json missing at the root: {info}");
 
         var modName = Path.GetFileName(modSourceFolder.TrimEnd(
             Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -2157,10 +2156,10 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = (existed ? "REDmod réinstallé : " : "REDmod installé : ") + dest,
+            summary = (existed ? "REDmod reinstalled: " : "REDmod installed: ") + dest,
             produced = new[] { dest },
             warnings = existed
-                ? new[] { "Un REDmod du même nom existait déjà ; ses fichiers ont été remplacés." }
+                ? new[] { "A REDmod with the same name already existed; its files have been replaced." }
                 : Array.Empty<string>(),
             errors = Array.Empty<string>(),
             installedPath = dest,
@@ -2168,17 +2167,17 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "backup_mods", ReadOnly = false, Destructive = false, Idempotent = false)]
-    [Description("Sauvegarde l'état des mods installés d'une installation Cyberpunk 2077 dans " +
-                 "un .zip horodaté : archive/pc/mod/ (mods .archive), mods/ (REDmods), " +
-                 "r6/tweaks/ (.tweak). Filet de sécurité avant une session de modding. " +
-                 "Le ZIP préserve les sous-dossiers relatifs au dossier du jeu.")]
+    [Description("Backs up the state of installed mods of a Cyberpunk 2077 installation into " +
+                 "a timestamped .zip: archive/pc/mod/ (.archive mods), mods/ (REDmods), " +
+                 "r6/tweaks/ (.tweak). Safety net before a modding session. " +
+                 "The ZIP preserves sub-folders relative to the game folder.")]
     public static string BackupMods(
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
-        [Description("Dossier où déposer le .zip produit.")] string outputDir,
-        [Description("Nom du fichier ZIP (défaut : wkmcp-mods-backup-<YYYYMMDD-HHmmss>.zip).")] string? backupName = null)
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        [Description("Folder where to drop the produced .zip.")] string outputDir,
+        [Description("ZIP file name (default: wkmcp-mods-backup-<YYYYMMDD-HHmmss>.zip).")] string? backupName = null)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
 
         Directory.CreateDirectory(outputDir);
         var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
@@ -2201,7 +2200,7 @@ public static class WolvenKitTools
                 archiveCount = Directory.EnumerateFiles(dst, "*.archive",
                     SearchOption.AllDirectories).Count();
             }
-            else warnings.Add($"Dossier absent : {srcArchive}");
+            else warnings.Add($"Folder missing: {srcArchive}");
 
             var srcRedmod = Path.Combine(gamePath, "mods");
             if (Directory.Exists(srcRedmod))
@@ -2210,7 +2209,7 @@ public static class WolvenKitTools
                 CopyDirectoryRecursive(srcRedmod, dst);
                 redmodCount = Directory.EnumerateDirectories(dst).Count();
             }
-            else warnings.Add($"Dossier absent : {srcRedmod}");
+            else warnings.Add($"Folder missing: {srcRedmod}");
 
             var srcTweak = Path.Combine(gamePath, "r6", "tweaks");
             if (Directory.Exists(srcTweak))
@@ -2220,10 +2219,10 @@ public static class WolvenKitTools
                 tweakCount = Directory.EnumerateFiles(dst, "*",
                     SearchOption.AllDirectories).Count();
             }
-            else warnings.Add($"Dossier absent : {srcTweak}");
+            else warnings.Add($"Folder missing: {srcTweak}");
 
             if (archiveCount + redmodCount + tweakCount == 0)
-                return Err($"Aucun mod à sauvegarder dans {gamePath}.");
+                return Err($"No mod to back up in {gamePath}.");
 
             if (File.Exists(zipPath)) File.Delete(zipPath);
             ZipFile.CreateFromDirectory(staged, zipPath,
@@ -2234,7 +2233,7 @@ public static class WolvenKitTools
             {
                 ok = true,
                 status = "success",
-                summary = $"Backup créé : {zipPath} ({size / 1024} Kio · " +
+                summary = $"Backup created: {zipPath} ({size / 1024} KiB · " +
                           $"{archiveCount} archives + {redmodCount} REDmods + {tweakCount} tweaks)",
                 produced = new[] { zipPath },
                 warnings,
@@ -2249,26 +2248,26 @@ public static class WolvenKitTools
         finally
         {
             try { Directory.Delete(staged, recursive: true); }
-            catch { /* nettoyage best-effort */ }
+            catch { /* best-effort cleanup */ }
         }
     }
 
     [McpServerTool(Name = "restore_mods", ReadOnly = false, Destructive = true, Idempotent = true)]
-    [Description("Restaure un backup de mods produit par backup_mods. Mode `merge` (défaut) : " +
-                 "extrait par-dessus l'existant sans supprimer. Mode `replace` : vide d'abord " +
-                 "les dossiers cibles (archive/pc/mod, mods, r6/tweaks) puis extrait — " +
-                 "destructeur, idéalement précédé d'un nouveau `backup_mods` de sécurité.")]
+    [Description("Restores a mods backup produced by backup_mods. `merge` mode (default): " +
+                 "extracts over the existing without deleting. `replace` mode: first empties " +
+                 "the target folders (archive/pc/mod, mods, r6/tweaks) then extracts — " +
+                 "destructive, ideally preceded by a fresh `backup_mods` for safety.")]
     public static string RestoreMods(
-        [Description("Chemin du ZIP de backup à restaurer.")] string backupZip,
-        [Description("Dossier racine de l'installation Cyberpunk 2077 cible.")] string gamePath,
-        [Description("merge (défaut) | replace.")] string mode = "merge")
+        [Description("Path to the backup ZIP to restore.")] string backupZip,
+        [Description("Root folder of the target Cyberpunk 2077 installation.")] string gamePath,
+        [Description("merge (default) | replace.")] string mode = "merge")
     {
         if (!File.Exists(backupZip))
-            return Err($"Backup ZIP introuvable : {backupZip}");
+            return Err($"Backup ZIP not found: {backupZip}");
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
         if (mode is not ("merge" or "replace"))
-            return Err($"Mode inconnu : {mode} (merge | replace).");
+            return Err($"Unknown mode: {mode} (merge | replace).");
 
         var warnings = new List<string>();
         if (mode == "replace")
@@ -2284,14 +2283,14 @@ public static class WolvenKitTools
                 if (Directory.Exists(p))
                 {
                     try { Directory.Delete(p, recursive: true); }
-                    catch (Exception ex) { warnings.Add($"Échec suppression {p} : {ex.Message}"); }
+                    catch (Exception ex) { warnings.Add($"Failed to delete {p}: {ex.Message}"); }
                 }
             }
         }
 
         var extractedCount = 0;
-        // Garde-fou anti « Zip Slip » : un backupZip fourni par l'utilisateur n'est
-        // pas fiable ; une entrée « ../../x » écrirait hors du dossier de jeu.
+        // Safeguard against "Zip Slip": a backupZip provided by the user is not
+        // reliable; an entry "../../x" would write outside the game folder.
         var gameFull = Path.GetFullPath(gamePath) + Path.DirectorySeparatorChar;
         using (var zip = ZipFile.OpenRead(backupZip))
         {
@@ -2302,10 +2301,10 @@ public static class WolvenKitTools
                 var destFull = Path.GetFullPath(dest);
                 if (!destFull.StartsWith(gameFull, StringComparison.OrdinalIgnoreCase))
                 {
-                    warnings.Add($"Entrée ignorée (hors du dossier de jeu) : {entry.FullName}");
+                    warnings.Add($"Entry skipped (outside the game folder): {entry.FullName}");
                     continue;
                 }
-                // Dossier (entrée vide se terminant par /)
+                // Folder (empty entry ending with /)
                 if (string.IsNullOrEmpty(entry.Name))
                 {
                     Directory.CreateDirectory(destFull);
@@ -2321,8 +2320,8 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Restore depuis {Path.GetFileName(backupZip)} → {gamePath} " +
-                      $"(mode {mode}, {extractedCount} fichier(s) extrait(s))",
+            summary = $"Restore from {Path.GetFileName(backupZip)} → {gamePath} " +
+                      $"(mode {mode}, {extractedCount} file(s) extracted)",
             produced = Array.Empty<string>(),
             warnings,
             errors = Array.Empty<string>(),
@@ -2333,26 +2332,26 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "lint_mod", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Vérifie un mod .archive avant installation : signale les extensions non " +
-                 "reconnues par REDengine (que le jeu ignorerait silencieusement) et, si le " +
-                 "dossier du jeu est fourni, détecte les conflits avec d'autres mods déjà " +
-                 "installés (chemins internes communs). Filet de sécurité à appeler avant " +
+    [Description("Checks a .archive mod before installation: reports extensions not " +
+                 "recognized by REDengine (that the game would silently ignore) and, if the " +
+                 "game folder is provided, detects conflicts with other already " +
+                 "installed mods (shared internal paths). Safety net to call before " +
                  "install_mod.")]
     public static async Task<string> LintMod(
         Cp77ToolsRunner runner,
-        [Description("Chemin de l'archive .archive du mod à vérifier.")] string archivePath,
-        [Description("Dossier racine de Cyberpunk 2077 (optionnel ; active la détection " +
-                     "de conflits avec les mods déjà installés).")] string? gamePath = null,
+        [Description("Path to the .archive of the mod to check.")] string archivePath,
+        [Description("Root folder of Cyberpunk 2077 (optional; enables conflict detection " +
+                     "with already installed mods).")] string? gamePath = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(archivePath))
-            return Err($"Archive de mod introuvable : {archivePath}");
+            return Err($"Mod archive not found: {archivePath}");
         if (!archivePath.EndsWith(".archive", StringComparison.OrdinalIgnoreCase))
-            return Err($"Pas une archive .archive : {archivePath}");
+            return Err($"Not a .archive: {archivePath}");
 
         var (entries, fromCache, raw) = await runner.GetArchiveListingAsync(archivePath, ct);
         if (entries.Count == 0)
-            return Err($"Listing vide pour {archivePath} (exit={raw.ExitCode})");
+            return Err($"Empty listing for {archivePath} (exit={raw.ExitCode})");
 
         var warnings = new List<string>();
         var errors = new List<string>();
@@ -2360,23 +2359,23 @@ public static class WolvenKitTools
         var conflictCount = 0;
         var conflicts = new List<object>();
 
-        // 1. Extensions REDengine inconnues — le jeu les ignorera.
+        // 1. Unknown REDengine extensions — the game will ignore them.
         foreach (var e in entries)
         {
             var ext = Path.GetExtension(e).TrimStart('.').ToLowerInvariant();
             if (string.IsNullOrEmpty(ext))
             {
-                warnings.Add($"Fichier sans extension : {e}");
+                warnings.Add($"File without extension: {e}");
                 unknownExtCount++;
             }
             else if (!RedEngineExtensions.Contains(ext))
             {
-                warnings.Add($"Extension non-REDengine ({ext}) : {e} — ignorée par le jeu");
+                warnings.Add($"Non-REDengine extension ({ext}): {e} — ignored by the game");
                 unknownExtCount++;
             }
         }
 
-        // 2. Conflits avec mods installés (chemins internes communs).
+        // 2. Conflicts with installed mods (shared internal paths).
         if (!string.IsNullOrWhiteSpace(gamePath) && Directory.Exists(gamePath))
         {
             var modsDir = Path.Combine(gamePath, "archive", "pc", "mod");
@@ -2388,7 +2387,7 @@ public static class WolvenKitTools
                 {
                     ct.ThrowIfCancellationRequested();
                     if (string.Equals(Path.GetFullPath(other), myFull, StringComparison.OrdinalIgnoreCase))
-                        continue; // pas se comparer à soi-même
+                        continue; // do not compare against itself
 
                     var (otherEntries, _, _) = await runner.GetArchiveListingAsync(other, ct);
                     var shared = otherEntries
@@ -2406,13 +2405,13 @@ public static class WolvenKitTools
                             truncated = shared.Count > 20,
                         });
                         warnings.Add(
-                            $"Conflit avec {Path.GetFileName(other)} : {shared.Count} chemin(s) commun(s)");
+                            $"Conflict with {Path.GetFileName(other)}: {shared.Count} shared path(s)");
                     }
                 }
             }
             else
             {
-                warnings.Add($"Dossier mod absent : {modsDir} (détection de conflits désactivée)");
+                warnings.Add($"Mod folder absent: {modsDir} (conflict detection disabled)");
             }
         }
 
@@ -2425,8 +2424,8 @@ public static class WolvenKitTools
         {
             ok,
             status,
-            summary = $"Lint mod {Path.GetFileName(archivePath)} — {entries.Count} fichier(s), " +
-                      $"{unknownExtCount} extension(s) inconnues, {conflictCount} conflit(s)" +
+            summary = $"Lint mod {Path.GetFileName(archivePath)} — {entries.Count} file(s), " +
+                      $"{unknownExtCount} unknown extension(s), {conflictCount} conflict(s)" +
                       (fromCache ? " (cache)" : ""),
             produced = Array.Empty<string>(),
             warnings,
@@ -2443,21 +2442,21 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "mod_summary", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Synthèse compacte de ce qu'un mod fait. Accepte un fichier .archive (résumé " +
-                 "par extension de fichier) ou un dossier REDmod (parse info.json, énumère " +
-                 "archives/, scripts/, tweaks/, customSounds/, extrait les clés top-level des " +
-                 ".tweak et les déclarations des .reds). Évite de chaîner lint_mod + read_tweak + " +
-                 "read_script à la main.")]
+    [Description("Compact summary of what a mod does. Accepts a .archive file (summarized " +
+                 "by file extension) or a REDmod folder (parses info.json, enumerates " +
+                 "archives/, scripts/, tweaks/, customSounds/, extracts the top-level keys of the " +
+                 ".tweak and the declarations of the .reds). Avoids chaining lint_mod + read_tweak + " +
+                 "read_script by hand.")]
     public static async Task<string> ModSummary(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un .archive OU d'un dossier REDmod (avec info.json à la racine).")] string modPath,
+        [Description("Path of a .archive OR of a REDmod folder (with info.json at the root).")] string modPath,
         CancellationToken ct = default)
     {
         if (File.Exists(modPath) && modPath.EndsWith(".archive", StringComparison.OrdinalIgnoreCase))
             return await ModSummaryArchive(runner, modPath, ct);
         if (Directory.Exists(modPath))
             return await ModSummaryRedmod(modPath, ct);
-        return Err($"Chemin invalide ou type inconnu : {modPath} (attendu : .archive ou dossier REDmod)");
+        return Err($"Invalid path or unknown type: {modPath} (expected: .archive or REDmod folder)");
     }
 
     private static async Task<string> ModSummaryArchive(
@@ -2465,7 +2464,7 @@ public static class WolvenKitTools
     {
         var (entries, fromCache, _) = await runner.GetArchiveListingAsync(archive, ct);
         if (entries.Count == 0)
-            return Err($"Listing vide pour : {archive}");
+            return Err($"Empty listing for: {archive}");
 
         var byExt = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var nonRed = 0;
@@ -2483,12 +2482,12 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Mod (archive) : {Path.GetFileName(archive)} — " +
-                      $"{entries.Count} fichier(s)" +
-                      (nonRed > 0 ? $" ({nonRed} hors-REDengine)" : ""),
+            summary = $"Mod (archive): {Path.GetFileName(archive)} — " +
+                      $"{entries.Count} file(s)" +
+                      (nonRed > 0 ? $" ({nonRed} non-REDengine)" : ""),
             produced = Array.Empty<string>(),
             warnings = nonRed > 0
-                ? new[] { $"{nonRed} fichier(s) hors REDengine — ignoré(s) par le jeu." }
+                ? new[] { $"{nonRed} non-REDengine file(s) — ignored by the game." }
                 : Array.Empty<string>(),
             errors = Array.Empty<string>(),
             kind = "archive",
@@ -2503,7 +2502,7 @@ public static class WolvenKitTools
     {
         var infoPath = Path.Combine(folder, "info.json");
         if (!File.Exists(infoPath))
-            return Err($"Pas un REDmod : info.json manquant à la racine de {folder}");
+            return Err($"Not a REDmod: info.json missing at the root of {folder}");
 
         string? name = null, version = null, description = null;
         try
@@ -2516,7 +2515,7 @@ public static class WolvenKitTools
                 if (doc.RootElement.TryGetProperty("description", out var d)) description = d.GetString();
             }
         }
-        catch { /* info.json mal formé : on continue */ }
+        catch { /* malformed info.json: continue */ }
 
         var archives = ListRelative(folder, "archives", new[] { ".archive" });
         var scripts = ListRelative(folder, "scripts",
@@ -2525,7 +2524,7 @@ public static class WolvenKitTools
             new[] { ".tweak", ".yaml", ".yml" });
         var customSounds = ListRelative(folder, "customSounds", Array.Empty<string>());
 
-        // Extract top-level keys from each .tweak (lecture rapide ligne par ligne).
+        // Extract top-level keys from each .tweak (fast line-by-line read).
         var tweakKeys = new List<string>();
         foreach (var rel in tweaksFiles)
         {
@@ -2545,10 +2544,10 @@ public static class WolvenKitTools
                     }
                 }
             }
-            catch { /* fichier illisible : on continue */ }
+            catch { /* unreadable file: continue */ }
         }
 
-        // Parse declarations dans chaque .reds.
+        // Parse declarations in each .reds.
         var scriptDecls = new List<object>();
         foreach (var rel in scripts)
         {
@@ -2560,14 +2559,14 @@ public static class WolvenKitTools
                 foreach (var d in decls)
                     scriptDecls.Add(new { file = rel, kind = d.Kind, name = d.Name, line = d.Line });
             }
-            catch { /* fichier illisible : on continue */ }
+            catch { /* unreadable file: continue */ }
         }
 
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $"REDmod : {name ?? Path.GetFileName(folder)}" +
+            summary = $"REDmod: {name ?? Path.GetFileName(folder)}" +
                       (version is not null ? $" v{version}" : "") +
                       $" — {archives.Count} archive(s), {scripts.Count} script(s), " +
                       $"{tweaksFiles.Count} tweak(s), {customSounds.Count} sound(s)",
@@ -2596,25 +2595,25 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "dump_records", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Exporte tous les records TweakDB d'un type donné en JSON Lines (.jsonl) ou " +
-                 "CSV — pour analyses de balance dans un tableur. Ex. recordType=" +
-                 "\"gamedataWeaponItem_Record\" produit une table de toutes les armes avec " +
-                 "leurs flats (damage, attacksPerSecond, etc.).")]
+    [Description("Exports all TweakDB records of a given type to JSON Lines (.jsonl) or " +
+                 "CSV — for balance analysis in a spreadsheet. Ex. recordType=" +
+                 "\"gamedataWeaponItem_Record\" produces a table of all weapons with " +
+                 "their flats (damage, attacksPerSecond, etc.).")]
     public static async Task<string> DumpRecords(
         Cp77ToolsRunner runner,
-        [Description("Chemin du fichier tweakdb.bin (typiquement <jeu>/r6/cache/tweakdb.bin).")] string tweakdbPath,
-        [Description("Nom complet du type CLR de record (ex. gamedataWeaponItem_Record).")] string recordType,
-        [Description("Chemin du fichier de sortie (.jsonl ou .csv selon format).")] string outputFile,
-        [Description("Format : jsonl (défaut, 1 record par ligne) ou csv (superset de colonnes).")] string format = "jsonl",
+        [Description("Path of the tweakdb.bin file (typically <game>/r6/cache/tweakdb.bin).")] string tweakdbPath,
+        [Description("Full name of the record CLR type (ex. gamedataWeaponItem_Record).")] string recordType,
+        [Description("Path of the output file (.jsonl or .csv depending on format).")] string outputFile,
+        [Description("Format: jsonl (default, 1 record per line) or csv (superset of columns).")] string format = "jsonl",
         CancellationToken ct = default)
     {
         if (!File.Exists(tweakdbPath))
-            return Err($"Fichier tweakdb.bin introuvable : {tweakdbPath}");
+            return Err($"tweakdb.bin file not found: {tweakdbPath}");
         if (string.IsNullOrWhiteSpace(recordType))
-            return Err("recordType vide.");
+            return Err("recordType empty.");
         format = format.ToLowerInvariant();
         if (format is not ("jsonl" or "csv"))
-            return Err($"Format inconnu : {format} (jsonl | csv).");
+            return Err($"Unknown format: {format} (jsonl | csv).");
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputFile) ?? ".");
         var r = await runner.RunAsync(
@@ -2627,26 +2626,26 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "launch_game", ReadOnly = false, Destructive = false, Idempotent = false)]
-    [Description("⚠ Lance Cyberpunk 2077 : exécute <jeu>/bin/x64/Cyberpunk2077.exe (action " +
-                 "visible et difficile à annuler — le jeu démarre vraiment). Si " +
-                 "deployRedmod=true (défaut), exécute d'abord redMod.exe deploy. " +
-                 "Le jeu est lancé détaché ; cet outil ne bloque pas l'attente.")]
+    [Description("⚠ Launches Cyberpunk 2077: runs <game>/bin/x64/Cyberpunk2077.exe (visible " +
+                 "action that is hard to cancel — the game really starts). If " +
+                 "deployRedmod=true (default), runs redMod.exe deploy first. " +
+                 "The game is launched detached; this tool does not block waiting.")]
     public static async Task<string> LaunchGame(
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
-        [Description("Lance redMod.exe deploy avant de démarrer le jeu (recommandé si REDmods/.tweak modifiés).")] bool deployRedmod = true,
-        [Description("Arguments supplémentaires à passer à Cyberpunk2077.exe (rare).")] string? extraArgs = null,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        [Description("Runs redMod.exe deploy before starting the game (recommended if REDmods/.tweak modified).")] bool deployRedmod = true,
+        [Description("Additional arguments to pass to Cyberpunk2077.exe (rare).")] string? extraArgs = null,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
         var exe = Path.Combine(gamePath, "bin", "x64", "Cyberpunk2077.exe");
         if (!File.Exists(exe))
-            return Err($"Cyberpunk2077.exe introuvable : {exe}");
+            return Err($"Cyberpunk2077.exe not found: {exe}");
 
         string? deploySummary = null;
         var warnings = new List<string>
         {
-            "Lancement effectif du jeu — action visible et difficile à annuler.",
+            "Game is actually being launched — visible action that is hard to cancel.",
         };
         if (deployRedmod)
         {
@@ -2655,8 +2654,8 @@ public static class WolvenKitTools
             var root = doc.RootElement;
             if (!root.GetProperty("ok").GetBoolean())
             {
-                // On signale mais on lance quand même — l'agent peut décider.
-                warnings.Add("Deploy REDmod a échoué : "
+                // We flag it but launch anyway — the agent can decide.
+                warnings.Add("Deploy REDmod failed: "
                     + root.GetProperty("summary").GetString());
             }
             else
@@ -2675,14 +2674,14 @@ public static class WolvenKitTools
 
         Process? proc;
         try { proc = Process.Start(psi); }
-        catch (Exception ex) { return Err($"Échec du lancement : {ex.Message}"); }
-        if (proc is null) return Err($"Process.Start a renvoyé null pour : {exe}");
+        catch (Exception ex) { return Err($"Launch failed: {ex.Message}"); }
+        if (proc is null) return Err($"Process.Start returned null for: {exe}");
 
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $"Cyberpunk 2077 lancé (PID {proc.Id})",
+            summary = $"Cyberpunk 2077 launched (PID {proc.Id})",
             produced = Array.Empty<string>(),
             warnings,
             errors = Array.Empty<string>(),
@@ -2693,17 +2692,17 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "tail_game_logs", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Lit la queue des logs Cyberpunk 2077. log = game (r6/logs/*.log sauf redscript) | " +
+    [Description("Reads the tail of the Cyberpunk 2077 logs. log = game (r6/logs/*.log except redscript) | " +
                  "redmod (tools/redmod/logs/*.log) | redscript (r6/logs/*redscript*.log) | all. " +
-                 "Renvoie les N dernières lignes après filtre optionnel (substring case-insensitive).")]
+                 "Returns the last N lines after an optional filter (case-insensitive substring).")]
     public static string TailGameLogs(
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
-        [Description("Catégorie de log : game | redmod | redscript | all.")] string log = "game",
-        [Description("Nombre de lignes à renvoyer (défaut 200).")] int lines = 200,
-        [Description("Filtre substring (case-insensitive) appliqué avant le tail.")] string? filter = null)
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        [Description("Log category: game | redmod | redscript | all.")] string log = "game",
+        [Description("Number of lines to return (default 200).")] int lines = 200,
+        [Description("Substring filter (case-insensitive) applied before the tail.")] string? filter = null)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
         if (lines < 1) lines = 200;
 
         var logFiles = ResolveLogFiles(gamePath, log);
@@ -2713,10 +2712,10 @@ public static class WolvenKitTools
             {
                 ok = true,
                 status = "partial",
-                summary = $"Aucun log trouvé pour catégorie : {log}",
+                summary = $"No log found for category: {log}",
                 produced = Array.Empty<string>(),
-                warnings = new[] { $"Aucun fichier log dans la catégorie '{log}' " +
-                                   $"(le jeu n'a peut-être jamais été lancé)." },
+                warnings = new[] { $"No log file in category '{log}' " +
+                                   $"(the game may never have been launched)." },
                 errors = Array.Empty<string>(),
                 logFiles = Array.Empty<string>(),
                 lineCount = 0,
@@ -2735,7 +2734,7 @@ public static class WolvenKitTools
             }
             catch (IOException ex)
             {
-                all.Add($"(lecture impossible : {ex.Message})");
+                all.Add($"(unable to read: {ex.Message})");
             }
         }
 
@@ -2752,7 +2751,7 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"Tail logs ({log}) — {tail.Count} ligne(s) sur {all.Count}",
+            summary = $"Tail logs ({log}) — {tail.Count} line(s) of {all.Count}",
             produced = Array.Empty<string>(),
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -2763,36 +2762,36 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "uninstall_mod", ReadOnly = false, Destructive = true, Idempotent = true)]
-    [Description("Désinstalle un mod : retire une archive .archive de <jeu>/archive/pc/mod/. " +
-                 "Accepte un chemin absolu OU juste le nom du fichier (résolu côté jeu). " +
-                 "Refuse de supprimer un fichier hors du dossier mod (garde-fou).")]
+    [Description("Uninstalls a mod: removes a .archive archive from <game>/archive/pc/mod/. " +
+                 "Accepts an absolute path OR just the file name (resolved on the game side). " +
+                 "Refuses to delete a file outside the mod folder (safeguard).")]
     public static string UninstallMod(
-        [Description("Chemin absolu de la .archive OU juste son nom (ex. mymod.archive).")] string archivePathOrName,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("Absolute path of the .archive OR just its name (ex. mymod.archive).")] string archivePathOrName,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
         var modsDir = Path.Combine(gamePath, "archive", "pc", "mod");
         if (!Directory.Exists(modsDir))
-            return Err($"Dossier mod absent : {modsDir}");
+            return Err($"Mod folder absent: {modsDir}");
 
         var target = Path.IsPathRooted(archivePathOrName)
             ? archivePathOrName
             : Path.Combine(modsDir, archivePathOrName);
         if (!File.Exists(target))
-            return Err($"Archive introuvable : {target}");
-        // Garde-fou : la cible doit être DANS modsDir.
+            return Err($"Archive not found: {target}");
+        // Safeguard: the target must be INSIDE modsDir.
         var full = Path.GetFullPath(target);
         var modsDirFull = Path.GetFullPath(modsDir) + Path.DirectorySeparatorChar;
         if (!full.StartsWith(modsDirFull, StringComparison.OrdinalIgnoreCase))
-            return Err($"Refusé : {full} n'est pas sous {modsDir}.");
+            return Err($"Refused: {full} is not under {modsDir}.");
 
         File.Delete(target);
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $"Mod désinstallé : {Path.GetFileName(target)}",
+            summary = $"Mod uninstalled: {Path.GetFileName(target)}",
             produced = Array.Empty<string>(),
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -2801,36 +2800,36 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "uninstall_redmod", ReadOnly = false, Destructive = true, Idempotent = true)]
-    [Description("Désinstalle un REDmod : supprime récursivement <jeu>/mods/<modName>/. " +
-                 "Garde-fou : refuse de supprimer hors du dossier mods/.")]
+    [Description("Uninstalls a REDmod: recursively deletes <game>/mods/<modName>/. " +
+                 "Safeguard: refuses to delete outside the mods/ folder.")]
     public static string UninstallRedmod(
-        [Description("Nom du REDmod (le sous-dossier sous mods/).")] string modName,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("Name of the REDmod (the subfolder under mods/).")] string modName,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
         if (string.IsNullOrWhiteSpace(modName)
             || modName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return Err($"Nom de REDmod invalide : {modName}");
+            return Err($"Invalid REDmod name: {modName}");
 
         var modsRoot = Path.Combine(gamePath, "mods");
         if (!Directory.Exists(modsRoot))
-            return Err($"Dossier REDmod absent : {modsRoot}");
+            return Err($"REDmod folder absent: {modsRoot}");
 
         var dir = Path.Combine(modsRoot, modName);
         if (!Directory.Exists(dir))
-            return Err($"REDmod introuvable : {dir}");
+            return Err($"REDmod not found: {dir}");
         var full = Path.GetFullPath(dir);
         var modsRootFull = Path.GetFullPath(modsRoot) + Path.DirectorySeparatorChar;
         if (!full.StartsWith(modsRootFull, StringComparison.OrdinalIgnoreCase))
-            return Err($"Refusé : {full} n'est pas sous {modsRoot}.");
+            return Err($"Refused: {full} is not under {modsRoot}.");
 
         Directory.Delete(dir, recursive: true);
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $"REDmod désinstallé : {modName}",
+            summary = $"REDmod uninstalled: {modName}",
             produced = Array.Empty<string>(),
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -2839,36 +2838,36 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "uninstall_tweak", ReadOnly = false, Destructive = true, Idempotent = true)]
-    [Description("Désinstalle un .tweak : supprime <jeu>/r6/tweaks/<tweakName>. " +
-                 "Garde-fou : refuse de supprimer hors du dossier r6/tweaks/.")]
+    [Description("Uninstalls a .tweak: deletes <game>/r6/tweaks/<tweakName>. " +
+                 "Safeguard: refuses to delete outside the r6/tweaks/ folder.")]
     public static string UninstallTweak(
-        [Description("Nom du fichier .tweak (ex. mytweak.tweak).")] string tweakName,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("Name of the .tweak file (ex. mytweak.tweak).")] string tweakName,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
         if (string.IsNullOrWhiteSpace(tweakName)
             || tweakName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return Err($"Nom de .tweak invalide : {tweakName}");
+            return Err($"Invalid .tweak name: {tweakName}");
 
         var tweaksDir = Path.Combine(gamePath, "r6", "tweaks");
         if (!Directory.Exists(tweaksDir))
-            return Err($"Dossier tweaks absent : {tweaksDir}");
+            return Err($"Tweaks folder absent: {tweaksDir}");
 
         var target = Path.Combine(tweaksDir, tweakName);
         if (!File.Exists(target))
-            return Err($"Tweak introuvable : {target}");
+            return Err($"Tweak not found: {target}");
         var full = Path.GetFullPath(target);
         var tweaksDirFull = Path.GetFullPath(tweaksDir) + Path.DirectorySeparatorChar;
         if (!full.StartsWith(tweaksDirFull, StringComparison.OrdinalIgnoreCase))
-            return Err($"Refusé : {full} n'est pas sous {tweaksDir}.");
+            return Err($"Refused: {full} is not under {tweaksDir}.");
 
         File.Delete(target);
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $".tweak désinstallé : {tweakName}",
+            summary = $".tweak uninstalled: {tweakName}",
             produced = Array.Empty<string>(),
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
@@ -2877,19 +2876,19 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "deploy_redmod", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Exécute <jeu>/tools/redmod/bin/redMod.exe deploy — l'étape officielle pour " +
-                 "activer les REDmods installés (compile leurs scripts + applique leurs " +
-                 "tweaks). À lancer après install_redmod / install_tweak avant de jouer.")]
+    [Description("Runs <game>/tools/redmod/bin/redMod.exe deploy — the official step to " +
+                 "activate the installed REDmods (compiles their scripts + applies their " +
+                 "tweaks). To be run after install_redmod / install_tweak before playing.")]
     public static async Task<string> DeployRedmod(
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
         var exe = Path.Combine(gamePath, "tools", "redmod", "bin", "redMod.exe");
         if (!File.Exists(exe))
-            return Err($"redMod.exe introuvable : {exe}. " +
-                       "REDmod doit être installé via le launcher (Cyberpunk 2077 > REDmod DLC).");
+            return Err($"redMod.exe not found: {exe}. " +
+                       "REDmod must be installed via the launcher (Cyberpunk 2077 > REDmod DLC).");
 
         var psi = new ProcessStartInfo
         {
@@ -2910,7 +2909,7 @@ public static class WolvenKitTools
         proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) stderr.AppendLine(e.Data); };
 
         try { proc.Start(); }
-        catch (Exception ex) { return Err($"Échec du lancement de redMod.exe : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Failed to launch redMod.exe: {ex.Message}"); }
         proc.BeginOutputReadLine();
         proc.BeginErrorReadLine();
 
@@ -2919,30 +2918,30 @@ public static class WolvenKitTools
         try { await proc.WaitForExitAsync(cts.Token); }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            try { proc.Kill(entireProcessTree: true); } catch { /* déjà mort */ }
-            return Structured($"Deploy REDmod interrompu (>5 min) : {gamePath}",
+            try { proc.Kill(entireProcessTree: true); } catch { /* already dead */ }
+            return Structured($"Deploy REDmod interrupted (>5 min): {gamePath}",
                 new CliResult(-1, stdout.ToString(), stderr.ToString(), true));
         }
         proc.WaitForExit();
 
         var r = new CliResult(proc.ExitCode, stdout.ToString(), stderr.ToString(), false);
-        return Structured($"Deploy REDmod : {gamePath} (exit={proc.ExitCode})", r);
+        return Structured($"Deploy REDmod: {gamePath} (exit={proc.ExitCode})", r);
     }
 
     [McpServerTool(Name = "install_mod", ReadOnly = false, Destructive = true, Idempotent = true)]
-    [Description("Installe un mod : copie une archive .archive (produite par pack_archive) dans " +
-                 "le dossier archive/pc/mod de l'installation Cyberpunk 2077 — dernière étape de " +
-                 "la boucle de modding. Le mod est actif au prochain lancement du jeu.")]
+    [Description("Installs a mod: copies a .archive archive (produced by pack_archive) into " +
+                 "the archive/pc/mod folder of the Cyberpunk 2077 installation — final step of " +
+                 "the modding loop. The mod is active at the next launch of the game.")]
     public static string InstallMod(
-        [Description("Chemin de l'archive .archive du mod à installer.")] string archivePath,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("Path of the .archive archive of the mod to install.")] string archivePath,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath)
     {
         if (!File.Exists(archivePath))
-            return Err($"Archive de mod introuvable : {archivePath}");
+            return Err($"Mod archive not found: {archivePath}");
         if (!archivePath.EndsWith(".archive", StringComparison.OrdinalIgnoreCase))
-            return Err($"Le fichier n'est pas une archive .archive : {archivePath}");
+            return Err($"The file is not a .archive archive: {archivePath}");
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
 
         var modDir = Path.Combine(gamePath, "archive", "pc", "mod");
         Directory.CreateDirectory(modDir);
@@ -2954,10 +2953,10 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = (existed ? "Mod réinstallé (archive remplacée) : " : "Mod installé : ") + dest,
+            summary = (existed ? "Mod reinstalled (archive replaced): " : "Mod installed: ") + dest,
             produced = new[] { dest },
             warnings = existed
-                ? new[] { $"Une archive du même nom existait déjà et a été remplacée." }
+                ? new[] { $"An archive of the same name already existed and was replaced." }
                 : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         };
@@ -2966,8 +2965,8 @@ public static class WolvenKitTools
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    /// <summary>Plafond du contenu JSON renvoyé inline par read_game_file
-    /// (au-delà, le contenu est tronqué et seul jsonFile donne le fichier complet).</summary>
+    /// <summary>Cap of the JSON content returned inline by read_game_file
+    /// (beyond it, the content is truncated and only jsonFile gives the full file).</summary>
     private const int ReadContentCap = 50_000;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -2976,14 +2975,14 @@ public static class WolvenKitTools
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    /// <summary>Ensemble des fichiers présents (récursivement) sous un dossier.</summary>
+    /// <summary>Set of files present (recursively) under a folder.</summary>
     private static HashSet<string> Snapshot(string dir)
         => Directory.Exists(dir)
             ? new HashSet<string>(Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
             : new HashSet<string>();
 
-    /// <summary>Fichiers apparus dans <paramref name="dir"/> depuis le snapshot
-    /// <paramref name="before"/> — chemins relatifs à <paramref name="dir"/>, triés.</summary>
+    /// <summary>Files that appeared in <paramref name="dir"/> since the snapshot
+    /// <paramref name="before"/> — paths relative to <paramref name="dir"/>, sorted.</summary>
     private static List<string> ProducedIn(string dir, HashSet<string> before)
     {
         var after = Snapshot(dir);
@@ -2991,11 +2990,11 @@ public static class WolvenKitTools
         return after.Select(p => Path.GetRelativePath(dir, p)).OrderBy(p => p).ToList();
     }
 
-    /// <summary>Pattern « snapshot avant / op / diff après » utilisé par tous les
-    /// outils qui écrivent des fichiers dans un dossier de sortie : crée le dossier,
-    /// snapshot, lance l'opération, juge le succès sur les fichiers réellement
-    /// produits (cf. <see cref="Structured"/>). Quand <paramref name="verbose"/>
-    /// est <c>true</c>, le log renvoyé n'est pas tronqué.</summary>
+    /// <summary>Pattern "snapshot before / op / diff after" used by all the
+    /// tools that write files into an output folder: creates the folder,
+    /// snapshots, runs the operation, judges success on the files actually
+    /// produced (cf. <see cref="Structured"/>). When <paramref name="verbose"/>
+    /// is <c>true</c>, the returned log is not truncated.</summary>
     private static async Task<string> WithSnapshot(
         string outputPath, string summary, Func<Task<CliResult>> op,
         bool verbose = false)
@@ -3010,9 +3009,9 @@ public static class WolvenKitTools
         @"(?<r>\d+)(?<rp>\+?) record\(s\), (?<f>\d+)(?<fp>\+?) flat\(s\)",
         RegexOptions.Compiled);
 
-    /// <summary>Glob simple : convertit <c>*</c>/<c>?</c> en regex, matche
-    /// la chaîne entière (insensible à la casse). Suffisant pour les motifs de
-    /// recherche de fichiers (ex. <c>*.mesh</c>, <c>*player*.ent</c>).</summary>
+    /// <summary>Simple glob: converts <c>*</c>/<c>?</c> to regex, matches
+    /// the entire string (case-insensitive). Sufficient for the patterns of
+    /// file searches (ex. <c>*.mesh</c>, <c>*player*.ent</c>).</summary>
     internal static bool MatchesGlob(string path, string pattern)
     {
         var rx = "^" + Regex.Escape(pattern)
@@ -3020,15 +3019,15 @@ public static class WolvenKitTools
         return Regex.IsMatch(path, rx, RegexOptions.IgnoreCase);
     }
 
-    // ── Helpers d'inspection (parcours d'arbres JSON CR2W) ──────────────
+    // ── Inspection helpers (traversal of CR2W JSON trees) ──────────────
 
     private sealed record MeshStats(
         int LodCount, int SubMeshCount, int MaterialCount, int BoneCount,
         List<string> MaterialNames, List<string> BoneNames);
 
-    /// <summary>Extrait les agrégats d'un mesh CR2W sérialisé en JSON. Parcourt
-    /// récursivement l'arbre en cherchant <c>renderLODs</c>, <c>chunkMaterials</c>,
-    /// <c>materialEntries</c>, <c>boneNames</c> — sans dépendre du chemin exact.</summary>
+    /// <summary>Extracts the aggregates of a CR2W mesh serialized to JSON. Traverses
+    /// the tree recursively looking for <c>renderLODs</c>, <c>chunkMaterials</c>,
+    /// <c>materialEntries</c>, <c>boneNames</c> — without depending on the exact path.</summary>
     private static MeshStats ScanMeshStats(JsonElement root)
     {
         int lods = 0, subMeshes = 0, materials = 0, bones = 0;
@@ -3078,7 +3077,7 @@ public static class WolvenKitTools
         int Width, int Height, string? Format, string? Compression,
         int MipLevels, string? TextureGroup);
 
-    /// <summary>Extrait les métadonnées d'une texture .xbm CR2W sérialisée en JSON.</summary>
+    /// <summary>Extracts the metadata of a .xbm CR2W texture serialized to JSON.</summary>
     private static TextureProps ScanTextureProps(JsonElement root)
     {
         int w = 0, h = 0, mips = 0;
@@ -3120,8 +3119,8 @@ public static class WolvenKitTools
         return new TextureProps(w, h, format, compression, mips, group);
     }
 
-    /// <summary>Parcours récursif d'un arbre JSON ; <paramref name="visit"/> est
-    /// appelé pour chaque (nom de propriété, valeur).</summary>
+    /// <summary>Recursive traversal of a JSON tree; <paramref name="visit"/> is
+    /// called for each (property name, value).</summary>
     private static void WalkJson(JsonElement el, Action<string, JsonElement> visit)
     {
         switch (el.ValueKind)
@@ -3140,8 +3139,8 @@ public static class WolvenKitTools
         }
     }
 
-    /// <summary>Lit un CName WolvenKit, qui peut être sérialisé comme string brut,
-    /// comme objet <c>{ "$value": "Name" }</c>, ou comme objet <c>{ "Value": "Name" }</c>.</summary>
+    /// <summary>Reads a CName WolvenKit, which can be serialized as a raw string,
+    /// as object <c>{ "$value": "Name" }</c>, or as object <c>{ "Value": "Name" }</c>.</summary>
     private static string? ReadCName(JsonElement el)
     {
         if (el.ValueKind == JsonValueKind.String) return el.GetString();
@@ -3157,14 +3156,14 @@ public static class WolvenKitTools
     {
         if (el.ValueKind != JsonValueKind.Object) return null;
         if (el.TryGetProperty(property, out var v)) return ReadCName(v);
-        // Souvent encapsulé dans { "Data": { ...property... } }
+        // Often wrapped in { "Data": { ...property... } }
         if (el.TryGetProperty("Data", out var data) && data.ValueKind == JsonValueKind.Object
             && data.TryGetProperty(property, out var v2))
             return ReadCName(v2);
         return null;
     }
 
-    /// <summary>Lit un enum sérialisé en string ou en objet WolvenKit (enum CNames).</summary>
+    /// <summary>Reads an enum serialized as a string or as a WolvenKit object (enum CNames).</summary>
     private static string? ReadEnumString(JsonElement el)
     {
         if (el.ValueKind == JsonValueKind.String) return el.GetString();
@@ -3172,7 +3171,7 @@ public static class WolvenKitTools
         return ReadCName(el);
     }
 
-    // ── Helpers script (lint + analyse textuelle .reds) ─────────────────
+    // ── Script helpers (lint + textual analysis .reds) ─────────────────
 
     internal sealed record ScriptDeclaration(string Kind, string Name, int Line);
 
@@ -3249,20 +3248,20 @@ public static class WolvenKitTools
             switch (c)
             {
                 case '{': if (braces == 0) braceLine = line; braces++; break;
-                case '}': braces--; if (braces < 0) { issues.Add($"ERROR L{line}: '}}' sans '{{' correspondant"); braces = 0; } break;
+                case '}': braces--; if (braces < 0) { issues.Add($"ERROR L{line}: '}}' without matching '{{'"); braces = 0; } break;
                 case '(': if (parens == 0) parenLine = line; parens++; break;
-                case ')': parens--; if (parens < 0) { issues.Add($"ERROR L{line}: ')' sans '(' correspondant"); parens = 0; } break;
+                case ')': parens--; if (parens < 0) { issues.Add($"ERROR L{line}: ')' without matching '('"); parens = 0; } break;
                 case '[': if (brackets == 0) bracketLine = line; brackets++; break;
-                case ']': brackets--; if (brackets < 0) { issues.Add($"ERROR L{line}: ']' sans '[' correspondant"); brackets = 0; } break;
+                case ']': brackets--; if (brackets < 0) { issues.Add($"ERROR L{line}: ']' without matching '['"); brackets = 0; } break;
             }
         }
 
-        if (braces > 0) issues.Add($"ERROR : {braces} accolade(s) '{{' non fermée(s) (ouverte vers L{braceLine})");
-        if (parens > 0) issues.Add($"ERROR : {parens} parenthèse(s) '(' non fermée(s) (ouverte vers L{parenLine})");
-        if (brackets > 0) issues.Add($"ERROR : {brackets} crochet(s) '[' non fermé(s) (ouvert vers L{bracketLine})");
-        if (inString) issues.Add($"ERROR : guillemet \" non fermé (ligne {line})");
-        if (inChar) issues.Add($"ERROR : guillemet ' non fermé (ligne {line})");
-        if (inBlockComment) issues.Add($"ERROR : commentaire /* */ non fermé (ligne {line})");
+        if (braces > 0) issues.Add($"ERROR: {braces} unclosed brace(s) '{{' (opened around L{braceLine})");
+        if (parens > 0) issues.Add($"ERROR: {parens} unclosed paren(s) '(' (opened around L{parenLine})");
+        if (brackets > 0) issues.Add($"ERROR: {brackets} unclosed bracket(s) '[' (opened around L{bracketLine})");
+        if (inString) issues.Add($"ERROR: unclosed quote \" (line {line})");
+        if (inChar) issues.Add($"ERROR: unclosed quote ' (line {line})");
+        if (inBlockComment) issues.Add($"ERROR: unclosed comment /* */ (line {line})");
 
         return issues;
     }
@@ -3275,23 +3274,23 @@ public static class WolvenKitTools
         @"^\s*(?:public|private|protected|static|native|final|cb|exec)?\s*(?:func|let|const)\s",
         RegexOptions.Compiled);
 
-    /// <summary>Analyse sémantique légère (textuelle mais consciente de REDscript) :
-    /// annotations bien placées et ciblées, <c>@wrapMethod</c> appelant
-    /// <c>wrappedMethod</c>, déclarations en double. Renvoie des avertissements
-    /// préfixés "WARN" (jamais "ERROR" : ce n'est pas un parser complet).</summary>
+    /// <summary>Light semantic analysis (textual but REDscript-aware):
+    /// well-placed and targeted annotations, <c>@wrapMethod</c> calling
+    /// <c>wrappedMethod</c>, duplicate declarations. Returns warnings
+    /// prefixed "WARN" (never "ERROR": this is not a full parser).</summary>
     internal static List<string> LintScriptSemantics(string content)
     {
         var issues = new List<string>();
         var lines = content.Split('\n');
 
-        // Doublons de déclarations de même nature.
+        // Duplicate declarations of the same nature.
         var (decls, _) = ScanScriptDeclarations(content);
         foreach (var g in decls
                      .Where(d => d.Kind is "func" or "class" or "struct" or "enum")
                      .GroupBy(d => (d.Kind, d.Name))
                      .Where(g => g.Count() > 1))
-            issues.Add($"WARN : {g.Key.Kind} '{g.Key.Name}' déclaré {g.Count()} fois " +
-                       $"(lignes {string.Join(", ", g.Select(x => x.Line))})");
+            issues.Add($"WARN: {g.Key.Kind} '{g.Key.Name}' declared {g.Count()} times " +
+                       $"(lines {string.Join(", ", g.Select(x => x.Line))})");
 
         for (var i = 0; i < lines.Length; i++)
         {
@@ -3300,11 +3299,11 @@ public static class WolvenKitTools
             var ann = m.Groups["ann"].Value;
             var arg = m.Groups["arg"].Value.Trim();
 
-            // L'annotation doit cibler une classe (sauf replaceGlobal).
+            // The annotation must target a class (except replaceGlobal).
             if (ann != "replaceGlobal" && arg.Length == 0)
-                issues.Add($"WARN L{i + 1} : @{ann} sans classe cible — attendu @{ann}(NomDeClasse).");
+                issues.Add($"WARN L{i + 1}: @{ann} without target class — expected @{ann}(ClassName).");
 
-            // La déclaration suivante (hors lignes vides / commentaires) doit être un func/field.
+            // The next declaration (excluding empty lines / comments) must be a func/field.
             var j = i + 1;
             while (j < lines.Length)
             {
@@ -3313,26 +3312,26 @@ public static class WolvenKitTools
                 break;
             }
             if (j >= lines.Length || !FuncStartRegex.IsMatch(lines[j]))
-                issues.Add($"WARN L{i + 1} : @{ann} n'est pas suivie d'une déclaration func/let.");
+                issues.Add($"WARN L{i + 1}: @{ann} is not followed by a func/let declaration.");
             else if (ann == "wrapMethod")
             {
-                // Le corps d'un @wrapMethod doit appeler wrappedMethod(...) sinon la
-                // chaîne d'origine est rompue (erreur de modding très courante).
+                // The body of a @wrapMethod must call wrappedMethod(...) otherwise the
+                // original chain is broken (very common modding error).
                 var body = ExtractBraceBlock(content, lines, j);
                 if (body is not null && !body.Contains("wrappedMethod"))
-                    issues.Add($"WARN L{j + 1} : @wrapMethod n'appelle pas wrappedMethod() — " +
-                               "la méthode d'origine ne sera jamais exécutée.");
+                    issues.Add($"WARN L{j + 1}: @wrapMethod does not call wrappedMethod() — " +
+                               "the original method will never run.");
             }
         }
         return issues;
     }
 
-    /// <summary>Extrait le bloc { ... } qui suit la ligne <paramref name="declLine"/>
-    /// (index 0-based dans <paramref name="lines"/>), par équilibrage d'accolades.
-    /// Renvoie null si aucun bloc trouvé.</summary>
+    /// <summary>Extracts the block { ... } that follows the line <paramref name="declLine"/>
+    /// (0-based index in <paramref name="lines"/>), by brace balancing.
+    /// Returns null if no block found.</summary>
     private static string? ExtractBraceBlock(string content, string[] lines, int declLine)
     {
-        // Position de caractère du début de la ligne de déclaration.
+        // Character position of the start of the declaration line.
         var startChar = 0;
         for (var k = 0; k < declLine && k < lines.Length; k++)
             startChar += lines[k].Length + 1;
@@ -3347,8 +3346,8 @@ public static class WolvenKitTools
         return null;
     }
 
-    /// <summary>Liste les fichiers d'un sous-dossier d'un REDmod, filtrant par
-    /// extensions (ou tout si vide), en chemins relatifs au dossier racine.</summary>
+    /// <summary>Lists the files of a subfolder of a REDmod, filtering by
+    /// extensions (or everything if empty), as paths relative to the root folder.</summary>
     private static List<string> ListRelative(string root, string subdir, string[] extensions)
     {
         var dir = Path.Combine(root, subdir);
@@ -3365,9 +3364,9 @@ public static class WolvenKitTools
             .ToList();
     }
 
-    /// <summary>Résout les chemins de log selon la catégorie demandée par
-    /// <c>tail_game_logs</c>. Renvoie une liste possiblement vide si le jeu
-    /// n'a jamais tourné ou si REDmod n'est pas installé.</summary>
+    /// <summary>Resolves the log paths according to the category requested by
+    /// <c>tail_game_logs</c>. Returns a possibly empty list if the game
+    /// has never run or if REDmod is not installed.</summary>
     private static List<string> ResolveLogFiles(string gamePath, string category)
     {
         var paths = new List<string>();
@@ -3402,27 +3401,27 @@ public static class WolvenKitTools
         return paths;
     }
 
-    /// <summary>Formate une valeur quelconque en scalaire YAML correct : entiers
-    /// et flottants nus, chaînes encadrées de doubles quotes si non triviales,
-    /// booléens en true/false.</summary>
+    /// <summary>Formats a value of any kind into a correct YAML scalar: integers
+    /// and floats bare, strings enclosed in double quotes if non-trivial,
+    /// booleans as true/false.</summary>
     private static string FormatYamlValue(object? value)
     {
         if (value is null) return "null";
         if (value is bool b) return b ? "true" : "false";
         if (value is long or int or double or float) return value.ToString()!;
         var s = value.ToString() ?? "";
-        // Nombres parsables → écrits nus.
+        // Parsable numbers → written bare.
         if (long.TryParse(s, out _) || double.TryParse(s,
             System.Globalization.NumberStyles.Float,
             System.Globalization.CultureInfo.InvariantCulture, out _))
             return s;
         if (s is "true" or "false" or "null") return s;
-        // Chaîne quotée pour éviter qu'un ":" ou un "#" perturbe le parseur YAML.
+        // Quoted string to prevent a ":" or a "#" from disrupting the YAML parser.
         return "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
-    /// <summary>Copie récursive d'un dossier (utilisée par install_redmod). Crée
-    /// les sous-dossiers manquants et écrase les fichiers existants à destination.</summary>
+    /// <summary>Recursive copy of a folder (used by install_redmod). Creates
+    /// the missing subfolders and overwrites the existing files at the destination.</summary>
     private static void CopyDirectoryRecursive(string source, string dest)
     {
         Directory.CreateDirectory(dest);
@@ -3432,10 +3431,10 @@ public static class WolvenKitTools
             CopyDirectoryRecursive(dir, Path.Combine(dest, Path.GetFileName(dir)));
     }
 
-    /// <summary>Liste canonique des extensions REDengine acceptées par Cyberpunk 2077,
-    /// extraite de <c>WolvenKit.RED4.Archive.ERedExtension</c> (137 valeurs, hors
-    /// « unknown »). Une archive contenant un fichier d'extension non listée verra
-    /// ce fichier ignoré silencieusement par le moteur.</summary>
+    /// <summary>Canonical list of REDengine extensions accepted by Cyberpunk 2077,
+    /// extracted from <c>WolvenKit.RED4.Archive.ERedExtension</c> (137 values, excluding
+    /// "unknown"). An archive containing a file with an unlisted extension will see
+    /// that file silently ignored by the engine.</summary>
     private static readonly HashSet<string> RedEngineExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         "acousticdata", "actionanimdb", "aiarch", "animgraph", "anims", "app", "archetypes", "areas",
@@ -3458,8 +3457,8 @@ public static class WolvenKitTools
         "xcube",
     };
 
-    /// <summary>Repère dans le log du daemon l'en-tête « N(+)? record(s), M(+)? flat(s) »
-    /// — le « + » indique que le cap (100) a été atteint et qu'il y avait davantage.</summary>
+    /// <summary>Locates in the daemon log the header "N(+)? record(s), M(+)? flat(s)"
+    /// — the "+" indicates that the cap (100) was reached and that there was more.</summary>
     private static (bool records, bool flats) ParseTweakHeader(string log)
     {
         foreach (var line in log.Split('\n'))
@@ -3472,14 +3471,14 @@ public static class WolvenKitTools
     }
 
     /// <summary>
-    /// Met en forme le résultat d'un appel cp77tools en objet JSON structuré.
+    /// Formats the result of a cp77tools call into a structured JSON object.
     ///
-    /// <paramref name="produced"/> : pour un outil qui écrit des fichiers, la liste
-    /// de ceux qu'il a produits (le signal de succès fiable) ; <c>null</c> pour un
-    /// outil d'information (succès jugé sur le code de sortie).
+    /// <paramref name="produced"/>: for a tool that writes files, the list
+    /// of those it produced (the reliable success signal); <c>null</c> for an
+    /// information tool (success judged on the exit code).
     ///
-    /// <paramref name="verbose"/> : si <c>true</c>, le log n'est pas tronqué (pour
-    /// le debug — sortie potentiellement très volumineuse).
+    /// <paramref name="verbose"/>: if <c>true</c>, the log is not truncated (for
+    /// debug — potentially very large output).
     /// </summary>
     private static string Structured(string summary, CliResult r,
                                      IReadOnlyList<string>? produced = null,
@@ -3493,12 +3492,12 @@ public static class WolvenKitTools
         if (r.TimedOut)
             status = "timeout";
         else if (produced is not null)
-            // Outil producteur de fichiers : le succès se juge sur la sortie réelle.
+            // File-producing tool: success is judged on the actual output.
             status = produced.Count > 0 ? (errors.Count > 0 ? "partial" : "success") : "error";
         else
-            // Outil d'information : pas de fichier attendu, on se fie au code de sortie.
+            // Information tool: no file expected, we rely on the exit code.
             status = r.ExitCode != 0
-                     || log.Contains("Erreur daemon", StringComparison.Ordinal)
+                     || log.Contains("Daemon error", StringComparison.Ordinal)
                      || log.Contains("Unhandled", StringComparison.OrdinalIgnoreCase)
                 ? "error" : "success";
 
@@ -3516,7 +3515,7 @@ public static class WolvenKitTools
         return JsonSerializer.Serialize(result, JsonOpts);
     }
 
-    /// <summary>Résultat JSON d'échec — pour les erreurs de validation des arguments.</summary>
+    /// <summary>JSON failure result — for argument validation errors.</summary>
     private static string Err(string summary)
         => JsonSerializer.Serialize(new
         {
@@ -3530,8 +3529,8 @@ public static class WolvenKitTools
             log = "",
         }, JsonOpts);
 
-    /// <summary>Extrait les messages des lignes de log d'un niveau donné
-    /// (« [ 0: Warning ] - message » → « message »).</summary>
+    /// <summary>Extracts the messages from the log lines of a given level
+    /// ("[ 0: Warning ] - message" → "message").</summary>
     private static List<string> LogLines(string log, string level)
     {
         var marker = $": {level} ]";
@@ -3546,18 +3545,18 @@ public static class WolvenKitTools
         return lines;
     }
 
-    /// <summary>Tronque un log volumineux en préservant le contexte utile :
-    /// les 20 premières lignes (qui contextualisent), les lignes d'erreur du
-    /// milieu (l'info la plus précieuse), et les 20 dernières lignes (résultat
-    /// final). Si encore trop gros, fallback sur troncature en début de chaîne.</summary>
+    /// <summary>Truncates a large log while preserving the useful context:
+    /// the first 20 lines (which contextualize), the error lines in the
+    /// middle (the most valuable info), and the last 20 lines (final
+    /// result). If still too large, fallback to truncating the start of the string.</summary>
     internal static string Truncate(string s, int max)
     {
         if (s.Length <= max) return s;
 
         var lines = s.Split('\n');
-        // Trop court pour un découpage en sections : fallback simple.
+        // Too short for a split into sections: simple fallback.
         if (lines.Length <= 40)
-            return "…(début de sortie tronqué)…\n" + s[^max..];
+            return "…(start of output truncated)…\n" + s[^max..];
 
         const int head = 20, tail = 20;
         var midErrors = new List<string>();
@@ -3570,14 +3569,14 @@ public static class WolvenKitTools
         var sb = new StringBuilder();
         for (var i = 0; i < head; i++) sb.AppendLine(lines[i].TrimEnd('\r'));
         var omitted = lines.Length - head - tail;
-        sb.Append("…(milieu : ").Append(omitted).Append(" ligne(s) omises");
-        if (midErrors.Count > 0) sb.Append(", ").Append(midErrors.Count).Append(" erreur(s) préservée(s)");
+        sb.Append("…(middle: ").Append(omitted).Append(" line(s) omitted");
+        if (midErrors.Count > 0) sb.Append(", ").Append(midErrors.Count).Append(" error(s) preserved");
         sb.AppendLine(")…");
         foreach (var e in midErrors) sb.AppendLine(e.TrimEnd('\r'));
         if (midErrors.Count > 0) sb.AppendLine("…");
         for (var i = lines.Length - tail; i < lines.Length; i++) sb.AppendLine(lines[i].TrimEnd('\r'));
 
         var result = sb.ToString().TrimEnd();
-        return result.Length <= max ? result : "…(début de sortie tronqué)…\n" + result[^max..];
+        return result.Length <= max ? result : "…(start of output truncated)…\n" + result[^max..];
     }
 }

@@ -4,269 +4,269 @@ using ModelContextProtocol.Server;
 namespace WolvenKitMcp;
 
 /// <summary>
-/// Prompts MCP pour WolvenKit — recettes prêtes à l'emploi qu'un agent Claude peut
-/// invoquer pour démarrer un workflow modding sur Cyberpunk 2077. Chaque prompt
-/// renvoie un texte instructif (étapes à suivre + outils à appeler), pas une
-/// exécution directe : l'agent garde la main sur les choix.
+/// MCP prompts for WolvenKit — ready-to-use recipes a Claude agent can invoke to
+/// kick off a Cyberpunk 2077 modding workflow. Each prompt returns instructional
+/// text (steps to follow + tools to call), not a direct execution: the agent stays
+/// in control of the choices.
 /// </summary>
 [McpServerPromptType]
 public static class WolvenKitPrompts
 {
     [McpServerPrompt(Name = "read_game_file_workflow")]
-    [Description("Recette : localiser puis lire un fichier de jeu en JSON, en un coup. " +
-                 "Utile pour inspecter rapidement un asset (mesh, ent, app…) sans empaqueter.")]
+    [Description("Recipe: locate then read a game file as JSON, in one shot. " +
+                 "Useful to quickly inspect an asset (mesh, ent, app…) without packing.")]
     public static string ReadGameFileWorkflow(
-        [Description("Type ou nom partiel à chercher, ex. \"player.ent\" ou \"*.streamingsector\".")]
+        [Description("Type or partial name to search, e.g. \"player.ent\" or \"*.streamingsector\".")]
         string filePattern,
-        [Description("Dossier de contenu du jeu, ex. C:\\Cyberpunk\\Cyberpunk 2077\\archive\\pc\\content")]
+        [Description("Game content folder, e.g. C:\\Cyberpunk\\Cyberpunk 2077\\archive\\pc\\content")]
         string contentFolder)
     {
         return $$"""
-            Procédure pour lire un fichier de jeu Cyberpunk 2077 (motif : {{filePattern}}) :
+            Procedure to read a Cyberpunk 2077 game file (pattern: {{filePattern}}):
 
-            1. Appeler `find_in_archives` :
+            1. Call `find_in_archives`:
                - archivesFolder = "{{contentFolder}}"
                - pattern = "{{filePattern}}"
-               → renvoie une liste de chemins internes et leurs archives.
+               → returns a list of internal paths and their archives.
 
-            2. Choisir le bon résultat, puis appeler `read_game_file` :
-               - archivePath = l'archive identifiée à l'étape 1
-               - gameFilePath = le chemin interne (ex. base\\path\\fichier.ent)
-               → renvoie un JSON éditable (`content` inline + `jsonFile` complet sur disque).
+            2. Pick the right result, then call `read_game_file`:
+               - archivePath = the archive identified in step 1
+               - gameFilePath = the internal path (e.g. base\\path\\file.ent)
+               → returns editable JSON (`content` inline + full `jsonFile` on disk).
 
-            Si la sortie indique `truncated: true`, lire le fichier complet via le chemin
-            renvoyé dans `jsonFile`.
+            If the output reports `truncated: true`, read the full file via the path
+            returned in `jsonFile`.
             """;
     }
 
     [McpServerPrompt(Name = "edit_tweakdb_item")]
-    [Description("Recette : modifier les paramètres d'un item TweakDB (dégâts, prix, etc.) " +
-                 "via un fichier .tweak qui surcharge la TweakDB du jeu.")]
+    [Description("Recipe: change a TweakDB item's parameters (damage, price, etc.) " +
+                 "via a .tweak file that overrides the game's TweakDB.")]
     public static string EditTweakDbItem(
-        [Description("Identifiant TweakDB de l'item à modifier (ex. Items.w_melee_001).")]
+        [Description("TweakDB identifier of the item to edit (e.g. Items.w_melee_001).")]
         string tweakId,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")]
+        [Description("Root folder of the Cyberpunk 2077 installation.")]
         string gamePath)
     {
         return $$"""
-            Procédure pour modifier l'item TweakDB {{tweakId}} dans Cyberpunk 2077 :
+            Procedure to edit the TweakDB item {{tweakId}} in Cyberpunk 2077:
 
-            1. Confirmer que l'identifiant existe via `tweakdb_query` :
+            1. Confirm the identifier exists via `tweakdb_query`:
                - tweakdbPath = {{gamePath}}\r6\cache\tweakdb.bin
                - filter = "{{tweakId}}"
-               → vérifie l'existence et liste les flats de cet identifiant.
-               Au besoin, `describe_tweak_record` détaille les flats du record.
+               → checks existence and lists that identifier's flats.
+               If needed, `describe_tweak_record` details the record's flats.
 
-            2. Écrire le fichier .tweak (format TweakXL — YAML) via `write_tweak` avec les
-               champs à surcharger. Exemple minimal de contenu :
+            2. Write the .tweak file (TweakXL format — YAML) via `write_tweak` with the
+               fields to override. Minimal example content:
 
                    {{tweakId}}:
                      damage: 200
                      attacksPerSecond: 2.5
 
-            3. Valider avec `validate_tweak` (et `lint_tweak` pour les pièges d'indentation),
-               puis installer avec `install_tweak` :
+            3. Validate with `validate_tweak` (and `lint_tweak` for indentation pitfalls),
+               then install with `install_tweak`:
                - gamePath = "{{gamePath}}"
-               → dépose le fichier dans {{gamePath}}\r6\tweaks\ (TweakXL requis).
-               Le .tweak n'a pas besoin d'être empaqueté en .archive.
+               → drops the file into {{gamePath}}\r6\tweaks\ (TweakXL required).
+               The .tweak does not need to be packed into a .archive.
 
-            4. Relancer le jeu (ou, si le jeu tourne avec le mod CETBridge,
-               vérifier la valeur à chaud via `live_tweakdb_get`).
+            4. Relaunch the game (or, if the game is running with the CETBridge mod,
+               check the value live via `live_tweakdb_get`).
             """;
     }
 
     [McpServerPrompt(Name = "pack_and_install_mod")]
-    [Description("Recette : boucler le workflow modding — empaqueter un dossier source en " +
-                 ".archive et l'installer dans l'installation Cyberpunk 2077.")]
+    [Description("Recipe: close the modding loop — pack a source folder into a " +
+                 ".archive and install it into the Cyberpunk 2077 installation.")]
     public static string PackAndInstallMod(
-        [Description("Dossier source d'un projet de mod (contenant les fichiers REDengine cuits).")]
+        [Description("Source folder of a mod project (containing the cooked REDengine files).")]
         string modSourceFolder,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")]
+        [Description("Root folder of the Cyberpunk 2077 installation.")]
         string gamePath)
     {
         return $$"""
-            Procédure d'empaquetage et d'installation d'un mod Cyberpunk 2077 :
+            Procedure to pack and install a Cyberpunk 2077 mod:
 
-            1. (Recommandé) Linter la structure du dossier source avant empaquetage :
-               - Vérifier qu'aucun fichier hors REDengine (.txt, .md…) ne traîne dans
-                 {{modSourceFolder}} — `pack_archive` les ignorera silencieusement.
+            1. (Recommended) Lint the source folder structure before packing:
+               - Make sure no non-REDengine file (.txt, .md…) is lying around in
+                 {{modSourceFolder}} — `pack_archive` will silently ignore them.
 
-            2. Appeler `pack_archive` :
+            2. Call `pack_archive`:
                - folderPath = "{{modSourceFolder}}"
-               - outputPath = un dossier de sortie (ex. {{modSourceFolder}}\..\packed)
-               → produit une .archive prête à installer.
+               - outputPath = an output folder (e.g. {{modSourceFolder}}\..\packed)
+               → produces a .archive ready to install.
 
-            3. Appeler `install_mod` :
-               - archivePath = la .archive produite à l'étape 2
+            3. Call `install_mod`:
+               - archivePath = the .archive produced in step 2
                - gamePath = "{{gamePath}}"
-               → copie l'archive dans {{gamePath}}\archive\pc\mod\.
+               → copies the archive into {{gamePath}}\archive\pc\mod\.
 
-            4. Au prochain lancement du jeu, le mod est actif. Pour le désactiver,
-               supprimer l'archive du dossier mod/.
+            4. At the next game launch, the mod is active. To disable it,
+               remove the archive from the mod/ folder.
             """;
     }
 
     [McpServerPrompt(Name = "recolor_texture")]
-    [Description("Recette : extraire une texture du jeu, l'éditer (recoloriser, retoucher), " +
-                 "puis la réintégrer dans un mod.")]
+    [Description("Recipe: extract a texture from the game, edit it (recolor, retouch), " +
+                 "then re-integrate it into a mod.")]
     public static string RecolorTexture(
-        [Description("Chemin de l'archive contenant la texture, ex. base_2_textures.archive.")]
+        [Description("Path of the archive containing the texture, e.g. base_2_textures.archive.")]
         string archivePath,
-        [Description("Motif glob de la texture (ex. *jacket_01*.xbm).")]
+        [Description("Glob pattern of the texture (e.g. *jacket_01*.xbm).")]
         string texturePattern)
     {
         return $$"""
-            Procédure pour recoloriser/remplacer une texture du jeu :
+            Procedure to recolor/replace a game texture:
 
-            1. Appeler `uncook` :
+            1. Call `uncook`:
                - archivePath = "{{archivePath}}"
-               - outputPath = un dossier de travail (ex. C:\Temp\wkmod-textures)
+               - outputPath = a working folder (e.g. C:\Temp\wkmod-textures)
                - pattern = "{{texturePattern}}"
-               - textureFormat = "png" (pour éditer dans GIMP / Photoshop)
-               → extrait + convertit la texture en .png éditable.
+               - textureFormat = "png" (to edit in GIMP / Photoshop)
+               → extracts + converts the texture to an editable .png.
 
-            2. Éditer le .png produit (couleurs, contraste, etc.) avec ton outil image
-               préféré. Garder le même nom de fichier.
+            2. Edit the produced .png (colors, contrast, etc.) with your preferred image
+               tool. Keep the same file name.
 
-            3. Appeler `import_raw` :
-               - path = le .png modifié
-               - outputPath = source\archive\<chemin interne> du projet de mod
-               → reconvertit le .png en .xbm REDengine au bon emplacement.
+            3. Call `import_raw`:
+               - path = the modified .png
+               - outputPath = source\archive\<internal path> of the mod project
+               → reconverts the .png into a REDengine .xbm at the right location.
 
-            4. Appeler `pack_archive` puis `install_mod` (voir le prompt
-               `pack_and_install_mod` pour les détails).
+            4. Call `pack_archive` then `install_mod` (see the `pack_and_install_mod`
+               prompt for the details).
             """;
     }
 
     [McpServerPrompt(Name = "create_archivexl_item")]
-    [Description("Recette : créer un mod d'item ArchiveXL (vêtement, arme) de bout en bout, avec " +
-                 "la validation de la chaîne record → factory → localisation — la cause n°1 " +
-                 "d'item qui ne spawn pas.")]
+    [Description("Recipe: create an ArchiveXL item mod (clothing, weapon) end to end, with " +
+                 "validation of the record → factory → localization chain — the #1 cause " +
+                 "of an item that does not spawn.")]
     public static string CreateArchiveXlItem(
-        [Description("Nom du mod/item à créer.")] string modName,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("Name of the mod/item to create.")] string modName,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath)
     {
         return $$"""
-            Procédure pour créer un mod d'item ArchiveXL « {{modName}} » :
+            Procedure to create an ArchiveXL item mod "{{modName}}":
 
-            1. Vérifier les prérequis : `check_requirements` sur "{{gamePath}}" —
-               ArchiveXL ET TweakXL doivent être installés.
+            1. Check the prerequisites: `check_requirements` on "{{gamePath}}" —
+               ArchiveXL AND TweakXL must be installed.
 
-            2. Générer le squelette : `scaffold_archivexl` (modName = "{{modName}}").
-               → produit le .yaml (records TweakXL), la factory .csv, la localisation
-               .json et le fichier .xl qui les relie.
+            2. Generate the skeleton: `scaffold_archivexl` (modName = "{{modName}}").
+               → produces the .yaml (TweakXL records), the factory .csv, the localization
+               .json and the .xl file that links them.
 
-            3. Éditer les fichiers générés : records (entityName, appearanceName,
-               displayName), factory (entityName → chemin .ent), localisation
-               (secondaryKey → texte affiché).
+            3. Edit the generated files: records (entityName, appearanceName,
+               displayName), factory (entityName → .ent path), localization
+               (secondaryKey → displayed text).
 
-            4. Valider la chaîne AVANT d'empaqueter : `validate_item_mod` sur le dossier
-               du mod. C'est l'étape qui attrape les typos entre yaml/csv/json —
-               un seul caractère d'écart = item invisible sans message d'erreur.
-               Avec deep=true, le .ent est aussi converti pour vérifier l'appearanceName.
+            4. Validate the chain BEFORE packing: `validate_item_mod` on the mod
+               folder. This is the step that catches typos between yaml/csv/json —
+               a single character off = invisible item with no error message.
+               With deep=true, the .ent is also converted to verify the appearanceName.
 
-            5. Empaqueter et installer : `package_mod` puis `install_mod`
+            5. Pack and install: `package_mod` then `install_mod`
                (gamePath = "{{gamePath}}").
 
-            6. Tester en jeu : lancer le jeu, puis si le mod CETBridge est installé,
-               `live_add_item` avec l'ID du record pour obtenir l'item directement.
-               Sinon `Game.AddToInventory(...)` dans la console CET.
+            6. Test in game: launch the game, then if the CETBridge mod is installed,
+               `live_add_item` with the record's ID to get the item directly.
+               Otherwise `Game.AddToInventory(...)` in the CET console.
 
-            En cas d'échec silencieux : `diagnose_logs` (ArchiveXL/TweakXL loggent les
-            records rejetés) puis re-`validate_item_mod`.
+            On silent failure: `diagnose_logs` (ArchiveXL/TweakXL log the rejected
+            records) then re-run `validate_item_mod`.
             """;
     }
 
     [McpServerPrompt(Name = "diagnose_broken_mod")]
-    [Description("Recette : diagnostiquer un mod qui ne marche pas ou une install moddée qui " +
-                 "crashe — du diagnostic global à la bissection.")]
+    [Description("Recipe: diagnose a mod that does not work or a modded install that " +
+                 "crashes — from the global diagnostic down to bisection.")]
     public static string DiagnoseBrokenMod(
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
-        [Description("Symptôme observé (crash au lancement, item absent, script sans effet…).")]
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        [Description("Observed symptom (crash on launch, missing item, script with no effect…).")]
         string symptom)
     {
         return $$"""
-            Procédure de diagnostic ({{symptom}}) sur "{{gamePath}}" :
+            Diagnostic procedure ({{symptom}}) on "{{gamePath}}":
 
-            1. Vue d'ensemble en un appel : `mod_doctor` — frameworks manquants,
-               dépendances non satisfaites, conflits, inventaire. Beaucoup de cas
-               s'arrêtent ici (framework absent = cause n°1 de crash).
+            1. One-call overview: `mod_doctor` — missing frameworks, unmet
+               dependencies, conflicts, inventory. Many cases stop here
+               (missing framework = #1 cause of a crash).
 
-            2. Lire les logs du jeu : `diagnose_logs` — analyse les 6 logs (redscript,
-               RED4ext, ArchiveXL, TweakXL…) avec une base d'erreurs connues qui
-               mappe chaque erreur à sa cause et son correctif.
+            2. Read the game logs: `diagnose_logs` — analyzes the 6 logs (redscript,
+               RED4ext, ArchiveXL, TweakXL…) against a known-error database that
+               maps each error to its cause and its fix.
 
-            3. Si le symptôme est « un mod en écrase un autre » : `analyze_conflicts`
-               — recouvrements d'archives (premier-gagne alphabétique) et records
-               TweakDB définis en double, avec les pistes de résolution.
+            3. If the symptom is "one mod overrides another": `analyze_conflicts`
+               — archive overlaps (alphabetical first-wins) and TweakDB records
+               defined twice, with resolution leads.
 
-            4. Si le mod a des dépendances : `analyze_dependencies` sur son dossier,
-               avec gamePath pour vérifier ce qui est installé (y compris les
-               dépendances inter-mods via les imports REDscript).
+            4. If the mod has dependencies: `analyze_dependencies` on its folder,
+               with gamePath to check what is installed (including inter-mod
+               dependencies via the REDscript imports).
 
-            5. Scripts : `lint_script` sur les .reds du mod (erreurs ligne:colonne) ;
-               tweaks : `lint_tweak` + `validate_tweak`.
+            5. Scripts: `lint_script` on the mod's .reds (line:column errors);
+               tweaks: `lint_tweak` + `validate_tweak`.
 
-            6. Dernier recours — bissection : `toggle_mods` pour désactiver la moitié
-               des archives, relancer, et réduire jusqu'au coupable. `backup_mods`
-               d'abord pour pouvoir tout restaurer (`restore_mods`).
+            6. Last resort — bisection: `toggle_mods` to disable half the
+               archives, relaunch, and narrow down to the culprit. `backup_mods`
+               first so you can restore everything (`restore_mods`).
             """;
     }
 
     [McpServerPrompt(Name = "live_iteration_loop")]
-    [Description("Recette : boucle d'itération avec le jeu LANCÉ (mod CETBridge) — tester des " +
-                 "valeurs TweakDB à chaud avant de les figer dans un .tweak.")]
+    [Description("Recipe: iteration loop with the game RUNNING (CETBridge mod) — test " +
+                 "TweakDB values live before freezing them into a .tweak.")]
     public static string LiveIterationLoop(
-        [Description("Identifiant TweakDB à itérer (ex. Items.Preset_Katana_Saburo).")] string tweakId,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("TweakDB identifier to iterate on (e.g. Items.Preset_Katana_Saburo).")] string tweakId,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath)
     {
         return $$"""
-            Boucle d'itération à chaud sur {{tweakId}} (jeu lancé + mod CETBridge) :
+            Live iteration loop on {{tweakId}} (game running + CETBridge mod):
 
-            1. Vérifier le pont : `live_status` (gamePath = "{{gamePath}}").
-               Si non connecté : le jeu tourne-t-il avec CET + CETBridge ? (le mod est
-               livré dans le bundle, dossier live-bridge/CETBridge à copier dans
-               <jeu>/bin/x64/plugins/cyber_engine_tweaks/mods/).
+            1. Check the bridge: `live_status` (gamePath = "{{gamePath}}").
+               If not connected: is the game running with CET + CETBridge? (the mod is
+               shipped in the bundle, folder live-bridge/CETBridge to copy into
+               <game>/bin/x64/plugins/cyber_engine_tweaks/mods/).
 
-            2. Lire la valeur actuelle : `live_tweakdb_get` (flatPath =
-               "{{tweakId}}.<champ>", ex. ".damage").
+            2. Read the current value: `live_tweakdb_get` (flatPath =
+               "{{tweakId}}.<field>", e.g. ".damage").
 
-            3. Itérer À CHAUD sans relancer le jeu : `live_tweakdb_set` avec une
-               nouvelle valeur → tester immédiatement en jeu (spawn de l'item via
-               `live_add_item` au besoin). Répéter jusqu'à la bonne valeur.
-               ⚠ Ces changements sont volatils : perdus au prochain lancement.
+            3. Iterate LIVE without relaunching the game: `live_tweakdb_set` with a
+               new value → test immediately in game (spawn the item via
+               `live_add_item` if needed). Repeat until the right value.
+               ⚠ These changes are volatile: lost at the next launch.
 
-            4. Figer le résultat dans un mod : `write_tweak` avec les valeurs retenues,
-               `validate_tweak`, puis `install_tweak` (gamePath = "{{gamePath}}").
+            4. Freeze the result into a mod: `write_tweak` with the chosen values,
+               `validate_tweak`, then `install_tweak` (gamePath = "{{gamePath}}").
 
-            5. Vérifier la persistance : relancer le jeu (TweakXL applique le .tweak)
-               puis `live_tweakdb_get` à nouveau — la valeur doit être celle du mod.
+            5. Check persistence: relaunch the game (TweakXL applies the .tweak)
+               then `live_tweakdb_get` again — the value should be the mod's.
             """;
     }
 
     [McpServerPrompt(Name = "inspect_mesh")]
-    [Description("Recette : exporter un mesh en glTF pour l'inspecter dans Blender / un visualiseur, " +
-                 "avec les options d'export adaptées à ton cas d'usage.")]
+    [Description("Recipe: export a mesh to glTF to inspect it in Blender / a viewer, " +
+                 "with the export options suited to your use case.")]
     public static string InspectMesh(
-        [Description("Chemin de l'archive contenant le mesh.")] string archivePath,
-        [Description("Chemin interne du mesh (ex. base\\characters\\common\\hairs\\...\\h_001.mesh) " +
-                     "— le localiser au besoin avec find_in_archives.")] string meshInternalPath)
+        [Description("Path of the archive containing the mesh.")] string archivePath,
+        [Description("Internal path of the mesh (e.g. base\\characters\\common\\hairs\\...\\h_001.mesh) " +
+                     "— locate it if needed with find_in_archives.")] string meshInternalPath)
     {
         return $$"""
-            Procédure pour inspecter un mesh REDengine :
+            Procedure to inspect a REDengine mesh:
 
-            1. Appeler `uncook` :
+            1. Call `uncook`:
                - archivePath = "{{archivePath}}"
-               - outputPath = un dossier de travail
+               - outputPath = a working folder
                - pattern = "{{meshInternalPath}}"
-               - meshExportType = "WithRig" si tu veux le squelette, sinon laisser vide
-                 (par défaut WithMaterials, qui inclut les matériaux)
-               - meshExporterType = "REDmod" si tu vises une réimportation certifiée REDmod
-               - meshExportLodFilter = true pour ignorer les LOD (réduit le bruit)
-               → produit un .glb (glTF binaire) ouvrable dans Blender / un visualiseur 3D.
+               - meshExportType = "WithRig" if you want the skeleton, otherwise leave empty
+                 (defaults to WithMaterials, which includes the materials)
+               - meshExporterType = "REDmod" if you target a REDmod-certified reimport
+               - meshExportLodFilter = true to ignore the LODs (reduces noise)
+               → produces a .glb (binary glTF) openable in Blender / a 3D viewer.
 
-            2. Si tu veux aussi le JSON CR2W du mesh (structure brute des sous-meshes,
-               matériaux, etc.) : appeler `read_game_file` sur le même fichier.
+            2. If you also want the mesh's CR2W JSON (raw structure of the sub-meshes,
+               materials, etc.): call `read_game_file` on the same file.
             """;
     }
 }

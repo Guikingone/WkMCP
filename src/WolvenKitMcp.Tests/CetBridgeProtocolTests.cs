@@ -5,7 +5,7 @@ using Xunit;
 
 namespace WolvenKitMcp.Tests;
 
-/// <summary>Découpage des trames JSON délimitées "\r\n" du transport TCP du pont live.</summary>
+/// <summary>Splitting of the "\r\n"-delimited JSON frames of the live bridge TCP transport.</summary>
 public class FrameSplitterTests
 {
     private static byte[] B(string s) => Encoding.UTF8.GetBytes(s);
@@ -30,7 +30,7 @@ public class FrameSplitterTests
     public void FragmentedFrameAcrossAppends()
     {
         var s = new FrameSplitter();
-        Assert.Empty(s.Append(B("{\"id\":")));        // pas encore de délimiteur
+        Assert.Empty(s.Append(B("{\"id\":")));        // no delimiter yet
         var msgs = s.Append(B("\"a\"}\r\n"));
         Assert.Equal(new[] { "{\"id\":\"a\"}" }, msgs);
     }
@@ -39,7 +39,7 @@ public class FrameSplitterTests
     public void DelimiterSplitAcrossAppends()
     {
         var s = new FrameSplitter();
-        Assert.Empty(s.Append(B("ab\r")));            // \r seul : trame incomplète
+        Assert.Empty(s.Append(B("ab\r")));            // lone \r: incomplete frame
         var msgs = s.Append(B("\ncd\r\n"));
         Assert.Equal(new[] { "ab", "cd" }, msgs);
     }
@@ -55,15 +55,15 @@ public class FrameSplitterTests
     [Fact]
     public void MultibyteUtf8NotSplitMidCharacter()
     {
-        // "héllo" : 'é' = 0xC3 0xA9. On coupe l'octet de tête de la seconde lecture.
+        // "héllo": 'é' = 0xC3 0xA9. We cut the lead byte from the second read.
         var s = new FrameSplitter();
-        Assert.Empty(s.Append(new byte[] { 0x68, 0xC3 }, 2));       // "h" + tête de 'é'
+        Assert.Empty(s.Append(new byte[] { 0x68, 0xC3 }, 2));       // "h" + lead byte of 'é'
         var msgs = s.Append(new byte[] { 0xA9, 0x6C, 0x6C, 0x6F, 0x0D, 0x0A }, 6);
         Assert.Equal(new[] { "héllo" }, msgs);
     }
 }
 
-/// <summary>Parsing des réponses {id, ok, result?, error?} du pont.</summary>
+/// <summary>Parsing of the bridge {id, ok, result?, error?} responses.</summary>
 public class BridgeProtocolParseTests
 {
     [Fact]
@@ -104,13 +104,13 @@ public class BridgeProtocolParseTests
     [Fact]
     public void MalformedJsonProducesError()
     {
-        var r = BridgeProtocol.ParseResponse("ceci n'est pas du json", "tcp");
+        var r = BridgeProtocol.ParseResponse("this is not json", "tcp");
         Assert.False(r.Ok);
         Assert.Contains("malform", r.Error, StringComparison.OrdinalIgnoreCase);
     }
 }
 
-/// <summary>Transport fichier (command.json / response.json) — round-trip réel sur un dossier temporaire.</summary>
+/// <summary>File transport (command.json / response.json) — real round-trip over a temporary folder.</summary>
 public class FileSendTests
 {
     private static string NewTempDir()
@@ -132,9 +132,9 @@ public class FileSendTests
     {
         var cmd = Path.Combine(dir, "command.json");
         for (int i = 0; i < 150 && !File.Exists(cmd); i++) await Task.Delay(20);
-        Assert.True(File.Exists(cmd), "command.json aurait dû être écrit par FileSendAsync");
+        Assert.True(File.Exists(cmd), "command.json should have been written by FileSendAsync");
         var text = await File.ReadAllTextAsync(cmd);
-        File.Delete(cmd); // comme le fait le mod Lua après lecture
+        File.Delete(cmd); // as the Lua mod does after reading
         return text;
     }
 
@@ -186,43 +186,43 @@ public class FileSendTests
                 "req-3", "{\"id\":\"req-3\"}", dir, TimeSpan.FromSeconds(3), CancellationToken.None);
 
             await WaitForCommandAsync(dir);
-            WriteResponse(dir, "{\"id\":\"OTHER\",\"ok\":true,\"result\":\"périmé\"}");
-            await Task.Delay(150); // laisse FileSendAsync lire puis écarter la réponse périmée
-            WriteResponse(dir, "{\"id\":\"req-3\",\"ok\":true,\"result\":\"frais\"}");
+            WriteResponse(dir, "{\"id\":\"OTHER\",\"ok\":true,\"result\":\"stale\"}");
+            await Task.Delay(150); // let FileSendAsync read then discard the stale response
+            WriteResponse(dir, "{\"id\":\"req-3\",\"ok\":true,\"result\":\"fresh\"}");
 
             var resp = await send;
             Assert.True(resp.Ok);
-            Assert.Equal("frais", resp.Result);
+            Assert.Equal("fresh", resp.Result);
         }
         finally { Directory.Delete(dir, true); }
     }
 }
 
-/// <summary>Coercition valeur texte + hint de type → valeur JSON typée pour tweakdb_set.</summary>
+/// <summary>Coercion of text value + type hint → typed JSON value for tweakdb_set.</summary>
 public class CoerceTweakValueTests
 {
     [Theory]
     [InlineData("5", "Int")]
-    [InlineData("42", null)]      // auto : entier
+    [InlineData("42", null)]      // auto: integer
     public void IntLikeBecomesLong(string value, string? type)
         => Assert.IsType<long>(LiveTools.CoerceTweakValue(value, type));
 
     [Theory]
     [InlineData("3.14", "Float")]
-    [InlineData("2.5", null)]     // auto : décimal
+    [InlineData("2.5", null)]     // auto: decimal
     public void FloatLikeBecomesDouble(string value, string? type)
         => Assert.IsType<double>(LiveTools.CoerceTweakValue(value, type));
 
     [Theory]
     [InlineData("true", "Bool")]
-    [InlineData("false", null)]   // auto : booléen
+    [InlineData("false", null)]   // auto: boolean
     public void BoolLikeBecomesBool(string value, string? type)
         => Assert.IsType<bool>(LiveTools.CoerceTweakValue(value, type));
 
     [Theory]
     [InlineData("Foo", "String")]
-    [InlineData("Items.Preset", "CName")] // CName reste une string (le Lua fait CName.new)
-    [InlineData("hello", null)]           // auto : non numérique → string
+    [InlineData("Items.Preset", "CName")] // CName stays a string (the Lua does CName.new)
+    [InlineData("hello", null)]           // auto: non-numeric → string
     public void StringLikeStaysString(string value, string? type)
         => Assert.IsType<string>(LiveTools.CoerceTweakValue(value, type));
 

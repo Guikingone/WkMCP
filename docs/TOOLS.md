@@ -1,891 +1,891 @@
-# Référence des outils — WolvenKit MCP
+# Tool reference — WolvenKit MCP
 
-Référence exhaustive des **outils**, **prompts** et **ressources** exposés par le serveur MCP WolvenKit pour le modding de Cyberpunk 2077.
+Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WolvenKit MCP server for Cyberpunk 2077 modding.
 
-> **Note sur le décompte.** Le serveur expose **88 outils MCP** (63 dans `WolvenKitTools.cs`, 25 dans `ModdingTools.cs`), **8 prompts** (`WolvenKitPrompts.cs`) et **4 ressources** (`WolvenKitResources.cs`) — chiffre confirmé par `tools/list`. L'aide-mémoire interne (ressource `wolvenkit://reference`) évoque encore « 53 » : c'est historique. S'y ajoutent **35 outils `live_*`** (pont live in-game, `LiveTools.cs`), documentés dans [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — soit **123 outils** au total.
+> **Note on the count.** The server exposes **88 MCP tools** (63 in `WolvenKitTools.cs`, 25 in `ModdingTools.cs`), **8 prompts** (`WolvenKitPrompts.cs`) and **4 resources** (`WolvenKitResources.cs`) — figure confirmed by `tools/list`. The internal cheat sheet (resource `wolvenkit://reference`) still mentions "53": that is historical. To this are added **35 `live_*` tools** (in-game live bridge, `LiveTools.cs`), documented in [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — that is **123 tools** in total.
 
-## Convention de résultat
+## Result convention
 
-Chaque outil renvoie un objet JSON structuré, typiquement :
+Each tool returns a structured JSON object, typically:
 
 ```json
 { "ok": true, "status": "success", "summary": "...", "produced": [], "warnings": [], "errors": [], "exitCode": 0, "log": "..." }
 ```
 
 - `status` ∈ `success` | `partial` | `error` | `timeout`.
-- Pour les outils **producteurs de fichiers**, le succès est jugé sur les fichiers réellement produits (`produced`), pas sur un marqueur de log.
-- Pour les outils **d'information**, le succès se fonde sur le code de sortie.
-- Le log volumineux est tronqué (tête + erreurs + queue, ~12 000 car.) ; de nombreux outils acceptent `verbose=true` pour récupérer le log complet.
-- En cas d'erreur de validation des arguments, `ok=false`, `status="error"`, `exitCode=-1`.
+- For **file-producing tools**, success is judged on the files actually produced (`produced`), not on a log marker.
+- For **information tools**, success is based on the exit code.
+- A large log is truncated (head + errors + tail, ~12,000 chars); many tools accept `verbose=true` to retrieve the full log.
+- On an argument validation error, `ok=false`, `status="error"`, `exitCode=-1`.
 
 ---
 
-## Live in-game (pont CETBridge)
+## Live in-game (CETBridge bridge)
 
-35 outils `live_*` pilotent un jeu **en cours d'exécution** (exécution Lua, lecture/écriture
-d'état, spawn, téléportation, météo, TweakDB en mémoire vive, observation d'événements).
-Documentés à part : voir **[LIVE_BRIDGE.md](LIVE_BRIDGE.md)**. Prérequis : jeu lancé + Cyber
-Engine Tweaks (+ RedSocket pour le transport TCP). Les outils ci-dessous sont, eux, **hors-ligne**.
+35 `live_*` tools drive a **running** game (Lua execution, state
+reading/writing, spawn, teleportation, weather, in-memory TweakDB, observing events).
+Documented separately: see **[LIVE_BRIDGE.md](LIVE_BRIDGE.md)**. Prerequisites: game running + Cyber
+Engine Tweaks (+ RedSocket for the TCP transport). The tools below are, themselves, **offline**.
 
 ---
 
-## 1. Diagnostic
+## 1. Diagnostics
 
 ### `wolvenkit_status`
-Vérifie que le CLI WolvenKit (cp77tools) est disponible et fonctionnel, et renvoie sa version + stats du cache LRU des listings d'archives (hits/misses) et métriques par verbe. À appeler en premier pour diagnostiquer l'installation.
+Verifies that the WolvenKit CLI (cp77tools) is available and functional, and returns its version + stats of the archive listings LRU cache (hits/misses) and per-verb metrics. To call first to diagnose the installation.
 
-_Aucun paramètre._
+_No parameters._
 
 ### `clear_cache`
-Vide manuellement les caches du serveur. Utile après des modifs hors-bande ou pour reset les stats avant un benchmark.
+Manually empties the server caches. Useful after out-of-band modifications or to reset the stats before a benchmark.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `scope` | string | non (défaut `archives`) | Portée à vider : `archives` \| `metrics` \| `all`. |
+| `scope` | string | no (default `archives`) | Scope to empty: `archives` \| `metrics` \| `all`. |
 
 ### `compute_hash`
-Calcule le hash FNV1a64 utilisé par REDengine pour chaque chaîne fournie (typiquement des chemins de fichiers de jeu).
+Computes the FNV1a64 hash used by REDengine for each provided string (typically game file paths).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `inputs` | string[] | oui | Une ou plusieurs chaînes à hacher. |
+| `inputs` | string[] | yes | One or more strings to hash. |
 
 ### `resolve_hash`
-Recherche inverse : retrouve le chemin de fichier de jeu correspondant à un hash FNV1a64. L'inverse de `compute_hash`.
+Reverse lookup: finds the game file path corresponding to an FNV1a64 hash. The inverse of `compute_hash`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `hashes` | string[] | oui | Un ou plusieurs hash FNV1a64 (entiers non signés). |
+| `hashes` | string[] | yes | One or more FNV1a64 hashes (unsigned integers). |
 
 ### `tweakdb_resolve`
-Recherche inverse d'identifiants TweakDB : un hash → le nom de l'identifiant. Utilise la base de noms TweakDB chargée au démarrage.
+Reverse lookup of TweakDB identifiers: a hash → the name of the identifier. Uses the TweakDB name database loaded at startup.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `hashes` | string[] | oui | Un ou plusieurs hash d'identifiant TweakDB (entiers non signés). |
+| `hashes` | string[] | yes | One or more TweakDB identifier hashes (unsigned integers). |
 
 ### `tweakdb_query`
-Interroge la TweakDB : charge un `tweakdb.bin` et liste les records et flats dont l'identifiant contient le filtre. Résultats plafonnés à 100 records + 100 flats.
+Queries the TweakDB: loads a `tweakdb.bin` and lists the records and flats whose identifier contains the filter. Results capped at 100 records + 100 flats.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakdbPath` | string | oui | Chemin d'un fichier `tweakdb.bin`. |
-| `filter` | string | non (défaut `""`) | Sous-chaîne à chercher dans les identifiants (vide = tout, 100 max). |
+| `tweakdbPath` | string | yes | Path of a `tweakdb.bin` file. |
+| `filter` | string | no (default `""`) | Substring to search in identifiers (empty = all, 100 max). |
 
 ---
 
-## 2. Lecture / inspection d'archives
+## 2. Archive reading / inspection
 
 ### `archive_info`
-Affiche les informations d'une archive `.archive` : nombre de fichiers et liste optionnelle filtrée. Listing servi par cache LRU.
+Displays the information of a `.archive`: number of files and an optional filtered list. Listing served by the LRU cache.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Chemin absolu du fichier `.archive`. |
-| `list` | bool | non (défaut `false`) | Lister le contenu (sinon résumé seulement). |
-| `pattern` | string? | non | Filtre glob optionnel sur les noms, ex. `*.mesh`. |
+| `archivePath` | string | yes | Absolute path of the `.archive` file. |
+| `list` | bool | no (default `false`) | List the content (otherwise summary only). |
+| `pattern` | string? | no | Optional glob filter on names, e.g. `*.mesh`. |
 
 ### `archive_stats`
-Donne la répartition du contenu d'une archive `.archive` par extension de fichier (combien de `.mesh`, `.ent`, `.xbm`, `.app`…). Vue d'ensemble rapide sans lister l'archive entière. Listing servi par le cache LRU. Renvoie `byExtension` (table extension → compte, triée), `categoryCount` (total réel de types) et `fileCount`.
+Gives the breakdown of an `.archive`'s content by file extension (how many `.mesh`, `.ent`, `.xbm`, `.app`…). A quick overview without listing the whole archive. Listing served by the LRU cache. Returns `byExtension` (extension → count table, sorted), `categoryCount` (real total of types) and `fileCount`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Chemin absolu du fichier `.archive`. |
-| `maxCategories` | int | non (défaut `100`) | Nombre max de catégories d'extension renvoyées ; `categoryCount` donne toujours le total réel. |
+| `archivePath` | string | yes | Absolute path of the `.archive` file. |
+| `maxCategories` | int | no (default `100`) | Max number of extension categories returned; `categoryCount` always gives the real total. |
 
 ### `find_in_archives`
-Recherche des fichiers à travers toutes les archives `.archive` d'un dossier. Indique dans quelle archive se trouve chaque fichier. Listings servis par cache LRU.
+Searches for files across all the `.archive` files of a folder. Indicates which archive each file is in. Listings served by the LRU cache.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivesFolder` | string | oui | Dossier contenant des archives `.archive`. |
-| `pattern` | string? | non* | Motif glob à rechercher, ex. `*player*.ent`. |
-| `regex` | string? | non* | Expression régulière (alternative au glob). |
+| `archivesFolder` | string | yes | Folder containing `.archive` files. |
+| `pattern` | string? | no* | Glob pattern to search, e.g. `*player*.ent`. |
+| `regex` | string? | no* | Regular expression (alternative to the glob). |
 
-\* Au moins l'un des deux (`pattern` ou `regex`) est requis.
+\* At least one of the two (`pattern` or `regex`) is required.
 
 ### `diff_archives`
-Compare deux archives `.archive` et liste les fichiers ajoutés (présents dans B seul) et supprimés (présents dans A seul). Calcule un vrai diff en croisant les deux listings.
+Compares two `.archive` files and lists the added files (present in B only) and removed files (present in A only). Computes a real diff by cross-referencing the two listings.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archiveA` | string | oui | Première archive (référence). |
-| `archiveB` | string | oui | Deuxième archive (à comparer). |
+| `archiveA` | string | yes | First archive (reference). |
+| `archiveB` | string | yes | Second archive (to compare). |
 
 ---
 
 ## 3. Extraction / uncook
 
 ### `extract_files`
-Extrait des fichiers d'une archive `.archive` vers un dossier. Filtrage optionnel par glob ou regex.
+Extracts files from an `.archive` into a folder. Optional filtering by glob or regex.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Chemin absolu du `.archive`. |
-| `outputPath` | string | oui | Dossier de destination. |
-| `pattern` | string? | non | Filtre glob optionnel, ex. `*.mesh`. |
-| `regex` | string? | non | Filtre regex optionnel. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `archivePath` | string | yes | Absolute path of the `.archive`. |
+| `outputPath` | string | yes | Destination folder. |
+| `pattern` | string? | no | Optional glob filter, e.g. `*.mesh`. |
+| `regex` | string? | no | Optional regex filter. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `uncook`
-Extrait **et** convertit en une passe (mesh → glTF, textures → image). Combine extraction et conversion.
+Extracts **and** converts in one pass (mesh → glTF, textures → image). Combines extraction and conversion.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Fichier `.archive` (ou dossier d'archives). |
-| `outputPath` | string | oui | Dossier de destination des fichiers convertis. |
-| `pattern` | string? | non | Filtre glob optionnel. |
-| `textureFormat` | string? | non | Format d'image : `png`, `dds`, `tga`, `bmp` ou `jpg`. |
-| `meshExportType` | string? | non | `MeshOnly`, `WithRig`, `Multimesh` (défaut `WithMaterials`). |
-| `meshExporterType` | string? | non | `Default`, `Experimental`, `REDmod`. |
-| `meshExportLodFilter` | bool | non (défaut `false`) | Filtre les LOD du mesh export. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `archivePath` | string | yes | `.archive` file (or folder of archives). |
+| `outputPath` | string | yes | Destination folder for the converted files. |
+| `pattern` | string? | no | Optional glob filter. |
+| `textureFormat` | string? | no | Image format: `png`, `dds`, `tga`, `bmp` or `jpg`. |
+| `meshExportType` | string? | no | `MeshOnly`, `WithRig`, `Multimesh` (default `WithMaterials`). |
+| `meshExporterType` | string? | no | `Default`, `Experimental`, `REDmod`. |
+| `meshExportLodFilter` | bool | no (default `false`) | Filters the mesh export LODs. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ---
 
 ## 4. Conversion
 
 ### `cr2w_to_json`
-Convertit des fichiers REDengine CR2W extraits (`.mesh`, `.ent`, `.app`...) en JSON lisible et éditable.
+Converts extracted REDengine CR2W files (`.mesh`, `.ent`, `.app`...) into readable and editable JSON.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | oui | Fichier CR2W ou dossier en contenant. |
-| `outputPath` | string | oui | Dossier de destination des JSON. |
+| `path` | string | yes | CR2W file or folder containing them. |
+| `outputPath` | string | yes | Destination folder for the JSON. |
 
 ### `json_to_cr2w`
-Reconvertit des fichiers JSON (produits par `cr2w_to_json`) en fichiers CR2W binaires.
+Reconverts JSON files (produced by `cr2w_to_json`) into binary CR2W files.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | oui | Fichier JSON ou dossier en contenant. |
-| `outputPath` | string | oui | Dossier de destination des CR2W. |
+| `path` | string | yes | JSON file or folder containing them. |
+| `outputPath` | string | yes | Destination folder for the CR2W. |
 
 ### `export_files`
-Exporte des fichiers REDengine extraits vers des formats raw (mesh → glTF, texture → image...).
+Exports extracted REDengine files to raw formats (mesh → glTF, texture → image...).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | oui | Fichier REDengine ou dossier en contenant. |
-| `outputPath` | string | oui | Dossier de destination des fichiers raw. |
-| `textureFormat` | string? | non | Format d'image : `png`, `dds`, `tga`, `bmp` ou `jpg`. |
+| `path` | string | yes | REDengine file or folder containing them. |
+| `outputPath` | string | yes | Destination folder for the raw files. |
+| `textureFormat` | string? | no | Image format: `png`, `dds`, `tga`, `bmp` or `jpg`. |
 
 ### `export_animation`
-Exporte une animation REDengine (`.anims`) vers glTF binaire (`.glb`). ⚠ Une `.anims` seule (sans son `.rig`) peut ne rien produire.
+Exports a REDengine animation (`.anims`) to binary glTF (`.glb`). ⚠ A `.anims` alone (without its `.rig`) may produce nothing.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | oui | Fichier `.anims` ou dossier en contenant. |
-| `outputPath` | string | oui | Dossier de destination des `.glb`. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `path` | string | yes | `.anims` file or folder containing them. |
+| `outputPath` | string | yes | Destination folder for the `.glb`. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `export_morphtarget`
-Exporte une morphtarget REDengine (`.morphtarget` — blendshapes) vers glTF binaire (`.glb`).
+Exports a REDengine morphtarget (`.morphtarget` — blendshapes) to binary glTF (`.glb`).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | oui | Fichier `.morphtarget` ou dossier en contenant. |
-| `outputPath` | string | oui | Dossier de destination des `.glb`. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `path` | string | yes | `.morphtarget` file or folder containing them. |
+| `outputPath` | string | yes | Destination folder for the `.glb`. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `export_mlmask`
-Exporte un masque multilayer REDengine (`.mlmask`) vers des images (une par couche).
+Exports a REDengine multilayer mask (`.mlmask`) to images (one per layer).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | oui | Fichier `.mlmask` ou dossier en contenant. |
-| `outputPath` | string | oui | Dossier de destination des images. |
-| `textureFormat` | string? | non | `png` (défaut), `dds`, `tga`, `bmp`, `jpg` ou `tiff`. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `path` | string | yes | `.mlmask` file or folder containing them. |
+| `outputPath` | string | yes | Destination folder for the images. |
+| `textureFormat` | string? | no | `png` (default), `dds`, `tga`, `bmp`, `jpg` or `tiff`. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ---
 
-## 5. Lecture / écriture directe d'un fichier de jeu
+## 5. Direct reading / writing of a game file
 
 ### `read_game_file`
-Lit un fichier de jeu en un appel : extrait de l'archive, convertit en JSON REDengine et renvoie son contenu. Le JSON complet est aussi écrit sur disque (`jsonFile`).
+Reads a game file in one call: extracts from the archive, converts to REDengine JSON and returns its content. The full JSON is also written to disk (`jsonFile`).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Archive contenant le fichier voulu. |
-| `gameFilePath` | string | oui | Chemin interne du fichier dans l'archive. |
+| `archivePath` | string | yes | Archive containing the desired file. |
+| `gameFilePath` | string | yes | Internal path of the file within the archive. |
 
 ### `write_game_file`
-Écrit un fichier de jeu édité : convertit un JSON (issu de `read_game_file`) en CR2W binaire, placé au bon chemin interne dans un dossier de mod.
+Writes an edited game file: converts a JSON (from `read_game_file`) into binary CR2W, placed at the correct internal path in a mod folder.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `jsonFile` | string | oui | Fichier JSON édité. |
-| `gameFilePath` | string | oui | Chemin interne visé dans le jeu. |
-| `modArchiveFolder` | string | oui | Dossier où placer le CR2W. |
+| `jsonFile` | string | yes | Edited JSON file. |
+| `gameFilePath` | string | yes | Target internal path in the game. |
+| `modArchiveFolder` | string | yes | Folder where to place the CR2W. |
 
 ---
 
-## 6. Inspection rapide (résumés sans conversion lourde)
+## 6. Quick inspection (summaries without heavy conversion)
 
 ### `inspect_mesh`
-Inspecte un `.mesh` et renvoie un résumé compact : LODs, sous-meshes, matériaux, bones. Bien plus léger qu'un `uncook` complet.
+Inspects a `.mesh` and returns a compact summary: LODs, sub-meshes, materials, bones. Much lighter than a full `uncook`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `meshFile` | string | oui | Fichier `.mesh` REDengine déjà extrait. |
+| `meshFile` | string | yes | Already-extracted REDengine `.mesh` file. |
 
 ### `inspect_texture`
-Inspecte un `.xbm` (texture) et renvoie ses métadonnées : résolution, format, compression, mipmaps, groupe de texture — sans conversion PNG/DDS.
+Inspects a `.xbm` (texture) and returns its metadata: resolution, format, compression, mipmaps, texture group — without PNG/DDS conversion.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `xbmFile` | string | oui | Fichier `.xbm` REDengine déjà extrait. |
+| `xbmFile` | string | yes | Already-extracted REDengine `.xbm` file. |
 
 ### `inspect_app`
-Résumé structurel d'un fichier `.app` : nombre d'apparences, et pour chacune le nombre de composants mesh et les meshes référencés ; total de meshes distincts. Vue d'ensemble rapide **avant** `validate_appearance` (qui, lui, résout et valide chaque `.mesh`). Léger : une seule conversion CR2W→JSON, sans résolution de mesh. Renvoie `appearanceCount`, `meshComponentCount`, `distinctMeshCount` et `appearances` (détail par apparence).
+Structural summary of a `.app` file: number of appearances, and for each the number of mesh components and the referenced meshes; total of distinct meshes. A quick overview **before** `validate_appearance` (which, itself, resolves and validates each `.mesh`). Lightweight: a single CR2W→JSON conversion, without mesh resolution. Returns `appearanceCount`, `meshComponentCount`, `distinctMeshCount` and `appearances` (per-appearance detail).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `appFile` | string | oui | Fichier `.app` extrait. |
-| `maxAppearances` | int | non (défaut `100`) | Nombre max d'apparences détaillées renvoyées ; `appearanceCount` donne toujours le total réel. |
+| `appFile` | string | yes | Extracted `.app` file. |
+| `maxAppearances` | int | no (default `100`) | Max number of detailed appearances returned; `appearanceCount` always gives the real total. |
 
 ---
 
 ## 7. TweakDB
 
 ### `describe_tweak_record`
-Pour un identifiant TweakDB (record), liste tous ses flats avec types et valeurs courantes. Indispensable avant d'éditer via `write_tweak`.
+For a TweakDB identifier (record), lists all its flats with types and current values. Indispensable before editing via `write_tweak`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakdbPath` | string | oui | Fichier `tweakdb.bin`. |
-| `recordId` | string | oui | Identifiant TweakDB du record. |
+| `tweakdbPath` | string | yes | `tweakdb.bin` file. |
+| `recordId` | string | yes | TweakDB identifier of the record. |
 
 ### `read_tweak`
-Lit un fichier `.tweak` (TweakXL — YAML) et renvoie son contenu en JSON éditable.
+Reads a `.tweak` file (TweakXL — YAML) and returns its content as editable JSON.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakFile` | string | oui | Fichier `.tweak` (TweakXL). |
+| `tweakFile` | string | yes | `.tweak` file (TweakXL). |
 
 ### `write_tweak`
-Reconvertit un JSON (issu de `read_tweak`) en fichier `.tweak` (YAML TweakXL).
+Reconverts a JSON (from `read_tweak`) into a `.tweak` file (YAML TweakXL).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `jsonFile` | string | oui | Fichier JSON édité. |
-| `outputTweakFile` | string | oui | Fichier `.tweak` à produire. |
+| `jsonFile` | string | yes | Edited JSON file. |
+| `outputTweakFile` | string | yes | `.tweak` file to produce. |
 
 ### `validate_tweak`
-Vérifie un `.tweak` contre une TweakDB : chaque clé doit exister (record/flat) sauf si elle déclare `$instanceOf`. Renvoie les clés inconnues.
+Verifies a `.tweak` against a TweakDB: each key must exist (record/flat) unless it declares `$instanceOf`. Returns the unknown keys.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakFile` | string | oui | Fichier `.tweak` à valider. |
-| `tweakdbBin` | string | oui | `tweakdb.bin` de référence. |
+| `tweakFile` | string | yes | `.tweak` file to validate. |
+| `tweakdbBin` | string | yes | Reference `tweakdb.bin`. |
 
 ### `install_tweak`
-Installe un `.tweak` dans `<jeu>/r6/tweaks/`. Pris en compte au prochain lancement (chargement à chaud).
+Installs a `.tweak` in `<game>/r6/tweaks/`. Taken into account at the next launch (hot loading).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakFile` | string | oui | Fichier `.tweak` à installer. |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `tweakFile` | string | yes | `.tweak` file to install. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `dump_records`
-Exporte tous les records TweakDB d'un type donné en JSON Lines (`.jsonl`) ou CSV — pour analyses de balance.
+Exports all TweakDB records of a given type to JSON Lines (`.jsonl`) or CSV — for balance analysis.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakdbPath` | string | oui | Fichier `tweakdb.bin`. |
-| `recordType` | string | oui | Nom complet du type CLR de record (ex. `gamedataWeaponItem_Record`). |
-| `outputFile` | string | oui | Fichier de sortie (`.jsonl` ou `.csv`). |
-| `format` | string | non (défaut `jsonl`) | `jsonl` ou `csv`. |
+| `tweakdbPath` | string | yes | `tweakdb.bin` file. |
+| `recordType` | string | yes | Full name of the record CLR type (e.g. `gamedataWeaponItem_Record`). |
+| `outputFile` | string | yes | Output file (`.jsonl` or `.csv`). |
+| `format` | string | no (default `jsonl`) | `jsonl` or `csv`. |
 
 ---
 
-## 8. Génération de templates (scaffolding)
+## 8. Template generation (scaffolding)
 
 ### `generate_redscript_template`
-Génère un `.reds` prêt à éditer depuis un catalogue de patterns : `add_method`, `wrap_method`, `replace_method`, `add_field`, `new_class`.
+Generates a `.reds` ready to edit from a catalog of patterns: `add_method`, `wrap_method`, `replace_method`, `add_field`, `new_class`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `pattern` | string | oui | `add_method` \| `wrap_method` \| `replace_method` \| `add_field` \| `new_class`. |
-| `parametersJson` | string | oui | Paramètres du template en JSON (selon le pattern). |
-| `outputFile` | string | oui | Fichier `.reds` à produire. |
+| `pattern` | string | yes | `add_method` \| `wrap_method` \| `replace_method` \| `add_field` \| `new_class`. |
+| `parametersJson` | string | yes | Template parameters as JSON (depending on the pattern). |
+| `outputFile` | string | yes | `.reds` file to produce. |
 
-**Clés de `parametersJson` selon le pattern :**
-- `add_method` / `replace_method` : `targetClass` (requis), `methodName` (requis), `args`, `returnType` (défaut `Void`), `body`.
-- `wrap_method` : `targetClass` (requis), `methodName` (requis), `args`, `returnType` (défaut `Void`).
-- `add_field` : `targetClass` (requis), `fieldName` (requis), `fieldType` (défaut `Int32`).
-- `new_class` : `className` (requis), `extends`, `moduleName`.
+**Keys of `parametersJson` depending on the pattern:**
+- `add_method` / `replace_method`: `targetClass` (required), `methodName` (required), `args`, `returnType` (default `Void`), `body`.
+- `wrap_method`: `targetClass` (required), `methodName` (required), `args`, `returnType` (default `Void`).
+- `add_field`: `targetClass` (required), `fieldName` (required), `fieldType` (default `Int32`).
+- `new_class`: `className` (required), `extends`, `moduleName`.
 
 ### `generate_tweak_template`
-Génère un `.tweak` (TweakXL — YAML) depuis un catalogue de patterns : `override_field`, `new_record`, `boost_stat`.
+Generates a `.tweak` (TweakXL — YAML) from a catalog of patterns: `override_field`, `new_record`, `boost_stat`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `pattern` | string | oui | `override_field` \| `new_record` \| `boost_stat`. |
-| `parametersJson` | string | oui | Paramètres du template en JSON (selon le pattern). |
-| `outputFile` | string | oui | Fichier `.tweak` à produire. |
+| `pattern` | string | yes | `override_field` \| `new_record` \| `boost_stat`. |
+| `parametersJson` | string | yes | Template parameters as JSON (depending on the pattern). |
+| `outputFile` | string | yes | `.tweak` file to produce. |
 
-**Clés de `parametersJson` selon le pattern :**
-- `override_field` : `recordId` (requis), `field` (requis), `value` (requis).
-- `new_record` : `newId` (requis), `baseId` (requis), `overrides` (sous-JSON `{field: value}`).
-- `boost_stat` : `recordId` (requis), `stat` (défaut `damage`), `value` (requis).
+**Keys of `parametersJson` depending on the pattern:**
+- `override_field`: `recordId` (required), `field` (required), `value` (required).
+- `new_record`: `newId` (required), `baseId` (required), `overrides` (sub-JSON `{field: value}`).
+- `boost_stat`: `recordId` (required), `stat` (default `damage`), `value` (required).
 
 ---
 
-## 9. Scripts REDscript (.reds)
+## 9. REDscript scripts (.reds)
 
 ### `read_script`
-Lit un fichier script (`.reds`, `.script`, `.swift`, `.redscript`) et renvoie son contenu + structure extraite par regex (func/class, annotations, module/import). Analyse textuelle uniquement.
+Reads a script file (`.reds`, `.script`, `.swift`, `.redscript`) and returns its content + structure extracted by regex (func/class, annotations, module/import). Textual analysis only.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `scriptFile` | string | oui | Fichier script. |
+| `scriptFile` | string | yes | Script file. |
 
 ### `lint_script`
-Analyse syntaxique via un vrai parser (tokenizer + descente récursive) : erreurs de syntaxe (ligne:colonne) + avertissements sémantiques (annotations bien placées, `@wrapMethod` appelant `wrappedMethod()`, doublons). Pas de vérification de types.
+Syntactic analysis via a real parser (tokenizer + recursive descent): syntax errors (line:column) + semantic warnings (well-placed annotations, `@wrapMethod` calling `wrappedMethod()`, duplicates). No type checking.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `scriptFile` | string | oui | Fichier script. |
+| `scriptFile` | string | yes | Script file. |
 
 ---
 
-## 10. Audio / compression bas niveau
+## 10. Audio / low-level compression
 
 ### `wwise_export`
-Convertit des fichiers audio Wwise WEM en OGG. Nécessite les binaires audio natifs (Windows). Conversions parallèles (jusqu'à 4).
+Converts Wwise WEM audio files to OGG. Requires the native audio binaries (Windows). Parallel conversions (up to 4).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | oui | Fichier `.wem` ou dossier en contenant. |
-| `outputPath` | string | oui | Dossier de destination des OGG. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `path` | string | yes | `.wem` file or folder containing them. |
+| `outputPath` | string | yes | Destination folder for the OGG. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `extract_audio`
-Extrait l'audio voix-off (opus) d'une archive vocale (typiquement `lang_xx_voice.archive`). Par défaut tout extraire.
+Extracts the voice-over audio (opus) from a voice archive (typically `lang_xx_voice.archive`). By default extracts everything.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Archive vocale `.archive`. |
-| `outputPath` | string | oui | Dossier de destination. |
-| `opusHashes` | string? | non | Hashes opus précis (uint séparés par virgules). Vide = tout. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `archivePath` | string | yes | Voice `.archive`. |
+| `outputPath` | string | yes | Destination folder. |
+| `opusHashes` | string? | no | Specific opus hashes (uint comma-separated). Empty = all. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `import_audio`
-Importe des WAV (nommés par hash opus) en `.opus` repacké dans un dossier de mod — remplacement de voix-off. ⚠ EXPÉRIMENTAL.
+Imports WAVs (named by opus hash) into repacked `.opus` in a mod folder — voice-over replacement. ⚠ EXPERIMENTAL.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077 (ou chemin du `.exe`). |
-| `wavFolder` | string | oui | Dossier des `.wav` (noms = hashes opus). |
-| `outputPath` | string | oui | Dossier de sortie du mod. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077 (or path of the `.exe`). |
+| `wavFolder` | string | yes | Folder of the `.wav` (names = opus hashes). |
+| `outputPath` | string | yes | Mod output folder. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `loc_resolve`
-Résout une clé de localisation (LocKey : hash uint64 ou clé secondaire texte) en son texte localisé. ⚠ EXPÉRIMENTAL (charge les archives du jeu).
+Resolves a localization key (LocKey: uint64 hash or secondary text key) into its localized text. ⚠ EXPERIMENTAL (loads the game archives).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077 (ou chemin du `.exe`). |
-| `key` | string | oui | Clé à résoudre : hash uint64 ou clé secondaire texte. |
-| `language` | string? | non (défaut `en_us`) | Code REDengine : `en_us`, `fr_fr`, `de_de`, `jp_jp`... |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077 (or path of the `.exe`). |
+| `key` | string | yes | Key to resolve: uint64 hash or secondary text key. |
+| `language` | string? | no (default `en_us`) | REDengine code: `en_us`, `fr_fr`, `de_de`, `jp_jp`... |
 
 ### `oodle_compress`
-Compresse un fichier avec le codec Oodle Kraken.
+Compresses a file with the Oodle Kraken codec.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `inputPath` | string | oui | Fichier d'entrée. |
-| `outputPath` | string | oui | Fichier de sortie compressé. |
+| `inputPath` | string | yes | Input file. |
+| `outputPath` | string | yes | Compressed output file. |
 
 ### `oodle_decompress`
-Décompresse un fichier compressé Oodle Kraken.
+Decompresses an Oodle Kraken compressed file.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `inputPath` | string | oui | Fichier d'entrée compressé. |
-| `outputPath` | string | oui | Fichier de sortie décompressé. |
+| `inputPath` | string | yes | Compressed input file. |
+| `outputPath` | string | yes | Decompressed output file. |
 
 ---
 
-## 11. Localisation
+## 11. Localization
 
 ### `extract_localization`
-Extrait d'une `tweakdb.bin` tous les champs traduisibles des records (displayName, etc.) — base pour un mod de traduction UI. Sortie JSON `{recordId: {field: value}}`.
+Extracts from a `tweakdb.bin` all the translatable fields of the records (displayName, etc.) — base for a UI translation mod. JSON output `{recordId: {field: value}}`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakdbPath` | string | oui | Fichier `tweakdb.bin`. |
-| `outputJson` | string | oui | Fichier JSON de sortie. |
-| `filter` | string? | non | Sous-chaîne à chercher dans les recordId (ex. `Items.`). |
+| `tweakdbPath` | string | yes | `tweakdb.bin` file. |
+| `outputJson` | string | yes | Output JSON file. |
+| `filter` | string? | no | Substring to search in the recordId (e.g. `Items.`). |
 
 ### `build_localization`
-Construit un `.tweak` (TweakXL) qui surcharge displayName/localizedDescription depuis un JSON de traductions (issu d'`extract_localization` puis édité).
+Builds a `.tweak` (TweakXL) that overrides displayName/localizedDescription from a translations JSON (from `extract_localization` then edited).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `translationsJson` | string | oui | JSON des traductions. |
-| `outputTweak` | string | oui | Fichier `.tweak` à produire. |
-| `lang` | string | non (défaut `fr-fr`) | Code langue (informatif, en commentaire). |
+| `translationsJson` | string | yes | Translations JSON. |
+| `outputTweak` | string | yes | `.tweak` file to produce. |
+| `lang` | string | no (default `fr-fr`) | Language code (informative, in a comment). |
 
 ---
 
-## 12. Écriture / empaquetage de mods
+## 12. Mod writing / packing
 
 ### `pack_archive`
-Empaquette un dossier de ressources REDengine en archive `.archive` (compression Kraken).
+Packs a folder of REDengine resources into a `.archive` (Kraken compression).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `folderPath` | string | oui | Dossier des ressources à empaqueter. |
-| `outputPath` | string | oui | Dossier de destination de l'archive. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `folderPath` | string | yes | Folder of the resources to pack. |
+| `outputPath` | string | yes | Destination folder for the archive. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `import_raw`
-Importe des fichiers raw (textures, meshes glTF...) en CR2W REDengine, prêts à être empaquetés.
+Imports raw files (textures, glTF meshes...) into REDengine CR2W, ready to be packed.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | oui | Fichier raw ou dossier en contenant. |
-| `outputPath` | string | oui | Dossier de destination des fichiers REDengine. |
-| `verbose` | bool | non (défaut `false`) | Renvoie le log complet (debug). |
+| `path` | string | yes | Raw file or folder containing them. |
+| `outputPath` | string | yes | Destination folder for the REDengine files. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `build_project`
-Compile les projets WolvenKit (`.cpmodproj`) trouvés dans le dossier donné.
+Compiles the WolvenKit projects (`.cpmodproj`) found in the given folder.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `projectFolder` | string | oui | Dossier contenant un ou plusieurs `.cpmodproj`. |
+| `projectFolder` | string | yes | Folder containing one or more `.cpmodproj`. |
 
 ### `create_mod_project`
-Crée la structure d'un projet de mod WolvenKit (source/archive, source/raw, source/resources, source/customSounds, packed) + un `<modName>.cpmodproj`.
+Creates the structure of a WolvenKit mod project (source/archive, source/raw, source/resources, source/customSounds, packed) + a `<modName>.cpmodproj`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `parentFolder` | string | oui | Dossier parent où créer le projet. |
-| `modName` | string | oui | Nom du mod / du projet. |
-| `author` | string? | non | Auteur du mod. |
-| `version` | string? | non | Version (ex. 1.0.0). |
-| `description` | string? | non | Description du mod. |
+| `parentFolder` | string | yes | Parent folder where to create the project. |
+| `modName` | string | yes | Mod / project name. |
+| `author` | string? | no | Mod author. |
+| `version` | string? | no | Version (e.g. 1.0.0). |
+| `description` | string? | no | Mod description. |
 
 ### `generate_modproj`
-Génère un `.cpmodproj` dans un dossier de projet EXISTANT, pour le rendre compilable par `build_project`.
+Generates a `.cpmodproj` in an EXISTING project folder, to make it compilable by `build_project`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `projectFolder` | string | oui | Dossier racine du projet. |
-| `modName` | string | oui | Nom du mod / du projet. |
-| `author` | string? | non | Auteur. |
-| `version` | string? | non | Version (ex. 1.0.0). |
-| `description` | string? | non | Description. |
-| `overwrite` | bool | non (défaut `false`) | Écraser un `.cpmodproj` existant. |
+| `projectFolder` | string | yes | Project root folder. |
+| `modName` | string | yes | Mod / project name. |
+| `author` | string? | no | Author. |
+| `version` | string? | no | Version (e.g. 1.0.0). |
+| `description` | string? | no | Description. |
+| `overwrite` | bool | no (default `false`) | Overwrite an existing `.cpmodproj`. |
 
 ### `lint_mod`
-Vérifie un mod `.archive` avant installation : extensions non reconnues par REDengine + conflits avec mods installés (si `gamePath`).
+Verifies a `.archive` mod before installation: extensions not recognized by REDengine + conflicts with installed mods (if `gamePath`).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Archive `.archive` du mod. |
-| `gamePath` | string? | non | Racine du jeu (active la détection de conflits). |
+| `archivePath` | string | yes | Mod `.archive`. |
+| `gamePath` | string? | no | Game root (enables conflict detection). |
 
 ### `mod_summary`
-Synthèse compacte de ce qu'un mod fait. Accepte un `.archive` (résumé par extension) ou un dossier REDmod (parse info.json, énumère sous-dossiers, extrait clés `.tweak` et déclarations `.reds`).
+Compact synthesis of what a mod does. Accepts a `.archive` (summary by extension) or a REDmod folder (parses info.json, enumerates subfolders, extracts `.tweak` keys and `.reds` declarations).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modPath` | string | oui | `.archive` OU dossier REDmod (avec info.json). |
+| `modPath` | string | yes | `.archive` OR REDmod folder (with info.json). |
 
 ---
 
 ## 13. REDmod (post-1.6)
 
 ### `create_redmod_project`
-Crée un projet REDmod : `mods/<nom>/info.json` + sous-dossiers `archives/`, `scripts/`, `tweaks/`, `customSounds/`.
+Creates a REDmod project: `mods/<name>/info.json` + subfolders `archives/`, `scripts/`, `tweaks/`, `customSounds/`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `parentFolder` | string | oui | Dossier parent. |
-| `modName` | string | oui | Nom du REDmod (sous-dossier). |
-| `description` | string | non (défaut `""`) | Description visible dans le launcher. |
-| `version` | string | non (défaut `1.0.0`) | Version sémantique. |
+| `parentFolder` | string | yes | Parent folder. |
+| `modName` | string | yes | REDmod name (subfolder). |
+| `description` | string | no (default `""`) | Description shown in the launcher. |
+| `version` | string | no (default `1.0.0`) | Semantic version. |
 
 ### `pack_redmod`
-Empaquette un projet REDmod en `.zip` pour distribution. Valide la présence d'`info.json`.
+Packs a REDmod project into a `.zip` for distribution. Validates the presence of `info.json`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modSourceFolder` | string | oui | Dossier source du REDmod (avec info.json). |
-| `outputPath` | string | oui | Dossier de destination du `.zip`. |
+| `modSourceFolder` | string | yes | REDmod source folder (with info.json). |
+| `outputPath` | string | yes | Destination folder for the `.zip`. |
 
 ### `validate_redmod`
-Valide le `info.json` d'un projet REDmod : champs requis `name` / `version` (+ format numérique), et cohérence des entrées `customSounds` (chaque entrée doit avoir `name` + `type` ; un `file` est requis sauf pour le type `mod_skip`, et il doit exister dans `customSounds/`). Les autres outils REDmod ne vérifient que la **présence** du `info.json`, jamais son contenu. Complète `validate_xl` / `validate_tweak` / `validate_item_mod`. `status` = `error` / `partial` / `success`.
+Validates the `info.json` of a REDmod project: required fields `name` / `version` (+ numeric format), and consistency of the `customSounds` entries (each entry must have `name` + `type`; a `file` is required except for the `mod_skip` type, and it must exist in `customSounds/`). The other REDmod tools only check the **presence** of the `info.json`, never its content. Complements `validate_xl` / `validate_tweak` / `validate_item_mod`. `status` = `error` / `partial` / `success`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modPath` | string | oui | Dossier racine du REDmod (contenant `info.json`) ou chemin direct vers le `info.json`. |
+| `modPath` | string | yes | REDmod root folder (containing `info.json`) or direct path to the `info.json`. |
 
 ### `install_redmod`
-Installe un projet REDmod : copie récursive vers `<jeu>/mods/<nom>/`.
+Installs a REDmod project: recursive copy to `<game>/mods/<name>/`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modSourceFolder` | string | oui | Dossier source du REDmod (avec info.json). |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `modSourceFolder` | string | yes | REDmod source folder (with info.json). |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `deploy_redmod`
-Exécute `<jeu>/tools/redmod/bin/redMod.exe deploy` — active les REDmods installés (compile scripts + applique tweaks). Timeout 5 min.
+Runs `<game>/tools/redmod/bin/redMod.exe deploy` — activates the installed REDmods (compiles scripts + applies tweaks). Timeout 5 min.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ---
 
-## 14. Installation / désinstallation
+## 14. Installation / uninstallation
 
 ### `install_mod`
-Installe un mod : copie une `.archive` dans `<jeu>/archive/pc/mod/`.
+Installs a mod: copies a `.archive` into `<game>/archive/pc/mod/`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Archive `.archive` du mod. |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `archivePath` | string | yes | Mod `.archive`. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `uninstall_mod`
-Désinstalle un mod : retire une `.archive` de `<jeu>/archive/pc/mod/`. Garde-fou : refuse hors du dossier mod.
+Uninstalls a mod: removes a `.archive` from `<game>/archive/pc/mod/`. Safeguard: refuses outside the mod folder.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePathOrName` | string | oui | Chemin absolu OU nom du fichier `.archive`. |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `archivePathOrName` | string | yes | Absolute path OR name of the `.archive` file. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `uninstall_redmod`
-Désinstalle un REDmod : supprime récursivement `<jeu>/mods/<modName>/`. Garde-fou : refuse hors de `mods/`.
+Uninstalls a REDmod: recursively deletes `<game>/mods/<modName>/`. Safeguard: refuses outside `mods/`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modName` | string | oui | Nom du REDmod (sous-dossier sous mods/). |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `modName` | string | yes | REDmod name (subfolder under mods/). |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `uninstall_tweak`
-Désinstalle un `.tweak` : supprime `<jeu>/r6/tweaks/<tweakName>`. Garde-fou : refuse hors de `r6/tweaks/`.
+Uninstalls a `.tweak`: deletes `<game>/r6/tweaks/<tweakName>`. Safeguard: refuses outside `r6/tweaks/`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakName` | string | oui | Nom du fichier `.tweak`. |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `tweakName` | string | yes | Name of the `.tweak` file. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `list_installed_mods`
-Liste les mods installés : `.archive` dans `archive/pc/mod` et REDmods dans `mods/`.
+Lists the installed mods: `.archive` in `archive/pc/mod` and REDmods in `mods/`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `detect_conflicts`
-Détecte les conflits entre mods installés (un même fichier fourni par plusieurs mods). Sortie JSON structurée.
+Detects conflicts between installed mods (the same file provided by several mods). Structured JSON output.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ---
 
-## 15. Sécurité (backup / restore)
+## 15. Safety (backup / restore)
 
 ### `backup_mods`
-Sauvegarde l'état des mods (`archive/pc/mod/`, `mods/`, `r6/tweaks/`) dans un `.zip` horodaté.
+Saves the state of the mods (`archive/pc/mod/`, `mods/`, `r6/tweaks/`) into a timestamped `.zip`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
-| `outputDir` | string | oui | Dossier où déposer le `.zip`. |
-| `backupName` | string? | non | Nom du ZIP (défaut `wkmcp-mods-backup-<YYYYMMDD-HHmmss>.zip`). |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+| `outputDir` | string | yes | Folder where to drop the `.zip`. |
+| `backupName` | string? | no | ZIP name (default `wkmcp-mods-backup-<YYYYMMDD-HHmmss>.zip`). |
 
 ### `restore_mods`
-Restaure un backup. Mode `merge` (par-dessus l'existant) ou `replace` (vide d'abord les dossiers cibles — destructeur).
+Restores a backup. Mode `merge` (over the existing) or `replace` (empties the target folders first — destructive).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `backupZip` | string | oui | ZIP de backup à restaurer. |
-| `gamePath` | string | oui | Dossier racine cible de Cyberpunk 2077. |
-| `mode` | string | non (défaut `merge`) | `merge` \| `replace`. |
+| `backupZip` | string | yes | Backup ZIP to restore. |
+| `gamePath` | string | yes | Target root folder of Cyberpunk 2077. |
+| `mode` | string | no (default `merge`) | `merge` \| `replace`. |
 
 ---
 
-## 16. In-game (lancement / logs)
+## 16. In-game (launch / logs)
 
 ### `launch_game`
-⚠ Lance Cyberpunk 2077 (`bin/x64/Cyberpunk2077.exe`). Si `deployRedmod=true`, exécute d'abord `redMod.exe deploy`. Le jeu est lancé détaché.
+⚠ Launches Cyberpunk 2077 (`bin/x64/Cyberpunk2077.exe`). If `deployRedmod=true`, runs `redMod.exe deploy` first. The game is launched detached.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
-| `deployRedmod` | bool | non (défaut `true`) | Lance `redMod.exe deploy` avant. |
-| `extraArgs` | string? | non | Arguments supplémentaires passés à l'exe. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+| `deployRedmod` | bool | no (default `true`) | Runs `redMod.exe deploy` first. |
+| `extraArgs` | string? | no | Additional arguments passed to the exe. |
 
 ### `tail_game_logs`
-Lit la queue des logs : `game` (r6/logs sauf redscript), `redmod` (tools/redmod/logs), `redscript` (r6/logs *redscript*), `all`. Filtre substring optionnel.
+Reads the tail of the logs: `game` (r6/logs except redscript), `redmod` (tools/redmod/logs), `redscript` (r6/logs *redscript*), `all`. Optional substring filter.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
-| `log` | string | non (défaut `game`) | `game` \| `redmod` \| `redscript` \| `all`. |
-| `lines` | int | non (défaut `200`) | Nombre de lignes à renvoyer. |
-| `filter` | string? | non | Filtre substring (insensible à la casse). |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+| `log` | string | no (default `game`) | `game` \| `redmod` \| `redscript` \| `all`. |
+| `lines` | int | no (default `200`) | Number of lines to return. |
+| `filter` | string? | no | Substring filter (case-insensitive). |
 
 ---
 
-## 17. Intelligence / workflow (haut niveau — `ModdingTools`)
+## 17. Intelligence / workflow (high level — `ModdingTools`)
 
 ### `analyze_dependencies`
-Analyse un dossier de mod et déduit ses frameworks/dépendances requis (redscript, RED4ext, ArchiveXL, TweakXL, Codeware, Audioware, Mod Settings, CET...) en lisant imports REDscript, `.xl`, `.tweak`, types de fichiers. Si `gamePath` fourni : indique installé/manquant.
+Analyzes a mod folder and deduces its required frameworks/dependencies (redscript, RED4ext, ArchiveXL, TweakXL, Codeware, Audioware, Mod Settings, CET...) by reading REDscript imports, `.xl`, `.tweak`, file types. If `gamePath` provided: indicates installed/missing.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modPath` | string | oui | Dossier du mod à analyser. |
-| `gamePath` | string? | non | Racine du jeu, pour vérifier les dépendances installées. |
+| `modPath` | string | yes | Mod folder to analyze. |
+| `gamePath` | string? | no | Game root, to check the installed dependencies. |
 
 ### `check_requirements`
-Inventorie les frameworks de modding INSTALLÉS dans une installation Cyberpunk 2077, avec version si détectable.
+Inventories the modding frameworks INSTALLED in a Cyberpunk 2077 installation, with version if detectable.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `mod_doctor`
-Diagnostic de santé d'une installation moddée en un appel : frameworks installés/manquants, dépendances requises mais absentes, conflits d'archives, inventaire des mods + recommandations.
+Health diagnostic of a modded installation in one call: installed/missing frameworks, required but absent dependencies, archive conflicts, mod inventory + recommendations.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `validate_xl`
-Valide un fichier ArchiveXL `.xl` (YAML) : YAML bien formé + sections de premier niveau reconnues (`customSounds`, `resource`, `factories`, `localization`, `animations`).
+Validates an ArchiveXL `.xl` file (YAML): well-formed YAML + recognized top-level sections (`customSounds`, `resource`, `factories`, `localization`, `animations`).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `xlFile` | string | oui | Fichier `.xl` à valider. |
+| `xlFile` | string | yes | `.xl` file to validate. |
 
 ### `scaffold_archivexl`
-Génère un `.xl` ArchiveXL de départ (YAML commenté) selon le type : `factory`, `customSounds`, `localization`, `resource`.
+Generates a starter ArchiveXL `.xl` (commented YAML) depending on the type: `factory`, `customSounds`, `localization`, `resource`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `outputFolder` | string | oui | Dossier de destination du `.xl`. |
-| `modName` | string | oui | Nom du mod (= nom de fichier `<nom>.xl`). |
-| `kind` | string | non (défaut `factory`) | `factory` \| `customSounds` \| `localization` \| `resource`. |
+| `outputFolder` | string | yes | Destination folder for the `.xl`. |
+| `modName` | string | yes | Mod name (= file name `<name>.xl`). |
+| `kind` | string | no (default `factory`) | `factory` \| `customSounds` \| `localization` \| `resource`. |
 
 ### `find_references`
-Recherche toutes les références textuelles à une cible dans les fichiers source d'un dossier (`.reds`, `.tweak`, `.yaml`, `.xl`, `.lua`, `.json`, `.csv`). Renvoie fichier:ligne + extrait.
+Searches for all textual references to a target in the source files of a folder (`.reds`, `.tweak`, `.yaml`, `.xl`, `.lua`, `.json`, `.csv`). Returns file:line + excerpt.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `target` | string | oui | Chaîne à rechercher (sous-chaîne). |
-| `searchFolder` | string | oui | Dossier à parcourir. |
-| `maxResults` | int | non (défaut `200`) | Nombre max de correspondances. |
-| `caseSensitive` | bool | non (défaut `false`) | Recherche sensible à la casse. |
+| `target` | string | yes | String to search (substring). |
+| `searchFolder` | string | yes | Folder to traverse. |
+| `maxResults` | int | no (default `200`) | Max number of matches. |
+| `caseSensitive` | bool | no (default `false`) | Case-sensitive search. |
 
 ### `diff_mod_vs_base`
-Diff sémantique d'UN fichier de jeu surchargé par un mod, contre sa version de base : extrait des deux côtés, convertit en JSON, compare les champs (ajoutés/supprimés/modifiés).
+Semantic diff of ONE game file overridden by a mod, against its base version: extracts from both sides, converts to JSON, compares the fields (added/removed/changed).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modArchive` | string | oui | Archive `.archive` du mod. |
-| `gameFilePath` | string | oui | Chemin interne du fichier. |
-| `gamePath` | string | oui | Racine du jeu (localiser la base dans archive/pc/content). |
-| `baseArchive` | string? | non | Archive de base précise (court-circuite la recherche). |
+| `modArchive` | string | yes | Mod `.archive`. |
+| `gameFilePath` | string | yes | Internal path of the file. |
+| `gamePath` | string | yes | Game root (to locate the base in archive/pc/content). |
+| `baseArchive` | string? | no | Specific base archive (short-circuits the search). |
 
 ### `scaffold_mod`
-Crée en un appel un squelette de mod fonctionnel selon son type : `archive`, `redscript`, `tweak`, `redmod`. Écrit aussi un `MOD_MANIFEST.json`.
+Creates a functional mod skeleton in one call depending on its type: `archive`, `redscript`, `tweak`, `redmod`. Also writes a `MOD_MANIFEST.json`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `parentFolder` | string | oui | Dossier parent. |
-| `modName` | string | oui | Nom du mod. |
-| `kind` | string | non (défaut `archive`) | `archive` \| `redscript` \| `tweak` \| `redmod`. |
-| `author` | string? | non | Auteur. |
-| `version` | string? | non | Version (ex. 1.0.0). |
-| `dependencies` | string? | non | Dépendances déclarées, séparées par des virgules. |
+| `parentFolder` | string | yes | Parent folder. |
+| `modName` | string | yes | Mod name. |
+| `kind` | string | no (default `archive`) | `archive` \| `redscript` \| `tweak` \| `redmod`. |
+| `author` | string? | no | Author. |
+| `version` | string? | no | Version (e.g. 1.0.0). |
+| `dependencies` | string? | no | Declared dependencies, comma-separated. |
 
 ### `package_mod`
-Empaquette un dossier au layout relatif au jeu (archive/pc/mod, r6/scripts, r6/tweaks, mods/, red4ext/...) en un `.zip` distribuable (séparateurs `/`).
+Packs a folder at the game-relative layout (archive/pc/mod, r6/scripts, r6/tweaks, mods/, red4ext/...) into a distributable `.zip` (`/` separators).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `sourceFolder` | string | oui | Dossier source au layout jeu. |
-| `outputZip` | string | oui | Chemin du `.zip` de sortie. |
+| `sourceFolder` | string | yes | Source folder at the game layout. |
+| `outputZip` | string | yes | Path of the output `.zip`. |
 
-## 18. Journal de quêtes/codex (`.journal`)
+## 18. Quest/codex journal (`.journal`)
 
-Le `.journal` est un CR2W éditable via `read_game_file`/`write_game_file`, mais son JSON pèse ~70 Mo (28 000+ entrées). Ces outils le rendent navigable.
+The `.journal` is a CR2W editable via `read_game_file`/`write_game_file`, but its JSON weighs ~70 MB (28,000+ entries). These tools make it navigable.
 
 ### `inspect_journal`
-Résumé navigable d'un `.journal` converti en JSON : nombre total d'entrées, profondeur, répartition par `$type`, catégories de premier niveau. Évite de charger les ~70 Mo.
+Navigable summary of a `.journal` converted to JSON: total number of entries, depth, breakdown by `$type`, top-level categories. Avoids loading the ~70 MB.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `jsonFile` | string | oui | JSON produit par `read_game_file` sur un `.journal`. |
+| `jsonFile` | string | yes | JSON produced by `read_game_file` on a `.journal`. |
 
 ### `find_journal_entry`
-Localise des entrées par `id`, `type` ou `title` et renvoie le **chemin JSON exact** de chacune (ex. `Data.RootChunk.entry.Data.entries[2].Data.entries[7].Data`) — pour éditer l'entrée ciblée puis réécrire via `write_game_file`.
+Locates entries by `id`, `type` or `title` and returns the **exact JSON path** of each (e.g. `Data.RootChunk.entry.Data.entries[2].Data.entries[7].Data`) — to edit the targeted entry then rewrite via `write_game_file`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `jsonFile` | string | oui | JSON produit par `read_game_file` sur un `.journal`. |
-| `query` | string | oui | Valeur à rechercher (sous-chaîne, insensible à la casse). |
-| `field` | string | non (défaut `id`) | Champ ciblé : `id` \| `type` \| `title`. |
-| `maxResults` | int | non (défaut 100) | Nombre max de correspondances. |
+| `jsonFile` | string | yes | JSON produced by `read_game_file` on a `.journal`. |
+| `query` | string | yes | Value to search (substring, case-insensitive). |
+| `field` | string | no (default `id`) | Targeted field: `id` \| `type` \| `title`. |
+| `maxResults` | int | no (default 100) | Max number of matches. |
 
-## 19. Navigation CR2W générique, diagnostic & conflits
+## 19. Generic CR2W navigation, diagnostics & conflicts
 
 ### `inspect_cr2w`
-Résumé navigable de N'IMPORTE quel CR2W en JSON : type racine, objets par `$type`, profondeur. Pour les gros fichiers (quêtes, scènes, secteurs, UI).
+Navigable summary of ANY CR2W in JSON: root type, objects per `$type`, depth. For large files (quests, scenes, sectors, UI).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `jsonFile` | string | oui | JSON produit par `read_game_file` / `cr2w_to_json`. |
+| `jsonFile` | string | yes | JSON produced by `read_game_file` / `cr2w_to_json`. |
 
 ### `find_in_cr2w`
-Cherche dans un CR2W (JSON) les objets dont un champ correspond → **chemin JSON exact**.
+Searches in a CR2W (JSON) for objects whose field matches → **exact JSON path**.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `jsonFile` | string | oui | JSON produit par `read_game_file` / `cr2w_to_json`. |
-| `query` | string | oui | Sous-chaîne (insensible à la casse). |
-| `field` | string | non (défaut `$type`) | `$type`, un nom de propriété, ou `*` (toute valeur texte). |
-| `maxResults` | int | non (défaut 100) | Max de correspondances. |
+| `jsonFile` | string | yes | JSON produced by `read_game_file` / `cr2w_to_json`. |
+| `query` | string | yes | Substring (case-insensitive). |
+| `field` | string | no (default `$type`) | `$type`, a property name, or `*` (any text value). |
+| `maxResults` | int | no (default 100) | Max matches. |
 
 ### `diagnose_logs`
-Parse les 6 logs de modding (redscript/RED4ext/ArchiveXL/TweakXL/Codeware/CET/REDmod), extrait/classe les erreurs et mappe les erreurs connues → correctif.
+Parses the 6 modding logs (redscript/RED4ext/ArchiveXL/TweakXL/Codeware/CET/REDmod), extracts/classifies the errors and maps known errors → fix.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
-| `maxPerSource` | int | non (défaut 30) | Max de lignes d'erreur par source. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+| `maxPerSource` | int | no (default 30) | Max error lines per source. |
 
 ### `analyze_conflicts`
-Conflits robustes (sans le verbe WolvenKit buggé) : fichiers fournis par plusieurs `.archive` (+ qui gagne) et records définis par plusieurs `.tweak`.
+Robust conflicts (without the buggy WolvenKit verb): files provided by several `.archive` (+ who wins) and records defined by several `.tweak`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
-| `maxResults` | int | non (défaut 200) | Max de conflits par catégorie. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+| `maxResults` | int | no (default 200) | Max conflicts per category. |
 
 ### `validate_item_mod`
-Valide la chaîne de références d'un mod d'item ArchiveXL : `.yaml`(entityName)↔`.csv`, displayName↔`.json secondaryKey`, présence `.ent`.
+Validates the reference chain of an ArchiveXL item mod: `.yaml`(entityName)↔`.csv`, displayName↔`.json secondaryKey`, presence of `.ent`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modPath` | string | oui | Dossier du mod (.yaml/.xl/.csv/.json). |
-| `deep` | bool | non (défaut false) | Convertit le `.ent` et vérifie l'appearanceName. |
+| `modPath` | string | yes | Mod folder (.yaml/.xl/.csv/.json). |
+| `deep` | bool | no (default false) | Converts the `.ent` and checks the appearanceName. |
 
-## 20. Création / maintenance avancées
+## 20. Advanced creation / maintenance
 
 ### `lint_tweak`
-Lint sémantique TweakXL : tabs interdits, indentation, records en double, `inlineN` comme `$base`. — `tweakFile` (requis).
+TweakXL semantic lint: tabs forbidden, indentation, duplicate records, `inlineN` as `$base`. — `tweakFile` (required).
 
 ### `generate_manifest`
-Manifeste de dépendances + `REQUIREMENTS.md`. — `modPath` (requis), `modName`/`version` (opt), `writeFile` (défaut true).
+Dependency manifest + `REQUIREMENTS.md`. — `modPath` (required), `modName`/`version` (opt), `writeFile` (default true).
 
 ### `resolve_dynamic_appearance`
-Développe un pattern d'apparence dynamique ArchiveXL (`{gender}`/`{camera}`). — `pattern` (requis), `modPath` (opt, vérif d'existence).
+Expands a dynamic ArchiveXL appearance pattern (`{gender}`/`{camera}`). — `pattern` (required), `modPath` (opt, existence check).
 
 ### `migration_check`
-Le mod surcharge-t-il encore la version actuelle du jeu ? — `modArchive` + `gamePath` (requis), `maxResults` (défaut 100).
+Does the mod still override the current game version? — `modArchive` + `gamePath` (required), `maxResults` (default 100).
 
 ### `toggle_mods`
-Active/désactive des `.archive` (réversible, vers `_disabled`) — bissection. — `gamePath` (requis), `archives` (opt, vide = lister), `enable` (défaut false).
+Enables/disables `.archive` files (reversible, to `_disabled`) — bisection. — `gamePath` (required), `archives` (opt, empty = list), `enable` (default false).
 
 ### `export_entity` / `export_materials`
-Apparence d'entité `.ent` → glTF / matériaux d'un `.mesh` → JSON+textures (`IModTools`). Voir §4. — `entFile`/`meshFile` + `outputPath` (requis), `appearance`/`gamePath` (opt). `export_entity` découvre/valide l'apparence et remonte « can not be exported » (limite WolvenKit headless).
+Entity appearance `.ent` → glTF / materials of a `.mesh` → JSON+textures (`IModTools`). See §4. — `entFile`/`meshFile` + `outputPath` (required), `appearance`/`gamePath` (opt). `export_entity` discovers/validates the appearance and surfaces "can not be exported" (WolvenKit headless limit).
 
 ### `list_entity_appearances`
-Liste les apparences d'un `.ent` : `name` (à passer à export_entity / dans le .yaml), `appearanceName` (côté .app), `.app` référencé. — `entFile` (requis).
+Lists the appearances of a `.ent`: `name` (to pass to export_entity / in the .yaml), `appearanceName` (.app side), referenced `.app`. — `entFile` (required).
 
 ### `validate_appearance`
-Validation profonde `.app`→`.mesh` : le `meshAppearance` de chaque composant existe-t-il dans le `.mesh` (sinon mesh invisible) ? — `appFile` (requis), `modRoot`/`gamePath` (opt, pour résoudre les meshes), `maxMeshes` (défaut 40).
+Deep `.app`→`.mesh` validation: does each component's `meshAppearance` exist in the `.mesh` (otherwise invisible mesh)? — `appFile` (required), `modRoot`/`gamePath` (opt, to resolve the meshes), `maxMeshes` (default 40).
 
 ---
 
-## Prompts MCP (recettes)
+## MCP prompts (recipes)
 
-Chaque prompt renvoie un texte instructif (étapes + outils à appeler), pas une exécution directe.
+Each prompt returns instructive text (steps + tools to call), not a direct execution.
 
 ### `read_game_file_workflow`
-Recette : localiser puis lire un fichier de jeu en JSON, en un coup.
+Recipe: locate then read a game file as JSON, in one go.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `filePattern` | string | oui | Type ou nom partiel à chercher (ex. `player.ent`). |
-| `contentFolder` | string | oui | Dossier de contenu du jeu (`archive/pc/content`). |
+| `filePattern` | string | yes | Type or partial name to search (e.g. `player.ent`). |
+| `contentFolder` | string | yes | Game content folder (`archive/pc/content`). |
 
 ### `edit_tweakdb_item`
-Recette : modifier les paramètres d'un item TweakDB via un `.tweak`.
+Recipe: modify the parameters of a TweakDB item via a `.tweak`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakId` | string | oui | Identifiant TweakDB de l'item (ex. `Items.w_melee_001`). |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `tweakId` | string | yes | TweakDB identifier of the item (e.g. `Items.w_melee_001`). |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `pack_and_install_mod`
-Recette : empaqueter un dossier source en `.archive` et l'installer.
+Recipe: pack a source folder into a `.archive` and install it.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modSourceFolder` | string | oui | Dossier source du projet de mod. |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `modSourceFolder` | string | yes | Source folder of the mod project. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `recolor_texture`
-Recette : extraire une texture, l'éditer, puis la réintégrer dans un mod.
+Recipe: extract a texture, edit it, then reintegrate it into a mod.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Archive contenant la texture. |
-| `texturePattern` | string | oui | Motif glob de la texture (ex. `*jacket_01*.xbm`). |
+| `archivePath` | string | yes | Archive containing the texture. |
+| `texturePattern` | string | yes | Glob pattern of the texture (e.g. `*jacket_01*.xbm`). |
 
 ### `inspect_mesh`
-Recette : exporter un mesh en glTF pour l'inspecter (Blender / visualiseur), avec options d'export.
+Recipe: export a mesh to glTF to inspect it (Blender / viewer), with export options.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | oui | Archive contenant le mesh. |
-| `meshInternalPath` | string | oui | Chemin interne du mesh. |
+| `archivePath` | string | yes | Archive containing the mesh. |
+| `meshInternalPath` | string | yes | Internal path of the mesh. |
 
 ### `create_archivexl_item`
-Recette : créer un mod d'item ArchiveXL de bout en bout, avec validation de la chaîne record → factory → localisation (`validate_item_mod`).
+Recipe: create an ArchiveXL item mod end-to-end, with validation of the record → factory → localization chain (`validate_item_mod`).
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `modName` | string | oui | Nom du mod/item à créer. |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `modName` | string | yes | Name of the mod/item to create. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ### `diagnose_broken_mod`
-Recette : diagnostiquer un mod cassé ou une install qui crashe — `mod_doctor` → `diagnose_logs` → `analyze_conflicts` → bissection `toggle_mods`.
+Recipe: diagnose a broken mod or a crashing install — `mod_doctor` → `diagnose_logs` → `analyze_conflicts` → `toggle_mods` bisection.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
-| `symptom` | string | oui | Symptôme observé (crash, item absent, script sans effet…). |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+| `symptom` | string | yes | Observed symptom (crash, missing item, script with no effect…). |
 
 ### `live_iteration_loop`
-Recette : itérer des valeurs TweakDB À CHAUD (jeu lancé + CETBridge) via `live_tweakdb_set`, puis figer le résultat en `.tweak`.
+Recipe: iterate TweakDB values LIVE (game running + CETBridge) via `live_tweakdb_set`, then freeze the result into a `.tweak`.
 
-| Paramètre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `tweakId` | string | oui | Identifiant TweakDB à itérer. |
-| `gamePath` | string | oui | Dossier racine de Cyberpunk 2077. |
+| `tweakId` | string | yes | TweakDB identifier to iterate. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
 
 ---
 
-## Ressources MCP
+## MCP resources
 
-Données lisibles exposées par URI.
+Readable data exposed by URI.
 
-| Ressource | URI Template | MIME | Description |
+| Resource | URI Template | MIME | Description |
 |---|---|---|---|
-| Référence WolvenKit | `wolvenkit://reference` | `text/markdown` | Aide-mémoire généré par réflexion depuis les outils réels : liste complète, formats REDengine, workflow de modding. |
-| Mods installés | `wolvenkit://mods/{+gamePath}` | `text/markdown` | Inventaire des mods d'une installation (archives, REDmods, tweaks, scripts), racine du jeu en chemin absolu après `wolvenkit://mods/`. |
-| Contenu d'archive | `wolvenkit://archive/{+path}` | `text/plain` | Liste le contenu d'une archive `.archive` identifiée par son chemin absolu après `wolvenkit://archive/`. |
-| Fichier REDengine en JSON | `wolvenkit://cr2w-json/{+path}` | `application/json` | Rend un fichier CR2W extrait (`.mesh`, `.ent`, `.app`...) sous forme JSON, identifié par son chemin absolu après `wolvenkit://cr2w-json/`. |
+| WolvenKit reference | `wolvenkit://reference` | `text/markdown` | Cheat sheet generated by reflection from the real tools: complete list, REDengine formats, modding workflow. |
+| Installed mods | `wolvenkit://mods/{+gamePath}` | `text/markdown` | Inventory of the mods of an installation (archives, REDmods, tweaks, scripts), game root as absolute path after `wolvenkit://mods/`. |
+| Archive content | `wolvenkit://archive/{+path}` | `text/plain` | Lists the content of a `.archive` identified by its absolute path after `wolvenkit://archive/`. |
+| REDengine file as JSON | `wolvenkit://cr2w-json/{+path}` | `application/json` | Renders an extracted CR2W file (`.mesh`, `.ent`, `.app`...) as JSON, identified by its absolute path after `wolvenkit://cr2w-json/`. |

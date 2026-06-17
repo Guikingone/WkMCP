@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Test du daemon WolvenKit persistant.
+Test of the persistent WolvenKit daemon.
 
-Lance le daemon, attend le signal {"ready":true} (chargement de HashService,
-~6 s), puis envoie des requêtes en mesurant la latence de chacune. Le but :
-après le démarrage, chaque requête doit être rapide (HashService reste chaud).
+Runs the daemon, waits for the {"ready":true} signal (HashService loading,
+~6 s), then sends requests while measuring the latency of each one. The goal:
+after startup, each request must be fast (HashService stays warm).
 
-Usage : python3 test-daemon.py
+Usage: python3 test-daemon.py
 """
 import json
 import os
@@ -16,8 +16,8 @@ import sys
 import tempfile
 import time
 
-# Sorties en UTF-8 : ce script affiche des caractères non-ASCII (→, accents,
-# sortie du daemon). Sans cela, la console Windows (cp1252) fait planter print().
+# UTF-8 output: this script prints non-ASCII characters (→, accents,
+# daemon output). Without this, the Windows console (cp1252) crashes print().
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -29,17 +29,17 @@ DOTNET = (os.environ.get("WOLVENKIT_DOTNET")
           or "/opt/homebrew/opt/dotnet@8/libexec/dotnet")
 
 if not os.path.exists(DAEMON):
-    sys.exit(f"Daemon introuvable : {DAEMON}\nCompiler : dotnet build src/WolvenKitDaemon")
+    sys.exit(f"Daemon not found: {DAEMON}\nBuild: dotnet build src/WolvenKitDaemon")
 
-# Fixture pour exercer le verbe pack. tempfile.gettempdir() est cross-platform :
-# /tmp sous Unix, %TEMP% sous Windows.
+# Fixture to exercise the pack verb. tempfile.gettempdir() is cross-platform:
+# /tmp on Unix, %TEMP% on Windows.
 TMP = tempfile.gettempdir()
 SRC = os.path.join(TMP, "wkpack_src")
 PACK_OUT = os.path.join(TMP, "wkpack_out2")
 shutil.rmtree(SRC, ignore_errors=True)
 os.makedirs(os.path.join(SRC, "base", "test"), exist_ok=True)
 with open(os.path.join(SRC, "base", "test", "x.txt"), "w") as f:
-    f.write("contenu compressible " * 100)
+    f.write("compressible content " * 100)
 os.makedirs(PACK_OUT, exist_ok=True)
 
 t0 = time.time()
@@ -49,7 +49,7 @@ proc = subprocess.Popen(
     encoding="utf-8", errors="replace", bufsize=1)
 
 ready = proc.stdout.readline()
-print(f"=== Daemon prêt après {time.time() - t0:.1f} s : {ready.strip()} ===\n")
+print(f"=== Daemon ready after {time.time() - t0:.1f} s: {ready.strip()} ===\n")
 
 
 def call(rid, argv):
@@ -79,5 +79,5 @@ except subprocess.TimeoutExpired:
 
 err = (proc.stderr.read() or "").strip()
 if err:
-    print("\n=== stderr daemon (10 dernières lignes) ===")
+    print("\n=== daemon stderr (last 10 lines) ===")
     print("\n".join(err.splitlines()[-10:]))

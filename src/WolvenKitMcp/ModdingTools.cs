@@ -9,11 +9,11 @@ using YamlDotNet.Serialization;
 namespace WolvenKitMcp;
 
 /// <summary>
-/// Outils MCP de plus haut niveau pour simplifier la création, l'évolution et la
-/// maintenance des mods Cyberpunk 2077 : intelligence des dépendances/frameworks,
-/// santé du setup, navigation de références, diff vs base, scaffolding et packaging.
-/// Composent les primitives de <see cref="WolvenKitTools"/> et la connaissance de
-/// l'écosystème de modding, plutôt que d'appeler directement WolvenKit.
+/// Higher-level MCP tools to simplify the creation, evolution and maintenance of
+/// Cyberpunk 2077 mods: dependency/framework intelligence, setup health, reference
+/// navigation, diff vs base, scaffolding and packaging. They compose the primitives
+/// of <see cref="WolvenKitTools"/> and modding-ecosystem knowledge, rather than
+/// calling WolvenKit directly.
 /// </summary>
 [McpServerToolType]
 public static class ModdingTools
@@ -34,10 +34,10 @@ public static class ModdingTools
         errors = new[] { summary },
     }, JsonOpts);
 
-    // ── Base de connaissance des frameworks de modding ──────────────────────
-    // Chaque framework : comment on détecte qu'un MOD en a besoin (racines
-    // d'import REDscript, extensions de fichiers) et comment on détecte qu'il
-    // est INSTALLÉ dans le jeu (chemins-marqueurs relatifs à la racine du jeu).
+    // ── Modding frameworks knowledge base ───────────────────────────────────
+    // Each framework: how we detect that a MOD needs it (REDscript import roots,
+    // file extensions) and how we detect that it is INSTALLED in the game
+    // (marker-paths relative to the game root).
     private sealed record Framework(
         string Name, string Kind,
         string[] ImportRoots, string[] FileSignals, string[] InstallMarkers, string Note);
@@ -46,38 +46,38 @@ public static class ModdingTools
     {
         new("RED4ext", "loader", Array.Empty<string>(), new[] { "red4ext-plugin-dll" },
             new[] { @"red4ext\RED4ext.dll", @"bin\x64\winmm.dll" },
-            "Loader natif requis par redscript, ArchiveXL, TweakXL, Codeware..."),
+            "Native loader required by redscript, ArchiveXL, TweakXL, Codeware..."),
         new("redscript", "script-compiler", Array.Empty<string>(), new[] { ".reds" },
             new[] { @"engine\tools\scc.exe", @"r6\scripts" },
-            "Compilateur de scripts .reds (hook au lancement)."),
+            "Compiler for .reds scripts (hooks at launch)."),
         new("ArchiveXL", "framework", new[] { "ArchiveXL" }, new[] { ".xl" },
             new[] { @"red4ext\plugins\ArchiveXL" },
-            "Extension d'archives : ajout d'apparences, entités, items via .xl."),
+            "Archive extension: adding appearances, entities, items via .xl."),
         new("TweakXL", "framework", new[] { "TweakXL" }, new[] { "tweak-yaml" },
             new[] { @"red4ext\plugins\TweakXL" },
-            "Édition déclarative de TweakDB via .tweak/.yaml dans r6/tweaks."),
+            "Declarative editing of TweakDB via .tweak/.yaml in r6/tweaks."),
         new("Codeware", "library", new[] { "Codeware" }, Array.Empty<string>(),
             new[] { @"red4ext\plugins\Codeware" },
-            "Bibliothèque d'extensions REDscript (UI, reflection, events...)."),
+            "REDscript extension library (UI, reflection, events...)."),
         new("Audioware", "library", new[] { "Audioware" }, Array.Empty<string>(),
             new[] { @"red4ext\plugins\audioware", @"red4ext\plugins\Audioware" },
-            "Framework audio (sons/musiques personnalisés)."),
+            "Audio framework (custom sounds/music)."),
         new("Mod Settings", "library", new[] { "ModSettingsModule", "ModSettings" }, Array.Empty<string>(),
             new[] { @"red4ext\plugins\mod_settings" },
-            "Menu de réglages in-game pour les mods."),
+            "In-game settings menu for mods."),
         new("RedData", "library", new[] { "RedData" }, Array.Empty<string>(),
             new[] { @"red4ext\plugins\RedData", @"r6\scripts\RedData" },
-            "Sérialisation/données partagées entre mods."),
+            "Serialization/shared data between mods."),
         new("RedFileSystem", "library", new[] { "RedFileSystem" }, Array.Empty<string>(),
             new[] { @"red4ext\plugins\RedFileSystem" },
-            "Accès système de fichiers sandboxé depuis REDscript."),
+            "Sandboxed file-system access from REDscript."),
         new("Cyber Engine Tweaks", "framework", Array.Empty<string>(), new[] { "cet-lua" },
             new[] { @"bin\x64\plugins\cyber_engine_tweaks" },
-            "Runtime Lua + console (mods CET)."),
+            "Lua runtime + console (CET mods)."),
     };
 
-    // Mapping racine d'import REDscript -> framework, calculé une seule fois
-    // (Frameworks est immuable) au lieu d'être reconstruit à chaque scan.
+    // REDscript import root -> framework mapping, computed once (Frameworks is
+    // immutable) instead of being rebuilt on every scan.
     private static readonly Dictionary<string, Framework> ImportRootToFw = BuildImportRootMap();
     private static Dictionary<string, Framework> BuildImportRootMap()
     {
@@ -88,29 +88,29 @@ public static class ModdingTools
         return map;
     }
 
-    // Racines d'import « natives » du jeu — pas des dépendances de mod.
+    // "Native" game import roots — not mod dependencies.
     private static readonly HashSet<string> BaseImportRoots = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Les imports du jeu de base n'utilisent pas de préfixe de module tiers ;
-        // on ignore les racines connues comme appartenant au jeu/redscript.
+        // Base-game imports don't use a third-party module prefix; we ignore the
+        // roots known to belong to the game/redscript.
     };
 
     // ════════════════════════════════════════════════════════════════════════
     // analyze_dependencies
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "analyze_dependencies", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Analyse un dossier de mod (ou un projet) et déduit ses frameworks/dépendances " +
-                 "requis : redscript, RED4ext, ArchiveXL, TweakXL, Codeware, Audioware, Mod Settings, " +
-                 "Cyber Engine Tweaks, etc. — en lisant les imports REDscript (via le parser), les " +
-                 ".xl, les .tweak et les types de fichiers. Si gamePath est fourni, indique pour " +
-                 "chaque dépendance si elle est INSTALLÉE ou MANQUANTE. Idéal avant de distribuer " +
-                 "ou d'installer un mod.")]
+    [Description("Analyzes a mod folder (or a project) and infers its required " +
+                 "frameworks/dependencies: redscript, RED4ext, ArchiveXL, TweakXL, Codeware, Audioware, Mod Settings, " +
+                 "Cyber Engine Tweaks, etc. — by reading the REDscript imports (via the parser), the " +
+                 ".xl, the .tweak and the file types. If gamePath is provided, indicates for " +
+                 "each dependency whether it is INSTALLED or MISSING. Ideal before distributing " +
+                 "or installing a mod.")]
     public static string AnalyzeDependencies(
-        [Description("Dossier du mod à analyser (racine du projet ou dossier déployé).")] string modPath,
-        [Description("Optionnel : racine du jeu, pour vérifier les dépendances installées.")] string? gamePath = null)
+        [Description("Mod folder to analyze (project root or deployed folder).")] string modPath,
+        [Description("Optional: game root, to check installed dependencies.")] string? gamePath = null)
     {
         if (!Directory.Exists(modPath))
-            return Err($"Dossier de mod introuvable : {modPath}");
+            return Err($"Mod folder not found: {modPath}");
 
         var reasons = DetectFrameworks(modPath, out var unknownImports, out var fileStats);
 
@@ -124,7 +124,7 @@ public static class ModdingTools
             if (checkInstalled)
             {
                 var (inst, ver) = IsInstalled(gamePath!, fw);
-                installedStatus = inst ? "installé" : "MANQUANT";
+                installedStatus = inst ? "installed" : "MISSING";
                 version = ver;
                 if (!inst) missing.Add(fw.Name);
             }
@@ -133,11 +133,11 @@ public static class ModdingTools
 
         var warnings = new List<string>();
         if (missing.Count > 0)
-            warnings.Add($"Dépendances manquantes dans le jeu : {string.Join(", ", missing)}");
+            warnings.Add($"Dependencies missing in the game: {string.Join(", ", missing)}");
 
-        // Imports inter-mods : avec gamePath, on résout chaque import inconnu contre
-        // les modules REDscript réellement déclarés dans r6/scripts — on sait alors
-        // QUEL mod installé le fournit, ou qu'il manque (cause de crash au chargement).
+        // Cross-mod imports: with gamePath, we resolve each unknown import against the
+        // REDscript modules actually declared in r6/scripts — we then know WHICH
+        // installed mod provides it, or that it is missing (cause of crash at load).
         List<object> crossMod;
         if (checkInstalled && unknownImports.Count > 0)
         {
@@ -156,7 +156,7 @@ public static class ModdingTools
                 .Where(i => ResolveImportProvider(i, providers) is null)
                 .OrderBy(x => x).ToList();
             if (unresolved.Count > 0)
-                warnings.Add("Imports non fournis par les mods installés (dépendance absente ?) : " +
+                warnings.Add("Imports not provided by the installed mods (missing dependency?): " +
                              string.Join(", ", unresolved.Take(15)));
         }
         else
@@ -165,16 +165,16 @@ public static class ModdingTools
                 .Select(i => (object)new { import = i, providedBy = (List<string>?)null, installed = (bool?)null })
                 .ToList();
             if (unknownImports.Count > 0)
-                warnings.Add($"Imports d'autres mods (dépendances inter-mods possibles) : " +
-                             $"{string.Join(", ", unknownImports.Take(15))} — passer gamePath pour les résoudre.");
+                warnings.Add($"Imports from other mods (possible cross-mod dependencies): " +
+                             $"{string.Join(", ", unknownImports.Take(15))} — pass gamePath to resolve them.");
         }
 
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = missing.Count > 0 ? "partial" : "success",
-            summary = $"{deps.Count} dépendance(s) détectée(s) pour {Path.GetFileName(modPath.TrimEnd('\\', '/'))}" +
-                      (string.IsNullOrWhiteSpace(gamePath) ? "" : $" ({missing.Count} manquante(s))"),
+            summary = $"{deps.Count} dependency(ies) detected for {Path.GetFileName(modPath.TrimEnd('\\', '/'))}" +
+                      (string.IsNullOrWhiteSpace(gamePath) ? "" : $" ({missing.Count} missing)"),
             modPath,
             dependencies = deps,
             crossModImports = crossMod,
@@ -184,8 +184,8 @@ public static class ModdingTools
         }, JsonOpts);
     }
 
-    /// <summary>Scanne les modules REDscript déclarés dans &lt;jeu&gt;/r6/scripts :
-    /// nom de module → mods (dossiers de premier niveau) qui le déclarent.</summary>
+    /// <summary>Scans the REDscript modules declared in &lt;game&gt;/r6/scripts:
+    /// module name → mods (top-level folders) that declare it.</summary>
     internal static Dictionary<string, List<string>> ScanInstalledScriptModules(string gamePath)
     {
         var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -196,8 +196,8 @@ public static class ModdingTools
             string? module = null;
             try
             {
-                // La déclaration `module X.Y` est en tête de fichier (après
-                // d'éventuels commentaires/annotations) — 40 lignes suffisent.
+                // The `module X.Y` declaration is at the top of the file (after
+                // any comments/annotations) — 40 lines is enough.
                 foreach (var line in File.ReadLines(file).Take(40))
                 {
                     var t = line.TrimStart();
@@ -219,9 +219,9 @@ public static class ModdingTools
         return result;
     }
 
-    /// <summary>Mods fournissant un import REDscript : le module importé lui-même, un
-    /// module parent (import de classe `X.Y.Classe` → module `X.Y`), ou un sous-module
-    /// (import `X.Y.*` couvre `X.Y.Z`). Null si aucun mod installé ne le fournit.</summary>
+    /// <summary>Mods providing a REDscript import: the imported module itself, a
+    /// parent module (class import `X.Y.Class` → module `X.Y`), or a sub-module
+    /// (import `X.Y.*` covers `X.Y.Z`). Null if no installed mod provides it.</summary>
     internal static List<string>? ResolveImportProvider(string import, Dictionary<string, List<string>> providers)
     {
         var found = new List<string>();
@@ -246,15 +246,15 @@ public static class ModdingTools
     // check_requirements
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "check_requirements", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Inventorie les frameworks de modding INSTALLÉS dans une installation Cyberpunk 2077 " +
+    [Description("Inventories the modding frameworks INSTALLED in a Cyberpunk 2077 installation " +
                  "(RED4ext, redscript, ArchiveXL, TweakXL, Codeware, Audioware, Mod Settings, CET...) " +
-                 "avec leur version si détectable. Permet de savoir ce qui est disponible avant " +
-                 "d'installer un mod ou de diagnostiquer une dépendance manquante.")]
+                 "with their version if detectable. Lets you know what is available before " +
+                 "installing a mod or diagnosing a missing dependency.")]
     public static string CheckRequirements(
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath)
+        [Description("Cyberpunk 2077 installation root folder.")] string gamePath)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
 
         var items = new List<object>();
         int installed = 0;
@@ -268,7 +268,7 @@ public static class ModdingTools
         {
             ok = true,
             status = "success",
-            summary = $"{installed}/{Frameworks.Length} frameworks de modding installés",
+            summary = $"{installed}/{Frameworks.Length} modding frameworks installed",
             gamePath,
             frameworks = items,
             warnings = Array.Empty<string>(),
@@ -280,23 +280,23 @@ public static class ModdingTools
     // mod_doctor
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "mod_doctor", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Diagnostic de santé d'une installation Cyberpunk 2077 moddée, en un appel : " +
-                 "frameworks installés/manquants, dépendances requises par les mods installés mais " +
-                 "absentes (cause #1 de crashes), conflits entre archives, et inventaire des mods. " +
-                 "Renvoie un rapport structuré avec des recommandations.")]
+    [Description("Health diagnostic of a modded Cyberpunk 2077 installation, in one call: " +
+                 "installed/missing frameworks, dependencies required by installed mods but " +
+                 "absent (crash cause #1), conflicts between archives, and mod inventory. " +
+                 "Returns a structured report with recommendations.")]
     public static async Task<string> ModDoctor(
         Cp77ToolsRunner runner,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
+        [Description("Cyberpunk 2077 installation root folder.")] string gamePath,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
 
-        // 1) frameworks installés
+        // 1) installed frameworks
         var installedFw = Frameworks.Where(f => IsInstalled(gamePath, f).installed)
                                     .Select(f => f.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // 2) dépendances requises par TOUT le contenu moddé (scripts, tweaks, xl, lua, plugins)
+        // 2) dependencies required by ALL the modded content (scripts, tweaks, xl, lua, plugins)
         var scanRoots = new[]
         {
             Path.Combine(gamePath, "r6", "scripts"),
@@ -315,7 +315,7 @@ public static class ModdingTools
             .Where(name => !installedFw.Contains(name))
             .ToList();
 
-        // 3) conflits (verbe daemon existant)
+        // 3) conflicts (existing daemon verb)
         int? conflictCount = null; string conflictNote = "";
         try
         {
@@ -326,11 +326,11 @@ public static class ModdingTools
                 if (m.Success) conflictCount = int.Parse(m.Groups[1].Value);
             }
             else if ((r.Stdout + r.Stderr).Contains("Value cannot be null"))
-                conflictNote = "détection de conflits indisponible (bug amont WolvenKit.CLI sur certains installs)";
+                conflictNote = "conflict detection unavailable (upstream WolvenKit.CLI bug on some installs)";
         }
-        catch { conflictNote = "détection de conflits non exécutée"; }
+        catch { conflictNote = "conflict detection not executed"; }
 
-        // 4) inventaire mods
+        // 4) mod inventory
         var archiveDir = Path.Combine(gamePath, "archive", "pc", "mod");
         var modsDir = Path.Combine(gamePath, "mods");
         int archiveMods = Directory.Exists(archiveDir) ? Directory.GetFiles(archiveDir, "*.archive").Length : 0;
@@ -340,20 +340,20 @@ public static class ModdingTools
         foreach (var dep in missingDeps)
         {
             var fw = Frameworks.First(f => f.Name == dep);
-            recommendations.Add($"Installer {dep} ({fw.Note}) — requis par le contenu présent.");
+            recommendations.Add($"Install {dep} ({fw.Note}) — required by the present content.");
         }
         if (conflictCount is > 0)
-            recommendations.Add($"{conflictCount} conflit(s) d'archives détecté(s) : vérifier l'ordre/priorité (detect_conflicts pour le détail).");
+            recommendations.Add($"{conflictCount} archive conflict(s) detected: check load order/priority (detect_conflicts for the details).");
 
         var status = missingDeps.Count > 0 || conflictCount is > 0 ? "partial" : "success";
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status,
-            summary = $"Santé du setup : {archiveMods} mods .archive + {redMods} REDmods · " +
+            summary = $"Setup health: {archiveMods} .archive mods + {redMods} REDmods · " +
                       $"{installedFw.Count}/{Frameworks.Length} frameworks · " +
-                      $"{missingDeps.Count} dépendance(s) manquante(s)" +
-                      (conflictCount is { } c ? $" · {c} conflit(s)" : ""),
+                      $"{missingDeps.Count} missing dependency(ies)" +
+                      (conflictCount is { } c ? $" · {c} conflict(s)" : ""),
             gamePath,
             installedFrameworks = installedFw.OrderBy(x => x).ToList(),
             requiredFrameworks = required.Keys.OrderBy(x => x).ToList(),
@@ -363,7 +363,7 @@ public static class ModdingTools
             mods = new { archiveMods, redMods },
             recommendations,
             warnings = missingDeps.Count > 0
-                ? new[] { $"Dépendances manquantes : {string.Join(", ", missingDeps)}" }
+                ? new[] { $"Missing dependencies: {string.Join(", ", missingDeps)}" }
                 : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
@@ -378,19 +378,19 @@ public static class ModdingTools
     };
 
     [McpServerTool(Name = "validate_xl", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Valide un fichier ArchiveXL .xl (YAML) : YAML bien formé + sections de premier " +
-                 "niveau reconnues (customSounds, resource, factories, localization, animations). " +
-                 "Signale les erreurs de syntaxe YAML (ligne/colonne) et les sections inconnues. " +
-                 "Complète validate_tweak (qui cible les .tweak TweakXL).")]
+    [Description("Validates an ArchiveXL .xl file (YAML): well-formed YAML + recognized top-level " +
+                 "sections (customSounds, resource, factories, localization, animations). " +
+                 "Reports YAML syntax errors (line/column) and unknown sections. " +
+                 "Complements validate_tweak (which targets .tweak TweakXL files).")]
     public static string ValidateXl(
-        [Description("Chemin du fichier .xl à valider.")] string xlFile)
+        [Description("Path of the .xl file to validate.")] string xlFile)
     {
         if (!File.Exists(xlFile))
-            return Err($"Fichier .xl introuvable : {xlFile}");
+            return Err($".xl file not found: {xlFile}");
 
         string text;
         try { text = File.ReadAllText(xlFile); }
-        catch (Exception ex) { return Err($"Lecture impossible : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Cannot read file: {ex.Message}"); }
 
         object? root;
         try
@@ -404,7 +404,7 @@ public static class ModdingTools
             {
                 ok = false,
                 status = "error",
-                summary = $"YAML invalide dans {Path.GetFileName(xlFile)}",
+                summary = $"Invalid YAML in {Path.GetFileName(xlFile)}",
                 xlFile,
                 warnings = Array.Empty<string>(),
                 errors = new[] { ex.Message.Replace("\n", " ").Trim() },
@@ -417,7 +417,7 @@ public static class ModdingTools
 
         if (root is not Dictionary<object, object> map)
         {
-            errors.Add("La racine d'un .xl doit être un mapping YAML (clé: valeur).");
+            errors.Add("The root of an .xl must be a YAML mapping (key: value).");
         }
         else
         {
@@ -426,11 +426,11 @@ public static class ModdingTools
                 var key = k?.ToString() ?? "";
                 sections.Add(key);
                 if (!XlTopLevelKeys.Contains(key))
-                    warnings.Add($"Section de premier niveau inconnue : « {key} » " +
-                                 $"(attendu : {string.Join(", ", XlTopLevelKeys)}).");
+                    warnings.Add($"Unknown top-level section: \"{key}\" " +
+                                 $"(expected: {string.Join(", ", XlTopLevelKeys)}).");
             }
             if (sections.Count == 0)
-                warnings.Add("Fichier .xl vide (aucune section).");
+                warnings.Add("Empty .xl file (no section).");
         }
 
         var status = errors.Count > 0 ? "error" : warnings.Count > 0 ? "partial" : "success";
@@ -438,8 +438,8 @@ public static class ModdingTools
         {
             ok = errors.Count == 0,
             status,
-            summary = $"Validation .xl : {Path.GetFileName(xlFile)} — {sections.Count} section(s), " +
-                      $"{errors.Count} erreur(s), {warnings.Count} avertissement(s)",
+            summary = $".xl validation: {Path.GetFileName(xlFile)} — {sections.Count} section(s), " +
+                      $"{errors.Count} error(s), {warnings.Count} warning(s)",
             xlFile,
             sections,
             warnings,
@@ -448,22 +448,22 @@ public static class ModdingTools
     }
 
     [McpServerTool(Name = "validate_redmod", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Valide le info.json d'un projet REDmod : champs requis name / version (+ format), " +
-                 "et cohérence des entrées customSounds (name, type, et fichier référencé présent " +
-                 "dans customSounds/). Les outils REDmod (create_redmod_project, install_redmod, " +
-                 "pack_redmod) ne vérifient que la PRÉSENCE du info.json, jamais son contenu. " +
-                 "Complète validate_xl / validate_tweak / validate_item_mod.")]
+    [Description("Validates the info.json of a REDmod project: required name / version fields (+ format), " +
+                 "and consistency of the customSounds entries (name, type, and referenced file present " +
+                 "in customSounds/). The REDmod tools (create_redmod_project, install_redmod, " +
+                 "pack_redmod) only check the PRESENCE of info.json, never its content. " +
+                 "Complements validate_xl / validate_tweak / validate_item_mod.")]
     public static string ValidateRedmod(
-        [Description("Dossier racine du REDmod (contenant info.json) ou chemin direct vers le " +
+        [Description("REDmod root folder (containing info.json) or direct path to the " +
                      "info.json.")] string modPath)
     {
         var infoPath = Directory.Exists(modPath) ? Path.Combine(modPath, "info.json") : modPath;
         if (!File.Exists(infoPath))
-            return Err($"info.json introuvable : {infoPath}");
+            return Err($"info.json not found: {infoPath}");
 
         string json;
         try { json = File.ReadAllText(infoPath); }
-        catch (Exception ex) { return Err($"Lecture impossible : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Cannot read file: {ex.Message}"); }
 
         var modRoot = Path.GetDirectoryName(Path.GetFullPath(infoPath)) ?? ".";
         var soundsDir = Path.Combine(modRoot, "customSounds");
@@ -478,8 +478,8 @@ public static class ModdingTools
         {
             ok = v.Errors.Count == 0,
             status,
-            summary = $"Validation REDmod : {Path.GetFileName(modRoot)} — " +
-                      $"{v.Errors.Count} erreur(s), {v.Warnings.Count} avertissement(s)",
+            summary = $"REDmod validation: {Path.GetFileName(modRoot)} — " +
+                      $"{v.Errors.Count} error(s), {v.Warnings.Count} warning(s)",
             infoPath,
             name = v.Name,
             version = v.Version,
@@ -493,10 +493,10 @@ public static class ModdingTools
         string? Name, string? Version, int CustomSoundCount,
         IReadOnlyList<string> Errors, IReadOnlyList<string> Warnings);
 
-    /// <summary>Valide le contenu d'un info.json REDmod. Logique pure (entrée = texte JSON +
-    /// noms de fichiers présents dans customSounds/), testée isolément. Règles : name et version
-    /// requis (version au format numérique sinon avertissement) ; chaque customSounds doit avoir
-    /// name + type, et un file (sauf type mod_skip) qui doit exister dans customSounds/.</summary>
+    /// <summary>Validates the content of a REDmod info.json. Pure logic (input = JSON text +
+    /// names of files present in customSounds/), tested in isolation. Rules: name and version
+    /// required (version in numeric format otherwise a warning); each customSounds must have
+    /// name + type, and a file (except for type mod_skip) that must exist in customSounds/.</summary>
     internal static RedmodValidation ValidateRedmodInfo(
         string infoJson, IReadOnlyCollection<string> presentSoundFiles)
     {
@@ -509,7 +509,7 @@ public static class ModdingTools
         try { doc = JsonDocument.Parse(infoJson); }
         catch (Exception ex)
         {
-            errors.Add($"info.json : JSON invalide — {ex.Message.Replace("\n", " ").Trim()}");
+            errors.Add($"info.json: invalid JSON — {ex.Message.Replace("\n", " ").Trim()}");
             return new RedmodValidation(null, null, 0, errors, warnings);
         }
 
@@ -518,31 +518,31 @@ public static class ModdingTools
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
             {
-                errors.Add("info.json : la racine doit être un objet JSON.");
+                errors.Add("info.json: the root must be a JSON object.");
                 return new RedmodValidation(null, null, 0, errors, warnings);
             }
 
             if (root.TryGetProperty("name", out var nEl) && nEl.ValueKind == JsonValueKind.String)
             {
                 name = nEl.GetString();
-                if (string.IsNullOrWhiteSpace(name)) errors.Add("info.json : « name » est vide.");
+                if (string.IsNullOrWhiteSpace(name)) errors.Add("info.json: \"name\" is empty.");
             }
-            else errors.Add("info.json : champ requis « name » absent ou non-textuel.");
+            else errors.Add("info.json: required field \"name\" missing or non-textual.");
 
             if (root.TryGetProperty("version", out var vEl) && vEl.ValueKind == JsonValueKind.String)
             {
                 version = vEl.GetString();
-                if (string.IsNullOrWhiteSpace(version)) errors.Add("info.json : « version » est vide.");
+                if (string.IsNullOrWhiteSpace(version)) errors.Add("info.json: \"version\" is empty.");
                 else if (!LooksLikeVersion(version))
-                    warnings.Add($"info.json : « version » = « {version} » ne ressemble pas à un " +
-                                 "numéro de version (ex. 1.0.0).");
+                    warnings.Add($"info.json: \"version\" = \"{version}\" does not look like a " +
+                                 "version number (e.g. 1.0.0).");
             }
-            else errors.Add("info.json : champ requis « version » absent ou non-textuel.");
+            else errors.Add("info.json: required field \"version\" missing or non-textual.");
 
             if (root.TryGetProperty("customSounds", out var csEl))
             {
                 if (csEl.ValueKind != JsonValueKind.Array)
-                    errors.Add("info.json : « customSounds » doit être un tableau.");
+                    errors.Add("info.json: \"customSounds\" must be an array.");
                 else
                 {
                     var i = 0;
@@ -551,17 +551,17 @@ public static class ModdingTools
                         var where = $"customSounds[{i}]";
                         i++;
                         if (s.ValueKind != JsonValueKind.Object)
-                        { errors.Add($"{where} : doit être un objet."); continue; }
+                        { errors.Add($"{where}: must be an object."); continue; }
                         soundCount++;
 
                         var sName = s.TryGetProperty("name", out var snEl)
                                     && snEl.ValueKind == JsonValueKind.String ? snEl.GetString() : null;
-                        if (string.IsNullOrWhiteSpace(sName)) errors.Add($"{where} : « name » requis.");
+                        if (string.IsNullOrWhiteSpace(sName)) errors.Add($"{where}: \"name\" required.");
 
                         var sType = s.TryGetProperty("type", out var stEl)
                                     && stEl.ValueKind == JsonValueKind.String ? stEl.GetString() : null;
                         if (string.IsNullOrWhiteSpace(sType))
-                            errors.Add($"{where} : « type » requis (ex. mod_sfx_2d, mod_skip).");
+                            errors.Add($"{where}: \"type\" required (e.g. mod_sfx_2d, mod_skip).");
 
                         var isSkip = string.Equals(sType, "mod_skip", StringComparison.OrdinalIgnoreCase);
                         var file = s.TryGetProperty("file", out var fEl)
@@ -569,13 +569,13 @@ public static class ModdingTools
                         if (!isSkip)
                         {
                             if (string.IsNullOrWhiteSpace(file))
-                                errors.Add($"{where} : « file » requis pour le type « {sType} ».");
+                                errors.Add($"{where}: \"file\" required for type \"{sType}\".");
                             else if (presentSoundFiles.Count > 0)
                             {
                                 var bare = file.Replace('\\', '/').TrimStart('/').Split('/').Last();
                                 if (!presentSoundFiles.Contains(bare, StringComparer.OrdinalIgnoreCase)
                                     && !presentSoundFiles.Contains(file, StringComparer.OrdinalIgnoreCase))
-                                    warnings.Add($"{where} : fichier son « {file} » introuvable dans customSounds/.");
+                                    warnings.Add($"{where}: sound file \"{file}\" not found in customSounds/.");
                             }
                         }
                     }
@@ -596,42 +596,42 @@ public static class ModdingTools
     // scaffold_archivexl
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "scaffold_archivexl", ReadOnly = false, Destructive = false, Idempotent = false)]
-    [Description("Génère un fichier ArchiveXL .xl de départ (YAML commenté) pour un type de mod " +
-                 "donné : factory (enregistrer un record factory via CSV), customSounds (audio " +
-                 "personnalisé), localization (textes), resource (patch de ressource). Scaffolding " +
-                 "prêt à éditer — équivalent .xl de generate_tweak_template.")]
+    [Description("Generates a starter ArchiveXL .xl file (commented YAML) for a given mod " +
+                 "type: factory (register a factory record via CSV), customSounds (custom " +
+                 "audio), localization (texts), resource (resource patch). Ready-to-edit " +
+                 "scaffolding — the .xl equivalent of generate_tweak_template.")]
     public static string ScaffoldArchiveXl(
-        [Description("Dossier de destination du fichier .xl.")] string outputFolder,
-        [Description("Nom du mod (sert de nom de fichier <nom>.xl).")] string modName,
-        [Description("Type : factory | customSounds | localization | resource.")] string kind = "factory")
+        [Description("Destination folder for the .xl file.")] string outputFolder,
+        [Description("Mod name (used as file name <name>.xl).")] string modName,
+        [Description("Type: factory | customSounds | localization | resource.")] string kind = "factory")
     {
         if (!Directory.Exists(outputFolder))
-            return Err($"Dossier de destination introuvable : {outputFolder}");
+            return Err($"Destination folder not found: {outputFolder}");
         if (string.IsNullOrWhiteSpace(modName)
             || modName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return Err("Nom de mod invalide.");
+            return Err("Invalid mod name.");
 
         var body = kind.ToLowerInvariant() switch
         {
             "customsounds" =>
-                "# ArchiveXL — sons personnalisés\n" +
+                "# ArchiveXL — custom sounds\n" +
                 "customSounds:\n" +
                 $"  - name: {modName}_sfx_01\n" +
                 "    type: mod_sfx_2d\n" +
                 $"    file: mod\\{modName}\\sfx_01.wav\n",
             "localization" =>
-                "# ArchiveXL — localisation\n" +
+                "# ArchiveXL — localization\n" +
                 "localization:\n" +
                 "  onscreens:\n" +
                 $"    en-us: base\\localization\\en-us\\{modName}.json\n",
             "resource" =>
-                "# ArchiveXL — patch de ressource (ajoute des appearances/composants)\n" +
+                "# ArchiveXL — resource patch (adds appearances/components)\n" +
                 "resource:\n" +
                 "  patch:\n" +
                 "    base\\path\\to\\target.app:\n" +
                 $"      - {modName}\\appearances\\custom.app\n",
             _ /* factory */ =>
-                "# ArchiveXL — enregistrement d'un record factory (items/records via CSV)\n" +
+                "# ArchiveXL — registering a factory record (items/records via CSV)\n" +
                 "factories:\n" +
                 $"  - {modName}\\factory.csv\n",
         };
@@ -643,7 +643,7 @@ public static class ModdingTools
         {
             ok = true,
             status = "success",
-            summary = $"Squelette ArchiveXL généré ({kind}) : {Path.GetFileName(xlPath)}",
+            summary = $"ArchiveXL scaffold generated ({kind}): {Path.GetFileName(xlPath)}",
             produced = new[] { modName + ".xl" },
             kind,
             xlPath,
@@ -659,21 +659,21 @@ public static class ModdingTools
         { ".reds", ".script", ".swift", ".redscript", ".tweak", ".yaml", ".yml", ".xl", ".lua", ".json", ".csv" };
 
     [McpServerTool(Name = "find_references", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Recherche toutes les références textuelles à une cible (TweakDBID, chemin de " +
-                 "ressource, LocKey, CName, nom de classe/fonction...) dans les fichiers source d'un " +
-                 "dossier de mod ou de projet (.reds, .tweak, .yaml, .xl, .lua, .json, .csv). " +
-                 "Renvoie fichier:ligne + extrait. Idéal pour l'analyse d'impact avant d'éditer. " +
-                 "Pour chercher dans les .archive du jeu, utiliser plutôt find_in_archives.")]
+    [Description("Searches all textual references to a target (TweakDBID, resource " +
+                 "path, LocKey, CName, class/function name...) in the source files of a " +
+                 "mod or project folder (.reds, .tweak, .yaml, .xl, .lua, .json, .csv). " +
+                 "Returns file:line + snippet. Ideal for impact analysis before editing. " +
+                 "To search in the game's .archive files, use find_in_archives instead.")]
     public static string FindReferences(
-        [Description("Chaîne à rechercher (sous-chaîne, insensible à la casse).")] string target,
-        [Description("Dossier à parcourir (mod, projet, ou r6/scripts).")] string searchFolder,
-        [Description("Nombre max de correspondances renvoyées (défaut 200).")] int maxResults = 200,
-        [Description("Recherche sensible à la casse (défaut false).")] bool caseSensitive = false)
+        [Description("String to search (substring, case-insensitive).")] string target,
+        [Description("Folder to scan (mod, project, or r6/scripts).")] string searchFolder,
+        [Description("Max number of matches returned (default 200).")] int maxResults = 200,
+        [Description("Case-sensitive search (default false).")] bool caseSensitive = false)
     {
         if (string.IsNullOrEmpty(target))
-            return Err("Cible de recherche vide.");
+            return Err("Empty search target.");
         if (!Directory.Exists(searchFolder))
-            return Err($"Dossier introuvable : {searchFolder}");
+            return Err($"Folder not found: {searchFolder}");
 
         var cmp = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         var extSet = new HashSet<string>(TextRefExtensions, StringComparer.OrdinalIgnoreCase);
@@ -682,14 +682,14 @@ public static class ModdingTools
 
         IEnumerable<string> files;
         try { files = Directory.EnumerateFiles(searchFolder, "*", SearchOption.AllDirectories); }
-        catch (Exception ex) { return Err($"Parcours impossible : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Cannot scan: {ex.Message}"); }
 
         foreach (var f in files)
         {
             if (!extSet.Contains(Path.GetExtension(f))) continue;
             filesScanned++;
-            // Lecture paresseuse (File.ReadLines) : pas de chargement du fichier
-            // entier en mémoire — important sur de gros .json/.csv de mod.
+            // Lazy read (File.ReadLines): no loading of the whole file into memory
+            // — important for large mod .json/.csv files.
             IEnumerable<string> lines;
             try { lines = File.ReadLines(f); } catch { continue; }
             var hit = false;
@@ -718,8 +718,8 @@ public static class ModdingTools
         {
             ok = true,
             status = "success",
-            summary = $"« {target} » : {matches.Count}{(truncated ? "+" : "")} occurrence(s) " +
-                      $"dans {filesWithMatch} fichier(s) ({filesScanned} scanné(s))",
+            summary = $"\"{target}\": {matches.Count}{(truncated ? "+" : "")} occurrence(s) " +
+                      $"in {filesWithMatch} file(s) ({filesScanned} scanned)",
             target,
             searchFolder,
             matchCount = matches.Count,
@@ -727,7 +727,7 @@ public static class ModdingTools
             filesScanned,
             truncated,
             matches,
-            warnings = truncated ? new[] { $"Résultats tronqués à {maxResults} — affiner la cible ou augmenter maxResults." } : Array.Empty<string>(),
+            warnings = truncated ? new[] { $"Results truncated to {maxResults} — refine the target or increase maxResults." } : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
     }
@@ -736,38 +736,38 @@ public static class ModdingTools
     // diff_mod_vs_base
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "diff_mod_vs_base", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Diff sémantique d'UN fichier de jeu surchargé par un mod, contre sa version de " +
-                 "base : extrait le fichier des deux côtés, les convertit en JSON et compare les " +
-                 "champs (ajoutés / supprimés / modifiés). Répond à « qu'est-ce que ce mod change " +
-                 "vraiment ? ». La version de base est cherchée dans archive/pc/content (cache LRU) " +
-                 "si baseArchive n'est pas fourni.")]
+    [Description("Semantic diff of ONE game file overridden by a mod, against its base " +
+                 "version: extracts the file from both sides, converts them to JSON and compares the " +
+                 "fields (added / removed / changed). Answers \"what does this mod actually " +
+                 "change?\". The base version is looked up in archive/pc/content (LRU cache) " +
+                 "if baseArchive is not provided.")]
     public static async Task<string> DiffModVsBase(
         Cp77ToolsRunner runner,
-        [Description("Archive .archive du mod contenant le fichier surchargé.")] string modArchive,
-        [Description("Chemin interne du fichier dans l'archive (ex. base\\...\\x.app).")] string gameFilePath,
-        [Description("Racine du jeu (pour localiser la version de base dans archive/pc/content).")] string gamePath,
-        [Description("Optionnel : archive .archive de base précise (court-circuite la recherche).")] string? baseArchive = null,
+        [Description(".archive of the mod containing the overridden file.")] string modArchive,
+        [Description("Internal path of the file in the archive (e.g. base\\...\\x.app).")] string gameFilePath,
+        [Description("Game root (to locate the base version in archive/pc/content).")] string gamePath,
+        [Description("Optional: precise base .archive (short-circuits the search).")] string? baseArchive = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(modArchive))
-            return Err($"Archive de mod introuvable : {modArchive}");
+            return Err($"Mod archive not found: {modArchive}");
 
-        // Localiser l'archive de base si non fournie.
+        // Locate the base archive if not provided.
         if (string.IsNullOrWhiteSpace(baseArchive))
         {
             var content = Path.Combine(gamePath, "archive", "pc", "content");
             if (!Directory.Exists(content))
-                return Err($"Dossier content introuvable : {content} (fournir baseArchive ?)");
+                return Err($"content folder not found: {content} (provide baseArchive?)");
             baseArchive = await FindArchiveContaining(runner, content, gameFilePath, ct);
             if (baseArchive is null)
-                return Err($"Fichier introuvable dans le jeu de base : {gameFilePath} " +
-                           "(c'est peut-être un fichier AJOUTÉ par le mod, pas une surcharge).");
+                return Err($"File not found in the base game: {gameFilePath} " +
+                           "(it may be a file ADDED by the mod, not an override).");
         }
 
         var modJson = await ExtractAsJson(runner, modArchive, gameFilePath, ct);
         var baseJson = await ExtractAsJson(runner, baseArchive!, gameFilePath, ct);
-        if (modJson is null) return Err($"Extraction/conversion échouée côté mod : {gameFilePath}");
-        if (baseJson is null) return Err($"Extraction/conversion échouée côté base : {gameFilePath}");
+        if (modJson is null) return Err($"Extraction/conversion failed on the mod side: {gameFilePath}");
+        if (baseJson is null) return Err($"Extraction/conversion failed on the base side: {gameFilePath}");
 
         var (added, removed, changedList) = DiffJson(baseJson, modJson);
         var changed = changedList.Select(c => (object)new { path = c.Path, @base = c.Base, mod = c.Mod }).ToList();
@@ -778,8 +778,8 @@ public static class ModdingTools
         {
             ok = true,
             status = "success",
-            summary = $"Diff {Path.GetFileName(gameFilePath)} (mod vs base) : " +
-                      $"{added.Count} ajout(s), {removed.Count} suppression(s), {changed.Count} modif(s)",
+            summary = $"Diff {Path.GetFileName(gameFilePath)} (mod vs base): " +
+                      $"{added.Count} addition(s), {removed.Count} removal(s), {changed.Count} change(s)",
             gameFilePath,
             modArchive,
             baseArchive,
@@ -790,7 +790,7 @@ public static class ModdingTools
             removed = removed.Take(cap),
             changed = changed.Take(cap),
             truncated,
-            warnings = truncated ? new[] { $"Diff tronqué à {cap} entrées par catégorie." } : Array.Empty<string>(),
+            warnings = truncated ? new[] { $"Diff truncated to {cap} entries per category." } : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
     }
@@ -799,25 +799,25 @@ public static class ModdingTools
     // scaffold_mod
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "scaffold_mod", ReadOnly = false, Destructive = false, Idempotent = false)]
-    [Description("Crée en UN appel un squelette de mod fonctionnel selon son type : archive " +
-                 "(projet .cpmodproj + dossiers), redscript (starter .reds avec @wrapMethod), tweak " +
-                 "(starter .tweak), redmod (info.json + dossiers). Écrit aussi un MOD_MANIFEST.json " +
-                 "récapitulant le type, les dépendances déclarées et la structure. Raccourci " +
-                 "par-dessus create_mod_project / generate_* pour démarrer vite.")]
+    [Description("Creates, in ONE call, a working mod skeleton according to its type: archive " +
+                 "(.cpmodproj project + folders), redscript (.reds starter with @wrapMethod), tweak " +
+                 "(.tweak starter), redmod (info.json + folders). Also writes a MOD_MANIFEST.json " +
+                 "summarizing the type, declared dependencies and structure. Shortcut " +
+                 "over create_mod_project / generate_* to get started quickly.")]
     public static string ScaffoldMod(
-        [Description("Dossier parent où créer le mod.")] string parentFolder,
-        [Description("Nom du mod.")] string modName,
-        [Description("Type : archive | redscript | tweak | redmod.")] string kind = "archive",
-        [Description("Auteur (optionnel).")] string? author = null,
-        [Description("Version (optionnel, ex. 1.0.0).")] string? version = null,
-        [Description("Dépendances déclarées, séparées par des virgules (ex. Codeware,ArchiveXL).")] string? dependencies = null)
+        [Description("Parent folder where to create the mod.")] string parentFolder,
+        [Description("Mod name.")] string modName,
+        [Description("Type: archive | redscript | tweak | redmod.")] string kind = "archive",
+        [Description("Author (optional).")] string? author = null,
+        [Description("Version (optional, e.g. 1.0.0).")] string? version = null,
+        [Description("Declared dependencies, comma-separated (e.g. Codeware,ArchiveXL).")] string? dependencies = null)
     {
         if (!Directory.Exists(parentFolder))
-            return Err($"Dossier parent introuvable : {parentFolder}");
+            return Err($"Parent folder not found: {parentFolder}");
         if (string.IsNullOrWhiteSpace(modName) || modName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return Err("Nom de mod invalide.");
+            return Err("Invalid mod name.");
         var root = Path.Combine(parentFolder, modName);
-        if (Directory.Exists(root)) return Err($"Le dossier existe déjà : {root}");
+        if (Directory.Exists(root)) return Err($"The folder already exists: {root}");
 
         var produced = new List<string>();
         void Dir(params string[] parts) { var p = Path.Combine(new[] { root }.Concat(parts).ToArray()); Directory.CreateDirectory(p); produced.Add(Path.GetRelativePath(root, p) + Path.DirectorySeparatorChar); }
@@ -828,19 +828,19 @@ public static class ModdingTools
         {
             case "redscript":
                 Write(Path.Combine("r6", "scripts", modName, modName + ".reds"),
-                    $"// {modName} — mod REDscript\n" +
-                    "// Exemple : étendre une méthode du jeu sans la remplacer.\n" +
+                    $"// {modName} — REDscript mod\n" +
+                    "// Example: extend a game method without replacing it.\n" +
                     "@wrapMethod(PlayerPuppet)\n" +
                     "protected cb func OnGameAttached() -> Bool {\n" +
                     "  let result = wrappedMethod();\n" +
-                    $"  LogChannel(n\"DEBUG\", \"{modName} chargé\");\n" +
+                    $"  LogChannel(n\"DEBUG\", \"{modName} loaded\");\n" +
                     "  return result;\n" +
                     "}\n");
                 break;
             case "tweak":
                 Write(Path.Combine("r6", "tweaks", modName + ".tweak"),
-                    $"# {modName} — mod TweakXL\n" +
-                    "# Exemple : surcharger un champ d'un record existant.\n" +
+                    $"# {modName} — TweakXL mod\n" +
+                    "# Example: override a field of an existing record.\n" +
                     "Items.Preset_Lexington_Default:\n" +
                     "  magazineCapacity: 24\n");
                 break;
@@ -878,7 +878,7 @@ public static class ModdingTools
         {
             ok = true,
             status = "success",
-            summary = $"Mod « {modName} » ({k}) créé : {root}",
+            summary = $"Mod \"{modName}\" ({k}) created: {root}",
             modPath = root,
             kind = k,
             produced,
@@ -895,24 +895,24 @@ public static class ModdingTools
         { "archive", "r6", "mods", "red4ext", "bin", "engine" };
 
     [McpServerTool(Name = "package_mod", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Empaquette un dossier au layout relatif au jeu (archive/pc/mod, r6/scripts, " +
-                 "r6/tweaks, mods/, red4ext/...) en un .zip distribuable (Nexus / install manuel), " +
-                 "avec séparateurs « / » conformes. Valide la présence d'au moins un dossier de jeu " +
-                 "reconnu et avertit sinon.")]
+    [Description("Packs a folder in the game-relative layout (archive/pc/mod, r6/scripts, " +
+                 "r6/tweaks, mods/, red4ext/...) into a distributable .zip (Nexus / manual install), " +
+                 "with conformant \"/\" separators. Validates the presence of at least one recognized " +
+                 "game folder and warns otherwise.")]
     public static string PackageMod(
-        [Description("Dossier source au layout jeu (contient archive/, r6/, mods/...).")] string sourceFolder,
-        [Description("Chemin du .zip de sortie.")] string outputZip)
+        [Description("Source folder in the game layout (contains archive/, r6/, mods/...).")] string sourceFolder,
+        [Description("Path of the output .zip.")] string outputZip)
     {
         if (!Directory.Exists(sourceFolder))
-            return Err($"Dossier source introuvable : {sourceFolder}");
+            return Err($"Source folder not found: {sourceFolder}");
 
         var srcFull = Path.GetFullPath(sourceFolder);
         var topDirs = Directory.GetDirectories(srcFull).Select(d => Path.GetFileName(d)).ToList();
         var recognized = topDirs.Where(d => GameLayoutRoots.Contains(d, StringComparer.OrdinalIgnoreCase)).ToList();
         var warnings = new List<string>();
         if (recognized.Count == 0)
-            warnings.Add("Aucun dossier de jeu reconnu (archive/, r6/, mods/, red4ext/...) à la racine — " +
-                         "le zip risque de ne pas s'installer tel quel.");
+            warnings.Add("No recognized game folder (archive/, r6/, mods/, red4ext/...) at the root — " +
+                         "the zip may not install as-is.");
 
         try
         {
@@ -924,20 +924,20 @@ public static class ModdingTools
             foreach (var file in Directory.EnumerateFiles(srcFull, "*", SearchOption.AllDirectories))
             {
                 var rel = Path.GetRelativePath(srcFull, file).Replace('\\', '/');
-                // Exclure le bruit non distribuable (artefacts de dev / build).
+                // Exclude non-distributable noise (dev / build artifacts).
                 if (IsPackagingNoise(rel)) { skipped++; continue; }
                 zip.CreateEntryFromFile(file, rel, CompressionLevel.Optimal);
                 n++;
             }
             if (skipped > 0)
-                warnings.Add($"{skipped} fichier(s) de dev/build exclu(s) du bundle " +
+                warnings.Add($"{skipped} dev/build file(s) excluded from the bundle " +
                              "(.git, packed/, *.cpmodproj, MOD_MANIFEST.json).");
             var sizeKo = new FileInfo(outputZip).Length / 1024;
             return JsonSerializer.Serialize(new
             {
                 ok = true,
                 status = warnings.Count > 0 ? "partial" : "success",
-                summary = $"Bundle créé : {Path.GetFileName(outputZip)} ({n} fichier(s), {sizeKo} Ko)",
+                summary = $"Bundle created: {Path.GetFileName(outputZip)} ({n} file(s), {sizeKo} KB)",
                 outputZip,
                 fileCount = n,
                 skipped,
@@ -947,11 +947,11 @@ public static class ModdingTools
                 errors = Array.Empty<string>(),
             }, JsonOpts);
         }
-        catch (Exception ex) { return Err($"Échec du packaging : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Packaging failed: {ex.Message}"); }
     }
 
-    /// <summary>Fichiers/dossiers de dev qui n'ont pas leur place dans un bundle
-    /// distribuable (Nexus / install manuel).</summary>
+    /// <summary>Dev files/folders that have no place in a distributable bundle
+    /// (Nexus / manual install).</summary>
     private static bool IsPackagingNoise(string rel)
     {
         var seg0 = rel.Split('/')[0];
@@ -963,31 +963,31 @@ public static class ModdingTools
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // inspect_journal / find_journal_entry — navigation du journal de quêtes
+    // inspect_journal / find_journal_entry — quest journal navigation
     //
-    // Un .journal (gameJournalResource) est un CR2W standard, donc lisible/écrivable
-    // via read_game_file / write_game_file. Mais cooked_journal.journal pèse ~70 Mo
-    // en JSON : impossible à lire/éditer d'un bloc. Ces outils en donnent une vue
-    // navigable (résumé par type, recherche d'entrée → chemin JSON ciblé), dans
-    // l'esprit de inspect_mesh / mod_summary / describe_tweak_record.
+    // A .journal (gameJournalResource) is a standard CR2W, so readable/writable
+    // via read_game_file / write_game_file. But cooked_journal.journal weighs ~70 MB
+    // in JSON: impossible to read/edit in one block. These tools provide a navigable
+    // view of it (summary by type, entry search → targeted JSON path), in the
+    // spirit of inspect_mesh / mod_summary / describe_tweak_record.
     // ════════════════════════════════════════════════════════════════════════
 
     internal sealed record JournalEntryRef(string Path, string Type, string? Id, string? Title, int ChildCount);
 
-    // Projection en clés minuscules pour une sortie JSON cohérente avec le reste.
+    // Projection to lowercase keys for JSON output consistent with the rest.
     private static object JournalRefJson(JournalEntryRef e)
         => new { path = e.Path, type = e.Type, id = e.Id, title = e.Title, childCount = e.ChildCount };
 
     [McpServerTool(Name = "inspect_journal", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Résumé navigable d'un fichier .journal converti en JSON (par read_game_file) : " +
-                 "nombre total d'entrées, profondeur, répartition par type ($type), et catégories de " +
-                 "premier niveau (quêtes, codex, contacts, e-mails…). Évite de charger les ~70 Mo de " +
-                 "JSON du journal complet. Donne ensuite à find_journal_entry une cible précise.")]
+    [Description("Navigable summary of a .journal file converted to JSON (by read_game_file): " +
+                 "total number of entries, depth, breakdown by type ($type), and top-level " +
+                 "categories (quests, codex, contacts, e-mails…). Avoids loading the ~70 MB of " +
+                 "JSON of the full journal. Then give find_journal_entry a precise target.")]
     public static string InspectJournal(
-        [Description("Chemin du JSON produit par read_game_file sur un .journal.")] string jsonFile)
+        [Description("Path of the JSON produced by read_game_file on a .journal.")] string jsonFile)
     {
         if (!File.Exists(jsonFile))
-            return Err($"Fichier JSON introuvable : {jsonFile}");
+            return Err($"JSON file not found: {jsonFile}");
         JournalSummary? s;
         try
         {
@@ -995,16 +995,16 @@ public static class ModdingTools
             using var doc = JsonDocument.Parse(fs);
             s = SummarizeJournal(doc.RootElement);
         }
-        catch (Exception ex) { return Err($"JSON illisible : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Unreadable JSON: {ex.Message}"); }
         if (s is null)
-            return Err("Ce JSON n'est pas un journal (RootChunk.$type ≠ gameJournalResource).");
+            return Err("This JSON is not a journal (RootChunk.$type ≠ gameJournalResource).");
 
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $"Journal : {s.TotalEntries} entrée(s), profondeur {s.MaxDepth}, " +
-                      $"{s.ByType.Count} type(s), {s.TopLevel.Count} catégorie(s) de 1er niveau",
+            summary = $"Journal: {s.TotalEntries} entry(ies), depth {s.MaxDepth}, " +
+                      $"{s.ByType.Count} type(s), {s.TopLevel.Count} top-level category(ies)",
             jsonFile,
             totalEntries = s.TotalEntries,
             maxDepth = s.MaxDepth,
@@ -1018,20 +1018,20 @@ public static class ModdingTools
     }
 
     [McpServerTool(Name = "find_journal_entry", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Localise des entrées dans un .journal (JSON de read_game_file) par id, type ou " +
-                 "titre, et renvoie pour chacune son CHEMIN JSON exact (ex. " +
-                 "Data.RootChunk.entry.Data.entries[2].Data.entries[7].Data) — pour éditer l'entrée " +
-                 "ciblée puis réécrire via write_game_file, sans manipuler les ~70 Mo entiers.")]
+    [Description("Locates entries in a .journal (JSON from read_game_file) by id, type or " +
+                 "title, and returns for each its exact JSON PATH (e.g. " +
+                 "Data.RootChunk.entry.Data.entries[2].Data.entries[7].Data) — to edit the targeted " +
+                 "entry then rewrite via write_game_file, without manipulating the entire ~70 MB.")]
     public static string FindJournalEntry(
-        [Description("Chemin du JSON produit par read_game_file sur un .journal.")] string jsonFile,
-        [Description("Valeur à rechercher (sous-chaîne, insensible à la casse).")] string query,
-        [Description("Champ ciblé : id (défaut), type ($type) ou title.")] string field = "id",
-        [Description("Nombre max de correspondances (défaut 100).")] int maxResults = 100)
+        [Description("Path of the JSON produced by read_game_file on a .journal.")] string jsonFile,
+        [Description("Value to search (substring, case-insensitive).")] string query,
+        [Description("Targeted field: id (default), type ($type) or title.")] string field = "id",
+        [Description("Max number of matches (default 100).")] int maxResults = 100)
     {
         if (!File.Exists(jsonFile))
-            return Err($"Fichier JSON introuvable : {jsonFile}");
+            return Err($"JSON file not found: {jsonFile}");
         if (string.IsNullOrEmpty(query))
-            return Err("Requête vide.");
+            return Err("Empty query.");
         List<JournalEntryRef> matches; bool truncated; bool isJournal;
         try
         {
@@ -1039,33 +1039,33 @@ public static class ModdingTools
             using var doc = JsonDocument.Parse(fs);
             (matches, truncated, isJournal) = FindInJournal(doc.RootElement, query, field, maxResults);
         }
-        catch (Exception ex) { return Err($"JSON illisible : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Unreadable JSON: {ex.Message}"); }
         if (!isJournal)
-            return Err("Ce JSON n'est pas un journal (RootChunk.$type ≠ gameJournalResource).");
+            return Err("This JSON is not a journal (RootChunk.$type ≠ gameJournalResource).");
 
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $"« {query} » (champ {field}) : {matches.Count}{(truncated ? "+" : "")} entrée(s) trouvée(s)",
+            summary = $"\"{query}\" (field {field}): {matches.Count}{(truncated ? "+" : "")} entry(ies) found",
             jsonFile,
             field,
             query,
             matchCount = matches.Count,
             truncated,
             matches = matches.Select(JournalRefJson),
-            warnings = truncated ? new[] { $"Résultats tronqués à {maxResults} — affiner la requête." } : Array.Empty<string>(),
+            warnings = truncated ? new[] { $"Results truncated to {maxResults} — refine the query." } : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
     }
 
-    // ── Helpers journal ─────────────────────────────────────────────────────
+    // ── Journal helpers ─────────────────────────────────────────────────────
     internal sealed record JournalSummary(
         int TotalEntries, int MaxDepth, Dictionary<string, int> ByType,
         List<JournalEntryRef> TopLevel, string? Descriptor);
 
-    /// <summary>Navigue jusqu'au dossier racine du journal (gameJournalRootFolderEntry).
-    /// Renvoie default si le JSON n'est pas un journal.</summary>
+    /// <summary>Navigates to the journal root folder (gameJournalRootFolderEntry).
+    /// Returns default if the JSON is not a journal.</summary>
     private static bool TryGetJournalRoot(JsonElement root, out JsonElement rootFolder, out string? descriptor)
     {
         rootFolder = default; descriptor = null;
@@ -1141,7 +1141,7 @@ public static class ModdingTools
         => d.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.Object
            && t.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.String
            && !string.IsNullOrEmpty(v.GetString()) ? v.GetString() : null;
-    /// <summary>Enfants d'une entrée journal : les Data de chaque handle de « entries ».</summary>
+    /// <summary>Children of a journal entry: the Data of each "entries" handle.</summary>
     private static List<JsonElement> JChildren(JsonElement data)
     {
         var list = new List<JsonElement>();
@@ -1153,24 +1153,24 @@ public static class ModdingTools
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // inspect_cr2w / find_in_cr2w — navigation GÉNÉRIQUE d'un gros CR2W en JSON
+    // inspect_cr2w / find_in_cr2w — GENERIC navigation of a large CR2W in JSON
     //
-    // Généralise inspect_journal à n'importe quel CR2W (.quest, .questphase, .scene,
-    // .streamingsector, inkwidget…) : ces arbres sont énormes une fois en JSON.
+    // Generalizes inspect_journal to any CR2W (.quest, .questphase, .scene,
+    // .streamingsector, inkwidget…): these trees are huge once in JSON.
     // ════════════════════════════════════════════════════════════════════════
 
     internal sealed record Cr2wNodeRef(string Path, string Type, string? Value);
 
     [McpServerTool(Name = "inspect_cr2w", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Résumé navigable de N'IMPORTE quel CR2W converti en JSON (par read_game_file / " +
-                 "cr2w_to_json) : type racine, nombre d'objets typés, répartition par $type, " +
-                 "profondeur. Pour les gros fichiers (quêtes, scènes, secteurs, UI) qu'on ne peut " +
-                 "lire d'un bloc. Donne ensuite à find_in_cr2w une cible.")]
+    [Description("Navigable summary of ANY CR2W converted to JSON (by read_game_file / " +
+                 "cr2w_to_json): root type, number of typed objects, breakdown by $type, " +
+                 "depth. For large files (quests, scenes, sectors, UI) that cannot be " +
+                 "read in one block. Then give find_in_cr2w a target.")]
     public static string InspectCr2w(
-        [Description("Chemin du JSON produit par read_game_file / cr2w_to_json.")] string jsonFile)
+        [Description("Path of the JSON produced by read_game_file / cr2w_to_json.")] string jsonFile)
     {
         if (!File.Exists(jsonFile))
-            return Err($"Fichier JSON introuvable : {jsonFile}");
+            return Err($"JSON file not found: {jsonFile}");
         try
         {
             using var fs = File.OpenRead(jsonFile);
@@ -1180,8 +1180,8 @@ public static class ModdingTools
             {
                 ok = true,
                 status = "success",
-                summary = $"CR2W « {rootType ?? "?"} » : {total} objet(s) typé(s), " +
-                          $"profondeur {maxDepth}, {byType.Count} type(s)",
+                summary = $"CR2W \"{rootType ?? "?"}\": {total} typed object(s), " +
+                          $"depth {maxDepth}, {byType.Count} type(s)",
                 jsonFile,
                 rootType,
                 totalTypedObjects = total,
@@ -1192,24 +1192,24 @@ public static class ModdingTools
                 errors = Array.Empty<string>(),
             }, JsonOpts);
         }
-        catch (Exception ex) { return Err($"JSON illisible : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Unreadable JSON: {ex.Message}"); }
     }
 
     [McpServerTool(Name = "find_in_cr2w", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Recherche dans N'IMPORTE quel CR2W (JSON) les objets dont un champ correspond à " +
-                 "une cible, et renvoie leur CHEMIN JSON exact — pour éditer le nœud ciblé puis " +
-                 "réécrire via write_game_file. field = $type (défaut), un nom de champ précis, ou " +
-                 "* (toute valeur texte). Idéal pour quêtes/scènes/secteurs/UI volumineux.")]
+    [Description("Searches in ANY CR2W (JSON) the objects whose field matches a " +
+                 "target, and returns their exact JSON PATH — to edit the targeted node then " +
+                 "rewrite via write_game_file. field = $type (default), a precise field name, or " +
+                 "* (any text value). Ideal for large quests/scenes/sectors/UI.")]
     public static string FindInCr2w(
-        [Description("Chemin du JSON produit par read_game_file / cr2w_to_json.")] string jsonFile,
-        [Description("Valeur à rechercher (sous-chaîne, insensible à la casse).")] string query,
-        [Description("Champ ciblé : $type (défaut), un nom de propriété, ou * (toute valeur texte).")] string field = "$type",
-        [Description("Nombre max de correspondances (défaut 100).")] int maxResults = 100)
+        [Description("Path of the JSON produced by read_game_file / cr2w_to_json.")] string jsonFile,
+        [Description("Value to search (substring, case-insensitive).")] string query,
+        [Description("Targeted field: $type (default), a property name, or * (any text value).")] string field = "$type",
+        [Description("Max number of matches (default 100).")] int maxResults = 100)
     {
         if (!File.Exists(jsonFile))
-            return Err($"Fichier JSON introuvable : {jsonFile}");
+            return Err($"JSON file not found: {jsonFile}");
         if (string.IsNullOrEmpty(query))
-            return Err("Requête vide.");
+            return Err("Empty query.");
         try
         {
             using var fs = File.OpenRead(jsonFile);
@@ -1219,21 +1219,21 @@ public static class ModdingTools
             {
                 ok = true,
                 status = "success",
-                summary = $"« {query} » (champ {field}) : {matches.Count}{(truncated ? "+" : "")} correspondance(s)",
+                summary = $"\"{query}\" (field {field}): {matches.Count}{(truncated ? "+" : "")} match(es)",
                 jsonFile,
                 field,
                 query,
                 matchCount = matches.Count,
                 truncated,
                 matches = matches.Select(m => new { path = m.Path, type = m.Type, value = m.Value }),
-                warnings = truncated ? new[] { $"Résultats tronqués à {maxResults} — affiner la requête." } : Array.Empty<string>(),
+                warnings = truncated ? new[] { $"Results truncated to {maxResults} — refine the query." } : Array.Empty<string>(),
                 errors = Array.Empty<string>(),
             }, JsonOpts);
         }
-        catch (Exception ex) { return Err($"JSON illisible : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Unreadable JSON: {ex.Message}"); }
     }
 
-    /// <summary>Parcourt tout le JSON et compte les objets par $type.</summary>
+    /// <summary>Walks the whole JSON and counts objects by $type.</summary>
     internal static (string? rootType, int total, int maxDepth, Dictionary<string, int> byType)
         SummarizeCr2w(JsonElement root)
     {
@@ -1313,7 +1313,7 @@ public static class ModdingTools
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // diagnose_logs — parse les logs de modding, classe les erreurs, propose un fix
+    // diagnose_logs — parses the modding logs, classifies errors, suggests a fix
     // ════════════════════════════════════════════════════════════════════════
 
     private sealed record LogSource(string Name, string[] RelativePaths);
@@ -1328,44 +1328,44 @@ public static class ModdingTools
         new("REDmod", new[] { @"tools\redmod\bin\REDmodLog.txt" }),
     };
 
-    // Base de connaissance : motif d'erreur connu → problème + correctif.
+    // Knowledge base: known error pattern → problem + fix.
     private sealed record KnownError(string Pattern, string Problem, string Fix);
     private static readonly KnownError[] ErrorKb =
     {
         new("scc invocation failed|REDScript compilation has failed|compilation has failed",
-            "Compilation redscript échouée — un .reds est invalide.",
-            "Le log redscript indique le fichier:ligne fautif. Corriger ou retirer ce mod ; un seul .reds cassé bloque toute la compilation."),
+            "redscript compilation failed — a .reds is invalid.",
+            "The redscript log indicates the offending file:line. Fix or remove this mod; a single broken .reds blocks the whole compilation."),
         new("field with this name is already defined|already defined",
-            "Définition en double — un mod est probablement installé deux fois.",
-            "Vérifier qu'aucun mod n'est présent à la fois dans archive/pc/mod et mods/, ni dupliqué."),
+            "Duplicate definition — a mod is probably installed twice.",
+            "Check that no mod is present both in archive/pc/mod and mods/, nor duplicated."),
         new("Failed to resolve address for hash|Could not find address",
-            "Hash/adresse non résolu — souvent une mise à jour du jeu (ou jeu non à jour/piraté).",
-            "Mettre à jour le mod et les core-mods (RED4ext, redscript) pour la version actuelle du jeu."),
+            "Hash/address not resolved — often a game update (or game not up to date/pirated).",
+            "Update the mod and the core-mods (RED4ext, redscript) for the current game version."),
         new("1114|VCRUNTIME|VCRedist|vcruntime",
-            "RED4ext erreur 1114 — Visual C++ Redistributable 2022 manquant.",
-            "Installer Microsoft Visual C++ Redistributable 2022 (x64)."),
+            "RED4ext error 1114 — Visual C++ Redistributable 2022 missing.",
+            "Install Microsoft Visual C++ Redistributable 2022 (x64)."),
         new("corrupted or missing TweakDB|tweakdb.*missing|tweakdb.*corrupt",
-            "TweakDB corrompue ou absente.",
-            "Copier r6/cache/tweakdb.bin vers r6/cache/modded/ (+ tweakdb_ep1.bin pour Phantom Liberty)."),
+            "TweakDB corrupted or missing.",
+            "Copy r6/cache/tweakdb.bin to r6/cache/modded/ (+ tweakdb_ep1.bin for Phantom Liberty)."),
         new("Watchdog Timeout|watchdog timeout",
-            "Watchdog timeout — chargement trop long (antivirus ou disque lent).",
-            "Exclure le dossier du jeu de l'antivirus, ou augmenter le timeout dans user.ini."),
+            "Watchdog timeout — loading too slow (antivirus or slow disk).",
+            "Exclude the game folder from the antivirus, or increase the timeout in user.ini."),
         new("ValidateScripts|codeware.global.reds",
-            "Validation de scripts échouée (souvent Codeware/cache périmé).",
-            "Vider r6/cache/, vérifier les fichiers du jeu, réinstaller Codeware à jour."),
+            "Script validation failed (often Codeware/stale cache).",
+            "Clear r6/cache/, verify the game files, reinstall an up-to-date Codeware."),
     };
 
     [McpServerTool(Name = "diagnose_logs", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Lit et DIAGNOSTIQUE les logs de modding d'une install Cyberpunk 2077 (redscript, " +
-                 "RED4ext, ArchiveXL, TweakXL, Codeware, CET, REDmod) : extrait les erreurs, les " +
-                 "classe par source, mappe les erreurs connues à un correctif, et tente d'attribuer " +
-                 "au mod fautif. Bien plus utile que tail_game_logs (qui ne fait que du tail brut).")]
+    [Description("Reads and DIAGNOSES the modding logs of a Cyberpunk 2077 install (redscript, " +
+                 "RED4ext, ArchiveXL, TweakXL, Codeware, CET, REDmod): extracts the errors, " +
+                 "classifies them by source, maps known errors to a fix, and attempts to attribute " +
+                 "them to the offending mod. Much more useful than tail_game_logs (which only does a raw tail).")]
     public static string DiagnoseLogs(
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
-        [Description("Nb max de lignes d'erreur remontées par source (défaut 30).")] int maxPerSource = 30)
+        [Description("Cyberpunk 2077 installation root folder.")] string gamePath,
+        [Description("Max number of error lines reported per source (default 30).")] int maxPerSource = 30)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
 
         var perSource = new List<object>();
         var allFixes = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -1387,7 +1387,7 @@ public static class ModdingTools
             errs.Reverse();
             totalErrors += errs.Count;
 
-            // Matcher la KB sur l'ensemble du log (pas seulement les lignes d'erreur).
+            // Match the KB against the whole log (not just the error lines).
             var joined = string.Join("\n", lines);
             foreach (var k in ErrorKb)
                 if (System.Text.RegularExpressions.Regex.IsMatch(joined, k.Pattern,
@@ -1411,8 +1411,8 @@ public static class ModdingTools
             ok = true,
             status,
             summary = logsFound == 0
-                ? "Aucun log trouvé (le jeu n'a peut-être jamais tourné moddé)."
-                : $"{logsFound} log(s) analysé(s), {totalErrors} ligne(s) d'erreur, {diagnoses.Count} diagnostic(s) connu(s)",
+                ? "No log found (the game may never have run modded)."
+                : $"{logsFound} log(s) analyzed, {totalErrors} error line(s), {diagnoses.Count} known diagnostic(s)",
             gamePath,
             logsFound,
             totalErrors,
@@ -1423,8 +1423,8 @@ public static class ModdingTools
         }, JsonOpts);
     }
 
-    /// <summary>Classe une ligne de log contre la base de connaissance (testable).
-    /// Renvoie (problème, fix) ou null.</summary>
+    /// <summary>Classifies a log line against the knowledge base (testable).
+    /// Returns (problem, fix) or null.</summary>
     internal static (string problem, string fix)? ClassifyLogText(string text)
     {
         foreach (var k in ErrorKb)
@@ -1435,29 +1435,29 @@ public static class ModdingTools
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // analyze_conflicts — conflits robustes entre mods (archives + tweaks)
+    // analyze_conflicts — robust conflicts between mods (archives + tweaks)
     //
-    // Contourne le verbe WolvenKit `conflicts` (buggé sur certains installs) en
-    // calculant les recouvrements directement depuis les listings d'archives (cache
-    // LRU) et les records de tweaks.
+    // Works around the WolvenKit `conflicts` verb (buggy on some installs) by
+    // computing the overlaps directly from the archive listings (LRU cache) and
+    // the tweak records.
     // ════════════════════════════════════════════════════════════════════════
 
     [McpServerTool(Name = "analyze_conflicts", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Détecte les conflits entre mods installés SANS le verbe WolvenKit buggé : " +
-                 "fichiers de jeu fournis par plusieurs .archive (avec qui l'emporte selon l'ordre " +
-                 "de chargement alphabétique = premier-gagne), et records TweakDB définis par " +
-                 "plusieurs .tweak/.yaml. Premier outil de diagnostic quand un mod en écrase un " +
-                 "autre silencieusement (sinon : bissection manuelle).")]
+    [Description("Detects conflicts between installed mods WITHOUT the buggy WolvenKit verb: " +
+                 "game files provided by several .archive (with the winner according to the " +
+                 "alphabetical load order = first-wins), and TweakDB records defined by " +
+                 "several .tweak/.yaml. First diagnostic tool when a mod silently overrides " +
+                 "another (otherwise: manual bisection).")]
     public static async Task<string> AnalyzeConflicts(
         Cp77ToolsRunner runner,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
-        [Description("Nb max de conflits remontés par catégorie (défaut 200).")] int maxResults = 200,
+        [Description("Cyberpunk 2077 installation root folder.")] string gamePath,
+        [Description("Max number of conflicts reported per category (default 200).")] int maxResults = 200,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(gamePath))
-            return Err($"Dossier de jeu introuvable : {gamePath}");
+            return Err($"Game folder not found: {gamePath}");
 
-        // Archives : archive/pc/mod + REDmod mods/*/archives
+        // Archives: archive/pc/mod + REDmod mods/*/archives
         var archives = new List<string>();
         var legacy = Path.Combine(gamePath, "archive", "pc", "mod");
         if (Directory.Exists(legacy)) archives.AddRange(Directory.GetFiles(legacy, "*.archive"));
@@ -1493,7 +1493,7 @@ public static class ModdingTools
             .OrderByDescending(c => c.providedBy.Count).ThenBy(c => c.path)
             .ToList();
 
-        // Records de tweaks : r6/tweaks/**/*.{yaml,yml,tweak}
+        // Tweak records: r6/tweaks/**/*.{yaml,yml,tweak}
         var tweakRecords = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         var tweaksDir = Path.Combine(gamePath, "r6", "tweaks");
         if (Directory.Exists(tweaksDir))
@@ -1515,28 +1515,28 @@ public static class ModdingTools
         var total = archiveConflicts.Count + tweakConflicts.Count;
         var status = total > 0 ? "partial" : "success";
 
-        // Conflits ≠ rapport mort : on dit quoi FAIRE. Les recettes générales suffisent
-        // (les répéter sur chacun des N conflits gonflerait la réponse pour rien).
+        // Conflicts ≠ dead report: we say what to DO. The general recipes are enough
+        // (repeating them on each of the N conflicts would bloat the response for nothing).
         var resolutionHints = total == 0 ? Array.Empty<string>() : new[]
         {
-            "Pour qu'une archive perdante l'emporte : la renommer pour qu'elle se trie AVANT le " +
-            "winner (préfixe « ! » ou « 00_ »), puis vérifier avec un nouvel analyze_conflicts.",
-            "Pour neutraliser un mod en conflit sans le supprimer : toggle_mods (déplace ses " +
-            ".archive vers _disabled ; pratique aussi en bissection pour trouver le coupable).",
-            "Pour vérifier ce qui diffère réellement entre deux archives en conflit : " +
-            "diff_archives, puis diff_mod_vs_base sur le fichier précis.",
-            "Records TweakDB définis par plusieurs .tweak/.yaml : fusionner les valeurs dans un " +
-            "seul fichier, ou supprimer la définition redondante (lint_tweak pour vérifier).",
+            "To make a losing archive win: rename it so it sorts BEFORE the " +
+            "winner (prefix \"!\" or \"00_\"), then check with a new analyze_conflicts.",
+            "To neutralize a conflicting mod without removing it: toggle_mods (moves its " +
+            ".archive to _disabled; also handy in bisection to find the culprit).",
+            "To check what actually differs between two conflicting archives: " +
+            "diff_archives, then diff_mod_vs_base on the precise file.",
+            "TweakDB records defined by several .tweak/.yaml: merge the values into a " +
+            "single file, or remove the redundant definition (lint_tweak to check).",
         };
 
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status,
-            summary = $"{archives.Count} archive(s) + tweaks analysés : " +
-                      $"{archiveConflicts.Count} conflit(s) d'archive, {tweakConflicts.Count} record(s) en conflit",
+            summary = $"{archives.Count} archive(s) + tweaks analyzed: " +
+                      $"{archiveConflicts.Count} archive conflict(s), {tweakConflicts.Count} conflicting record(s)",
             gamePath,
-            note = "Ordre de chargement alphabétique : le premier à fournir un fichier l'emporte (winner).",
+            note = "Alphabetical load order: the first to provide a file wins (winner).",
             resolutionHints,
             archivesScanned = archives.Count,
             archiveConflicts = archiveConflicts.Take(maxResults),
@@ -1544,13 +1544,13 @@ public static class ModdingTools
             tweakConflicts = tweakConflicts.Take(maxResults),
             tweakConflictCount = tweakConflicts.Count,
             truncated = archiveConflicts.Count > maxResults || tweakConflicts.Count > maxResults,
-            warnings = total > 0 ? new[] { $"{total} conflit(s) détecté(s) — vérifier l'ordre/priorité." } : Array.Empty<string>(),
+            warnings = total > 0 ? new[] { $"{total} conflict(s) detected — check load order/priority." } : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
     }
 
-    /// <summary>Noms de records (clés de premier niveau qui sont des mappings) d'un
-    /// fichier .tweak/.yaml TweakXL. Tolérant aux erreurs de parse.</summary>
+    /// <summary>Record names (top-level keys that are mappings) of a
+    /// .tweak/.yaml TweakXL file. Tolerant to parse errors.</summary>
     internal static List<string> ParseTweakRecordNames(string file)
     {
         var names = new List<string>();
@@ -1562,54 +1562,54 @@ public static class ModdingTools
                 foreach (var k in map.Keys)
                 {
                     var key = k?.ToString();
-                    // Ignorer les directives globales (commencent par $).
+                    // Ignore global directives (start with $).
                     if (!string.IsNullOrEmpty(key) && !key.StartsWith("$")) names.Add(key);
                 }
         }
-        catch { /* fichier illisible : ignoré */ }
+        catch { /* unreadable file: ignored */ }
         return names;
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // validate_item_mod — valide la chaîne de références d'un mod d'item ArchiveXL
+    // validate_item_mod — validates the reference chain of an ArchiveXL item mod
     //
-    // Cause #1 d'échec silencieux : une typo entre .yaml (entityName/displayName),
-    // la factory .csv et la localisation .json. Validation purement textuelle des
-    // control-files (sans daemon) ; les .ent/.app/.mesh sont signalés présents/absents.
+    // Silent failure cause #1: a typo between .yaml (entityName/displayName),
+    // the factory .csv and the localization .json. Purely textual validation of the
+    // control-files (no daemon); .ent/.app/.mesh are reported as present/missing.
     // ════════════════════════════════════════════════════════════════════════
 
     internal sealed record ItemRecord(string Record, string? EntityName, string? AppearanceName, string? DisplayName, string File);
 
     [McpServerTool(Name = "validate_item_mod", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Valide la chaîne de références d'un mod d'item ArchiveXL (la cause n°1 d'échec " +
-                 "silencieux « l'item ne spawn pas / nom vide ») : pour chaque record TweakXL, " +
-                 "vérifie que son entityName existe dans une factory .csv, que son displayName " +
-                 "correspond à un secondaryKey de localisation .json, et que l'entité .ent " +
-                 "référencée est présente. Signale les maillons manquants. Analyse textuelle des " +
-                 "control-files (.yaml/.xl/.csv/.json) ; avec deep=true, convertit aussi le .ent et " +
-                 "vérifie que l'appearanceName y figure.")]
+    [Description("Validates the reference chain of an ArchiveXL item mod (silent-failure cause #1, " +
+                 "\"the item doesn't spawn / empty name\"): for each TweakXL record, " +
+                 "checks that its entityName exists in a factory .csv, that its displayName " +
+                 "matches a secondaryKey in a localization .json, and that the referenced .ent " +
+                 "entity is present. Reports the missing links. Textual analysis of the " +
+                 "control-files (.yaml/.xl/.csv/.json); with deep=true, also converts the .ent and " +
+                 "checks that the appearanceName is present in it.")]
     public static async Task<string> ValidateItemMod(
         Cp77ToolsRunner runner,
-        [Description("Dossier du mod (projet ou contenu déployé) contenant .yaml/.xl/.csv/.json.")] string modPath,
-        [Description("Mode profond : convertit les .ent présents et vérifie que l'appearanceName y existe.")] bool deep = false,
+        [Description("Mod folder (project or deployed content) containing .yaml/.xl/.csv/.json.")] string modPath,
+        [Description("Deep mode: converts the present .ent files and checks that the appearanceName exists in them.")] bool deep = false,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(modPath))
-            return Err($"Dossier de mod introuvable : {modPath}");
+            return Err($"Mod folder not found: {modPath}");
 
         var files = Directory.EnumerateFiles(modPath, "*", SearchOption.AllDirectories).ToList();
         var items = new List<ItemRecord>();
         foreach (var f in files.Where(f => Path.GetExtension(f).ToLowerInvariant() is ".yaml" or ".yml" or ".tweak"))
             items.AddRange(ParseItemRecords(f));
 
-        // Factory .csv : col0 = entityName, col1 = chemin .ent.
+        // Factory .csv: col0 = entityName, col1 = .ent path.
         var factoryNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var csvFiles = files.Where(f => Path.GetExtension(f).ToLowerInvariant() == ".csv").ToList();
         foreach (var csv in csvFiles)
             foreach (var (name, path) in ParseFactoryCsv(csv))
                 factoryNames[name] = path;
 
-        // Localisation .json : tous les secondaryKey présents dans le mod.
+        // Localization .json: all the secondaryKey present in the mod.
         var secondaryKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var js in files.Where(f => Path.GetExtension(f).ToLowerInvariant() == ".json"))
             foreach (var sk in CollectSecondaryKeys(js)) secondaryKeys.Add(sk);
@@ -1624,26 +1624,26 @@ public static class ModdingTools
             if (!string.IsNullOrEmpty(it.EntityName))
             {
                 if (factoryNames.Count == 0)
-                    warnings.Add($"[{it.Record}] entityName '{it.EntityName}' : aucune factory .csv trouvée dans le mod.");
+                    warnings.Add($"[{it.Record}] entityName '{it.EntityName}': no factory .csv found in the mod.");
                 else if (!factoryNames.ContainsKey(it.EntityName))
-                    errors.Add(entIssue = $"[{it.Record}] entityName '{it.EntityName}' absent des factory .csv " +
+                    errors.Add(entIssue = $"[{it.Record}] entityName '{it.EntityName}' missing from the factory .csv " +
                                $"({string.Join(", ", csvFiles.Select(Path.GetFileName))}).");
                 else
                 {
-                    // L'entité .ent référencée est-elle présente dans le mod ?
+                    // Is the referenced .ent entity present in the mod?
                     var entPath = factoryNames[it.EntityName];
                     var baseName = entPath.Replace('/', '\\').Split('\\')[^1];
                     var entFile = files.FirstOrDefault(f => f.EndsWith(baseName, StringComparison.OrdinalIgnoreCase));
                     if (entFile is null)
-                        warnings.Add($"[{it.Record}] entité '{entPath}' non trouvée dans le mod (réf. base game ?).");
+                        warnings.Add($"[{it.Record}] entity '{entPath}' not found in the mod (base game ref?).");
                     else if (deep && !string.IsNullOrEmpty(it.AppearanceName))
                     {
-                        // Profond : convertir le .ent et vérifier que l'appearanceName y figure.
+                        // Deep: convert the .ent and check that the appearanceName is present in it.
                         var entJson = await ConvertCr2wToJsonText(runner, entFile, ct);
                         if (entJson is null)
-                            warnings.Add($"[{it.Record}] conversion du .ent échouée (vérif. profonde ignorée).");
+                            warnings.Add($"[{it.Record}] .ent conversion failed (deep check skipped).");
                         else if (entJson.IndexOf(it.AppearanceName!, StringComparison.OrdinalIgnoreCase) < 0)
-                            errors.Add($"[{it.Record}] appearanceName '{it.AppearanceName}' absent du .ent '{baseName}'.");
+                            errors.Add($"[{it.Record}] appearanceName '{it.AppearanceName}' missing from the .ent '{baseName}'.");
                     }
                 }
             }
@@ -1651,9 +1651,9 @@ public static class ModdingTools
                 && !it.DisplayName.StartsWith("LocKey#", StringComparison.OrdinalIgnoreCase))
             {
                 if (secondaryKeys.Count == 0)
-                    warnings.Add($"[{it.Record}] displayName '{it.DisplayName}' : aucune localisation .json trouvée.");
+                    warnings.Add($"[{it.Record}] displayName '{it.DisplayName}': no localization .json found.");
                 else if (!secondaryKeys.Contains(it.DisplayName))
-                    errors.Add(dispIssue = $"[{it.Record}] displayName '{it.DisplayName}' absent des secondaryKey de localisation.");
+                    errors.Add(dispIssue = $"[{it.Record}] displayName '{it.DisplayName}' missing from the localization secondaryKey.");
             }
             checks.Add(new
             {
@@ -1672,8 +1672,8 @@ public static class ModdingTools
             ok = errors.Count == 0,
             status,
             summary = items.Count == 0
-                ? "Aucun record d'item TweakXL trouvé (.yaml avec entityName/appearanceName/displayName)."
-                : $"{items.Count} item(s) vérifié(s) : {errors.Count} erreur(s), {warnings.Count} avertissement(s)",
+                ? "No TweakXL item record found (.yaml with entityName/appearanceName/displayName)."
+                : $"{items.Count} item(s) checked: {errors.Count} error(s), {warnings.Count} warning(s)",
             modPath,
             itemsFound = items.Count,
             factories = factoryNames.Count,
@@ -1683,15 +1683,15 @@ public static class ModdingTools
             errors,
             deep,
             limitation = deep
-                ? "Mode profond : vérifie aussi l'appearanceName dans le .ent. Le matching .app↔.mesh " +
-                  "(noms d'apparence de mesh, index de matériaux) reste à faire via inspect_cr2w."
-                : "Control-files (.yaml↔.csv↔.json + présence .ent). Passer deep=true pour vérifier " +
-                  "l'appearanceName dans le .ent.",
+                ? "Deep mode: also checks the appearanceName in the .ent. The .app↔.mesh matching " +
+                  "(mesh appearance names, material indices) remains to be done via inspect_cr2w."
+                : "Control-files (.yaml↔.csv↔.json + .ent presence). Pass deep=true to check " +
+                  "the appearanceName in the .ent.",
         }, JsonOpts);
     }
 
-    /// <summary>Convertit un CR2W en texte JSON via le daemon (convert serialize),
-    /// dans un dossier temp jetable. Renvoie null en cas d'échec.</summary>
+    /// <summary>Converts a CR2W to JSON text via the daemon (convert serialize),
+    /// in a disposable temp folder. Returns null on failure.</summary>
     private static async Task<string?> ConvertCr2wToJsonText(
         Cp77ToolsRunner runner, string cr2wFile, CancellationToken ct)
     {
@@ -1707,8 +1707,8 @@ public static class ModdingTools
         finally { try { Directory.Delete(tmp, true); } catch { /* best-effort */ } }
     }
 
-    /// <summary>Extrait les records d'item d'un .yaml/.tweak TweakXL : tout mapping de
-    /// premier niveau ayant un champ entityName / appearanceName / displayName.</summary>
+    /// <summary>Extracts the item records from a .yaml/.tweak TweakXL: any top-level
+    /// mapping having an entityName / appearanceName / displayName field.</summary>
     internal static List<ItemRecord> ParseItemRecords(string file)
     {
         var items = new List<ItemRecord>();
@@ -1730,12 +1730,12 @@ public static class ModdingTools
                 items.Add(new ItemRecord(record, ent, app, disp, Path.GetFileName(file)));
             }
         }
-        catch { /* illisible : ignoré */ }
+        catch { /* unreadable: ignored */ }
         return items;
     }
 
-    /// <summary>Parse une factory .csv ArchiveXL : (entityName, chemin .ent) par ligne
-    /// non vide / non commentée. Première colonne = nom, deuxième = chemin.</summary>
+    /// <summary>Parses an ArchiveXL factory .csv: (entityName, .ent path) per
+    /// non-empty / non-commented line. First column = name, second = path.</summary>
     internal static List<(string name, string path)> ParseFactoryCsv(string file)
     {
         var rows = new List<(string, string)>();
@@ -1749,16 +1749,16 @@ public static class ModdingTools
                 if (cols.Length < 2) continue;
                 var name = cols[0].Trim().Trim('"');
                 var path = cols[1].Trim().Trim('"');
-                if (name.Length == 0 || name.Equals("name", StringComparison.OrdinalIgnoreCase)) continue; // en-tête
+                if (name.Length == 0 || name.Equals("name", StringComparison.OrdinalIgnoreCase)) continue; // header
                 rows.Add((name, path));
             }
         }
-        catch { /* illisible : ignoré */ }
+        catch { /* unreadable: ignored */ }
         return rows;
     }
 
-    /// <summary>Collecte récursivement toutes les valeurs de propriété "secondaryKey"
-    /// d'un fichier JSON de localisation.</summary>
+    /// <summary>Recursively collects all the "secondaryKey" property values
+    /// of a localization JSON file.</summary>
     internal static List<string> CollectSecondaryKeys(string jsonFile)
     {
         var keys = new List<string>();
@@ -1785,27 +1785,27 @@ public static class ModdingTools
             }
             Walk(doc.RootElement);
         }
-        catch { /* pas un JSON de localisation : ignoré */ }
+        catch { /* not a localization JSON: ignored */ }
         return keys;
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // lint_tweak — lint sémantique d'un .tweak/.yaml TweakXL
+    // lint_tweak — semantic lint of a .tweak/.yaml TweakXL
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "lint_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Lint sémantique d'un fichier TweakXL (.tweak/.yaml) : TABS interdits (échec " +
-                 "silencieux du chargement), indentation non multiple de 2, noms de record en " +
-                 "double dans le fichier, et usage d'un record auto-généré `inlineN` comme `$base` " +
-                 "(casse à chaque mise à jour du jeu). Complète validate_tweak (qui vérifie les clés " +
+    [Description("Semantic lint of a TweakXL file (.tweak/.yaml): TABS forbidden (silent " +
+                 "load failure), indentation not a multiple of 2, duplicate record " +
+                 "names in the file, and use of an auto-generated `inlineN` record as `$base` " +
+                 "(breaks on every game update). Complements validate_tweak (which checks the keys " +
                  "vs tweakdb.bin).")]
     public static string LintTweak(
-        [Description("Chemin du fichier .tweak / .yaml à linter.")] string tweakFile)
+        [Description("Path of the .tweak / .yaml file to lint.")] string tweakFile)
     {
         if (!File.Exists(tweakFile))
-            return Err($"Fichier introuvable : {tweakFile}");
+            return Err($"File not found: {tweakFile}");
         string[] lines;
         try { lines = File.ReadAllLines(tweakFile); }
-        catch (Exception ex) { return Err($"Lecture impossible : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Cannot read file: {ex.Message}"); }
 
         var (errors, warnings) = LintTweakText(lines);
         var status = errors.Count > 0 ? "error" : warnings.Count > 0 ? "partial" : "success";
@@ -1813,14 +1813,14 @@ public static class ModdingTools
         {
             ok = errors.Count == 0,
             status,
-            summary = $"Lint tweak : {Path.GetFileName(tweakFile)} — {errors.Count} erreur(s), {warnings.Count} avertissement(s)",
+            summary = $"Tweak lint: {Path.GetFileName(tweakFile)} — {errors.Count} error(s), {warnings.Count} warning(s)",
             tweakFile,
             warnings,
             errors,
         }, JsonOpts);
     }
 
-    /// <summary>Lint textuel d'un TweakXL (testable). Renvoie (erreurs, avertissements).</summary>
+    /// <summary>Textual lint of a TweakXL (testable). Returns (errors, warnings).</summary>
     internal static (List<string> errors, List<string> warnings) LintTweakText(string[] lines)
     {
         var errors = new List<string>();
@@ -1830,13 +1830,13 @@ public static class ModdingTools
         {
             var line = lines[i];
             if (line.TrimEnd().Length == 0) continue;
-            // Indentation : tabs interdits, espaces multiples de 2.
+            // Indentation: tabs forbidden, spaces in multiples of 2.
             var indent = line.Length - line.TrimStart().Length;
             if (line[..indent].Contains('\t'))
-                errors.Add($"L{i + 1} : TABULATION dans l'indentation — TweakXL exige des espaces (échec silencieux).");
+                errors.Add($"L{i + 1}: TAB in the indentation — TweakXL requires spaces (silent failure).");
             else if (indent % 2 != 0)
-                warnings.Add($"L{i + 1} : indentation de {indent} espace(s) — TweakXL attend des multiples de 2.");
-            // Clé de premier niveau (colonne 0, se termine par ':' ou 'clé: valeur').
+                warnings.Add($"L{i + 1}: indentation of {indent} space(s) — TweakXL expects multiples of 2.");
+            // Top-level key (column 0, ends with ':' or 'key: value').
             if (indent == 0 && !line.StartsWith("#") && !line.StartsWith("$"))
             {
                 var m = System.Text.RegularExpressions.Regex.Match(line, @"^([^\s:#][^:]*):");
@@ -1846,32 +1846,32 @@ public static class ModdingTools
                     topKeys[key] = topKeys.GetValueOrDefault(key) + 1;
                 }
             }
-            // inlineN comme $base.
+            // inlineN as $base.
             var bm = System.Text.RegularExpressions.Regex.Match(line, @"\$base\s*:\s*\S*inline\d+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (bm.Success)
-                warnings.Add($"L{i + 1} : `$base` pointe un record auto-généré `inlineN` — les indices bougent à chaque MAJ et casseront le mod. Référencer le record nommé.");
+                warnings.Add($"L{i + 1}: `$base` points to an auto-generated `inlineN` record — the indices shift on every update and will break the mod. Reference the named record.");
         }
         foreach (var kv in topKeys.Where(kv => kv.Value > 1))
-            warnings.Add($"Record « {kv.Key} » défini {kv.Value} fois dans le fichier — le dernier écrase silencieusement.");
+            warnings.Add($"Record \"{kv.Key}\" defined {kv.Value} times in the file — the last one silently overrides.");
         return (errors, warnings);
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // generate_manifest — manifeste de dépendances depuis l'analyse d'un mod
+    // generate_manifest — dependency manifest from the analysis of a mod
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "generate_manifest", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Génère un manifeste de dépendances pour un mod en détectant ses frameworks requis " +
-                 "(comme analyze_dependencies) et en écrivant un REQUIREMENTS.md (façon onglet " +
-                 "« Requirements » Nexus) + un objet structuré. Comble l'absence totale de système " +
-                 "de dépendances machine-lisible côté écosystème.")]
+    [Description("Generates a dependency manifest for a mod by detecting its required frameworks " +
+                 "(like analyze_dependencies) and writing a REQUIREMENTS.md (Nexus " +
+                 "\"Requirements\" tab style) + a structured object. Fills the total absence of a " +
+                 "machine-readable dependency system on the ecosystem side.")]
     public static string GenerateManifest(
-        [Description("Dossier du mod à analyser.")] string modPath,
-        [Description("Nom du mod (pour l'en-tête du manifeste).")] string? modName = null,
-        [Description("Version du mod.")] string? version = null,
-        [Description("Écrire REQUIREMENTS.md dans le dossier du mod (défaut true).")] bool writeFile = true)
+        [Description("Mod folder to analyze.")] string modPath,
+        [Description("Mod name (for the manifest header).")] string? modName = null,
+        [Description("Mod version.")] string? version = null,
+        [Description("Write REQUIREMENTS.md in the mod folder (default true).")] bool writeFile = true)
     {
         if (!Directory.Exists(modPath))
-            return Err($"Dossier de mod introuvable : {modPath}");
+            return Err($"Mod folder not found: {modPath}");
 
         var reasons = DetectFrameworks(modPath, out var unknownImports, out _);
         var deps = Frameworks.Where(f => reasons.ContainsKey(f.Name))
@@ -1882,29 +1882,29 @@ public static class ModdingTools
         var sb = new StringBuilder();
         sb.AppendLine($"# {name} — Requirements").AppendLine();
         if (!string.IsNullOrWhiteSpace(version)) sb.AppendLine($"**Version :** {version}").AppendLine();
-        sb.AppendLine("## Dépendances (frameworks)").AppendLine();
-        if (deps.Count == 0) sb.AppendLine("_Aucune dépendance de framework détectée._");
-        else foreach (var d in deps) sb.AppendLine($"- **{d.framework}** ({d.kind}) — {d.note}  \n  _détecté via : {d.reason}_");
+        sb.AppendLine("## Dependencies (frameworks)").AppendLine();
+        if (deps.Count == 0) sb.AppendLine("_No framework dependency detected._");
+        else foreach (var d in deps) sb.AppendLine($"- **{d.framework}** ({d.kind}) — {d.note}  \n  _detected via: {d.reason}_");
         if (unknownImports.Count > 0)
         {
-            sb.AppendLine().AppendLine("## Dépendances inter-mods possibles (imports non reconnus)").AppendLine();
+            sb.AppendLine().AppendLine("## Possible cross-mod dependencies (unrecognized imports)").AppendLine();
             foreach (var u in unknownImports.OrderBy(x => x).Take(30)) sb.AppendLine($"- `{u}`");
         }
-        sb.AppendLine().AppendLine("> Installe chaque framework à sa dernière version compatible avec ta version du jeu.");
+        sb.AppendLine().AppendLine("> Install each framework at its latest version compatible with your game version.");
 
         string? written = null;
         if (writeFile)
         {
             written = Path.Combine(modPath, "REQUIREMENTS.md");
             try { File.WriteAllText(written, sb.ToString(), new UTF8Encoding(false)); }
-            catch (Exception ex) { return Err($"Écriture REQUIREMENTS.md impossible : {ex.Message}"); }
+            catch (Exception ex) { return Err($"Cannot write REQUIREMENTS.md: {ex.Message}"); }
         }
 
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $"Manifeste de {name} : {deps.Count} dépendance(s), {unknownImports.Count} import(s) inter-mods",
+            summary = $"Manifest for {name}: {deps.Count} dependency(ies), {unknownImports.Count} cross-mod import(s)",
             modPath,
             dependencies = deps,
             crossModImports = unknownImports.OrderBy(x => x).ToList(),
@@ -1916,7 +1916,7 @@ public static class ModdingTools
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // resolve_dynamic_appearance — expansion des patterns ArchiveXL dynamiques
+    // resolve_dynamic_appearance — expansion of dynamic ArchiveXL patterns
     // ════════════════════════════════════════════════════════════════════════
     private static readonly (string ph, string[] vals)[] DynPlaceholders =
     {
@@ -1925,16 +1925,16 @@ public static class ModdingTools
     };
 
     [McpServerTool(Name = "resolve_dynamic_appearance", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Développe un chemin/pattern d'apparence dynamique ArchiveXL (préfixe `*`, " +
-                 "interpolations {gender}→m/w et {camera}→fpp/tpp) en ses chemins concrets, et — si " +
-                 "modPath est fourni — indique lesquels existent réellement. Cible le piège ArchiveXL " +
-                 "où une erreur de substitution n'affiche que la 1re apparence (debug très difficile).")]
+    [Description("Expands a dynamic ArchiveXL appearance path/pattern (`*` prefix, " +
+                 "{gender}→m/w and {camera}→fpp/tpp interpolations) into its concrete paths, and — if " +
+                 "modPath is provided — indicates which ones actually exist. Targets the ArchiveXL trap " +
+                 "where a substitution error only shows the 1st appearance (very hard to debug).")]
     public static string ResolveDynamicAppearance(
-        [Description("Pattern de chemin (ex. *base\\mod\\item_{gender}_{camera}.mesh).")] string pattern,
-        [Description("Optionnel : dossier du mod, pour vérifier l'existence des chemins concrets.")] string? modPath = null)
+        [Description("Path pattern (e.g. *base\\mod\\item_{gender}_{camera}.mesh).")] string pattern,
+        [Description("Optional: mod folder, to check the existence of the concrete paths.")] string? modPath = null)
     {
         if (string.IsNullOrWhiteSpace(pattern))
-            return Err("Pattern vide.");
+            return Err("Empty pattern.");
 
         var expansions = ExpandDynamicPattern(pattern);
         var remaining = System.Text.RegularExpressions.Regex.Matches(expansions.First(), @"\{[a-z_]+\}")
@@ -1953,7 +1953,7 @@ public static class ModdingTools
             {
                 var baseName = ex.TrimStart('*').Replace('/', '\\').Split('\\')[^1];
                 var found = modFiles.Any(f => f.EndsWith(baseName, StringComparison.OrdinalIgnoreCase));
-                exists = found ? "présent" : "MANQUANT";
+                exists = found ? "present" : "MISSING";
                 if (!found) missing++;
             }
             results.Add(new { path = ex.TrimStart('*'), exists });
@@ -1963,19 +1963,19 @@ public static class ModdingTools
         {
             ok = true,
             status = missing > 0 ? "partial" : "success",
-            summary = $"{expansions.Count} chemin(s) concret(s)" +
-                      (string.IsNullOrWhiteSpace(modPath) ? "" : $", {missing} manquant(s)"),
+            summary = $"{expansions.Count} concrete path(s)" +
+                      (string.IsNullOrWhiteSpace(modPath) ? "" : $", {missing} missing"),
             pattern,
             expansions = results,
             unresolvedPlaceholders = remaining,
             warnings = remaining.Count > 0
-                ? new[] { $"Placeholders non développés (dépendent du corps/skin/etc.) : {string.Join(", ", remaining)}" }
+                ? new[] { $"Unexpanded placeholders (depend on body/skin/etc.): {string.Join(", ", remaining)}" }
                 : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
     }
 
-    /// <summary>Développe {gender}/{camera} en produit cartésien (testable).</summary>
+    /// <summary>Expands {gender}/{camera} into a Cartesian product (testable).</summary>
     internal static List<string> ExpandDynamicPattern(string pattern)
     {
         var current = new List<string> { pattern };
@@ -1988,27 +1988,27 @@ public static class ModdingTools
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // migration_check — un mod survit-il à la version actuelle du jeu ?
+    // migration_check — does a mod survive the current game version?
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "migration_check", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Vérifie si un mod .archive est encore aligné sur la version ACTUELLE du jeu : " +
-                 "pour chaque fichier que le mod fournit, indique s'il surcharge un fichier de base " +
-                 "existant (override actif) ou non (ajout, OU surcharge devenue inerte après une MAJ " +
-                 "du jeu — chemin disparu). Cible « les MAJ cassent les mods silencieusement ».")]
+    [Description("Checks whether a .archive mod is still aligned with the CURRENT game version: " +
+                 "for each file the mod provides, indicates whether it overrides an existing base " +
+                 "file (active override) or not (addition, OR an override gone inert after a game " +
+                 "update — path disappeared). Targets \"updates silently break mods\".")]
     public static async Task<string> MigrationCheck(
         Cp77ToolsRunner runner,
-        [Description("Archive .archive du mod à vérifier.")] string modArchive,
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
-        [Description("Nb max de chemins non-correspondants listés (défaut 100).")] int maxResults = 100,
+        [Description(".archive of the mod to check.")] string modArchive,
+        [Description("Cyberpunk 2077 installation root folder.")] string gamePath,
+        [Description("Max number of non-matching paths listed (default 100).")] int maxResults = 100,
         CancellationToken ct = default)
     {
         if (!File.Exists(modArchive))
-            return Err($"Archive de mod introuvable : {modArchive}");
+            return Err($"Mod archive not found: {modArchive}");
         var content = Path.Combine(gamePath, "archive", "pc", "content");
         if (!Directory.Exists(content))
-            return Err($"Dossier content introuvable : {content}");
+            return Err($"content folder not found: {content}");
 
-        // Ensemble des chemins de base actuels (union des listings content, cache LRU).
+        // Set of current base paths (union of content listings, LRU cache).
         var baseSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var arc in Directory.EnumerateFiles(content, "*.archive"))
         {
@@ -2020,7 +2020,7 @@ public static class ModdingTools
 
         IReadOnlyList<string> modEntries;
         try { (modEntries, _, _) = await runner.GetArchiveListingAsync(modArchive, ct); }
-        catch (Exception ex) { return Err($"Listing du mod impossible : {ex.Message}"); }
+        catch (Exception ex) { return Err($"Cannot list the mod: {ex.Message}"); }
 
         var overrides = new List<string>();
         var nonMatching = new List<string>();
@@ -2036,36 +2036,36 @@ public static class ModdingTools
         {
             ok = true,
             status,
-            summary = $"{modEntries.Count} fichier(s) du mod : {overrides.Count} surcharge(nt) la base actuelle, " +
-                      $"{nonMatching.Count} sans correspondance (ajouts ou surcharges devenues inertes)",
+            summary = $"{modEntries.Count} mod file(s): {overrides.Count} override the current base, " +
+                      $"{nonMatching.Count} without a match (additions or overrides gone inert)",
             modArchive,
             baseFileCount = baseSet.Count,
             overrideCount = overrides.Count,
             nonMatchingCount = nonMatching.Count,
             nonMatching = nonMatching.Take(maxResults),
             warnings = overrides.Count == 0 && modEntries.Count > 0
-                ? new[] { "AUCUN fichier du mod ne correspond à la base actuelle — soit c'est un mod purement additif (ArchiveXL), soit ses surcharges sont devenues inertes après une MAJ du jeu." }
+                ? new[] { "NO mod file matches the current base — either this is a purely additive mod (ArchiveXL), or its overrides have gone inert after a game update." }
                 : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // toggle_mods — activer/désactiver des .archive (pour bissection assistée)
+    // toggle_mods — enable/disable .archive files (for assisted bisection)
     // ════════════════════════════════════════════════════════════════════════
     [McpServerTool(Name = "toggle_mods", ReadOnly = false, Destructive = false, Idempotent = false)]
-    [Description("Active ou désactive des mods .archive en les déplaçant entre archive/pc/mod et " +
-                 "archive/pc/mod/_disabled (réversible, non destructif). Primitive de la bissection " +
-                 "de conflits : désactiver la moitié des mods → lancer → diagnostiquer → réduire. " +
-                 "Renvoie les listes activés/désactivés à jour.")]
+    [Description("Enables or disables .archive mods by moving them between archive/pc/mod and " +
+                 "archive/pc/mod/_disabled (reversible, non-destructive). Primitive of conflict " +
+                 "bisection: disable half the mods → launch → diagnose → narrow down. " +
+                 "Returns the up-to-date enabled/disabled lists.")]
     public static string ToggleMods(
-        [Description("Dossier racine de l'installation Cyberpunk 2077.")] string gamePath,
-        [Description("Noms d'archives séparés par des virgules (avec ou sans .archive). Vide = ne rien déplacer (juste lister).")] string? archives = null,
-        [Description("true = activer (réactiver), false = désactiver.")] bool enable = false)
+        [Description("Cyberpunk 2077 installation root folder.")] string gamePath,
+        [Description("Archive names separated by commas (with or without .archive). Empty = move nothing (just list).")] string? archives = null,
+        [Description("true = enable (re-enable), false = disable.")] bool enable = false)
     {
         var modDir = Path.Combine(gamePath, "archive", "pc", "mod");
         if (!Directory.Exists(modDir))
-            return Err($"Dossier de mods introuvable : {modDir}");
+            return Err($"Mods folder not found: {modDir}");
         var disabledDir = Path.Combine(modDir, "_disabled");
 
         var moved = new List<string>();
@@ -2080,9 +2080,9 @@ public static class ModdingTools
             {
                 var from = Path.Combine(enable ? disabledDir : modDir, n);
                 var to = Path.Combine(enable ? modDir : disabledDir, n);
-                if (!File.Exists(from)) { warnings.Add($"Introuvable ({(enable ? "désactivé" : "activé")}) : {n}"); continue; }
+                if (!File.Exists(from)) { warnings.Add($"Not found ({(enable ? "disabled" : "enabled")}): {n}"); continue; }
                 try { File.Move(from, to, overwrite: false); moved.Add(n); }
-                catch (Exception ex) { warnings.Add($"Échec déplacement {n} : {ex.Message}"); }
+                catch (Exception ex) { warnings.Add($"Failed to move {n}: {ex.Message}"); }
             }
         }
 
@@ -2098,8 +2098,8 @@ public static class ModdingTools
             ok = true,
             status = "success",
             summary = names.Count == 0
-                ? $"{enabled.Count} mod(s) actif(s), {disabled.Count} désactivé(s)"
-                : $"{moved.Count} mod(s) {(enable ? "activé(s)" : "désactivé(s)")} · {enabled.Count} actifs / {disabled.Count} désactivés",
+                ? $"{enabled.Count} enabled mod(s), {disabled.Count} disabled"
+                : $"{moved.Count} mod(s) {(enable ? "enabled" : "disabled")} · {enabled.Count} enabled / {disabled.Count} disabled",
             gamePath,
             moved,
             enabledCount = enabled.Count,
@@ -2112,39 +2112,39 @@ public static class ModdingTools
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // list_entity_appearances — lister les apparences d'une entité (.ent)
+    // list_entity_appearances — list the appearances of an entity (.ent)
     // ════════════════════════════════════════════════════════════════════════
     internal sealed record EntityAppearance(string Name, string? AppearanceName, string? AppResource);
 
     [McpServerTool(Name = "list_entity_appearances", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Liste les apparences d'une entité REDengine (.ent) : pour chacune, son nom " +
-                 "d'entité (le `name` à passer à export_entity / dans le .yaml), le `appearanceName` " +
-                 "côté .app, et la ressource .app référencée. Fiable et indispensable pour savoir " +
-                 "ce qu'une entité expose avant d'éditer/exporter une apparence.")]
+    [Description("Lists the appearances of a REDengine entity (.ent): for each one, its entity " +
+                 "name (the `name` to pass to export_entity / in the .yaml), the `appearanceName` " +
+                 "on the .app side, and the referenced .app resource. Reliable and indispensable to know " +
+                 "what an entity exposes before editing/exporting an appearance.")]
     public static async Task<string> ListEntityAppearances(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .ent extrait.")] string entFile,
+        [Description("Path of an extracted .ent file.")] string entFile,
         CancellationToken ct = default)
     {
         if (!File.Exists(entFile))
-            return Err($"Fichier .ent introuvable : {entFile}");
+            return Err($".ent file not found: {entFile}");
         var json = await ConvertCr2wToJsonText(runner, entFile, ct);
-        if (json is null) return Err("Conversion du .ent échouée.");
+        if (json is null) return Err(".ent conversion failed.");
         var apps = ParseEntityAppearances(json);
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status = "success",
-            summary = $"{apps.Count} apparence(s) dans {Path.GetFileName(entFile)}",
+            summary = $"{apps.Count} appearance(s) in {Path.GetFileName(entFile)}",
             entFile,
             appearanceCount = apps.Count,
             appearances = apps.Select(a => new { name = a.Name, appearanceName = a.AppearanceName, appResource = a.AppResource }),
-            warnings = apps.Count == 0 ? new[] { "Aucune apparence (entité de type composant/proxy ?)." } : Array.Empty<string>(),
+            warnings = apps.Count == 0 ? new[] { "No appearance (component/proxy-type entity?)." } : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
     }
 
-    /// <summary>Parse les apparences d'un .ent (RootChunk.appearances[] :
+    /// <summary>Parses the appearances of a .ent (RootChunk.appearances[]:
     /// name / appearanceName / appearanceResource). Testable.</summary>
     internal static List<EntityAppearance> ParseEntityAppearances(string entJson)
     {
@@ -2162,33 +2162,33 @@ public static class ModdingTools
                 list.Add(new EntityAppearance(name, CnameVal(def, "appearanceName"), DepotPathVal(def, "appearanceResource")));
             }
         }
-        catch { /* JSON inattendu */ }
+        catch { /* unexpected JSON */ }
         return list;
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // validate_appearance — validation profonde .app → .mesh (apparences + matériaux)
+    // validate_appearance — deep .app → .mesh validation (appearances + materials)
     // ════════════════════════════════════════════════════════════════════════
     internal sealed record AppMeshRef(string AppAppearance, string MeshPath, string? MeshAppearance);
 
     [McpServerTool(Name = "validate_appearance", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Validation PROFONDE de la chaîne d'apparence .app → .mesh : pour chaque apparence " +
-                 "du .app et chaque composant mesh, vérifie que le meshAppearance référencé existe " +
-                 "bien dans le .mesh (sinon mesh invisible) et que ses matériaux (chunkMaterials) " +
-                 "correspondent aux materialEntries (sinon matériau noir/incohérent). Résout les " +
-                 ".mesh dans le mod, sinon dans le jeu de base si gamePath est fourni.")]
+    [Description("DEEP validation of the .app → .mesh appearance chain: for each appearance " +
+                 "of the .app and each mesh component, checks that the referenced meshAppearance " +
+                 "actually exists in the .mesh (otherwise invisible mesh) and that its materials (chunkMaterials) " +
+                 "match the materialEntries (otherwise black/inconsistent material). Resolves the " +
+                 ".mesh in the mod, otherwise in the base game if gamePath is provided.")]
     public static async Task<string> ValidateAppearance(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .app extrait.")] string appFile,
-        [Description("Racine du dossier de mod (pour résoudre les .mesh du mod).")] string? modRoot = null,
-        [Description("Racine du jeu (pour résoudre les .mesh de base introuvables dans le mod).")] string? gamePath = null,
-        [Description("Nb max de .mesh résolus (défaut 40).")] int maxMeshes = 40,
+        [Description("Path of an extracted .app file.")] string appFile,
+        [Description("Root of the mod folder (to resolve the mod's .mesh).")] string? modRoot = null,
+        [Description("Game root (to resolve base .mesh files not found in the mod).")] string? gamePath = null,
+        [Description("Max number of resolved .mesh (default 40).")] int maxMeshes = 40,
         CancellationToken ct = default)
     {
         if (!File.Exists(appFile))
-            return Err($"Fichier .app introuvable : {appFile}");
+            return Err($".app file not found: {appFile}");
         var appJson = await ConvertCr2wToJsonText(runner, appFile, ct);
-        if (appJson is null) return Err("Conversion du .app échouée.");
+        if (appJson is null) return Err(".app conversion failed.");
 
         var refs = ParseAppMeshRefs(appJson);
         var errors = new List<string>();
@@ -2210,14 +2210,14 @@ public static class ModdingTools
 
             string? issue = null;
             if (info is null)
-                warnings.Add($"[{rf.AppAppearance}] mesh '{rf.MeshPath}' introuvable/non converti — vérif. ignorée.");
+                warnings.Add($"[{rf.AppAppearance}] mesh '{rf.MeshPath}' not found/not converted — check skipped.");
             else
             {
                 var (meshApps, mats) = info.Value;
                 var ma = rf.MeshAppearance ?? "default";
                 if (!meshApps.Contains(ma, StringComparer.OrdinalIgnoreCase))
-                    errors.Add(issue = $"[{rf.AppAppearance}] meshAppearance '{ma}' absent du mesh '{Path.GetFileName(rf.MeshPath)}' " +
-                               $"(disponibles : {string.Join(", ", meshApps.Take(6))}) → mesh invisible.");
+                    errors.Add(issue = $"[{rf.AppAppearance}] meshAppearance '{ma}' missing from the mesh '{Path.GetFileName(rf.MeshPath)}' " +
+                               $"(available: {string.Join(", ", meshApps.Take(6))}) → invisible mesh.");
             }
             checks.Add(new { appAppearance = rf.AppAppearance, mesh = rf.MeshPath, meshAppearance = rf.MeshAppearance, ok = issue is null });
         }
@@ -2228,35 +2228,35 @@ public static class ModdingTools
             ok = errors.Count == 0,
             status,
             summary = refs.Count == 0
-                ? "Aucun composant mesh trouvé dans le .app."
-                : $"{refs.Count} référence(s) mesh vérifiée(s) : {errors.Count} erreur(s), {warnings.Count} avertissement(s)",
+                ? "No mesh component found in the .app."
+                : $"{refs.Count} mesh reference(s) checked: {errors.Count} error(s), {warnings.Count} warning(s)",
             appFile,
             meshRefsChecked = refs.Count,
             meshesResolved = meshCache.Count(kv => kv.Value is not null),
             checks,
             warnings,
             errors,
-            limitation = "Vérifie meshAppearance ∈ .mesh.appearances. La cohérence fine des index de " +
-                         "matériaux (chunkMaterials ↔ localMaterialBuffer) n'est pas encore couverte.",
+            limitation = "Checks meshAppearance ∈ .mesh.appearances. The fine-grained consistency of " +
+                         "material indices (chunkMaterials ↔ localMaterialBuffer) is not yet covered.",
         }, JsonOpts);
     }
 
     [McpServerTool(Name = "inspect_app", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Résumé structurel d'un fichier .app : nombre d'apparences, et pour chacune le " +
-                 "nombre de composants mesh et les meshes référencés ; total de meshes distincts. " +
-                 "Vue d'ensemble rapide AVANT validate_appearance (qui, lui, résout et valide " +
-                 "chaque .mesh). Léger : une seule conversion CR2W→JSON, sans résolution de mesh.")]
+    [Description("Structural summary of a .app file: number of appearances, and for each one the " +
+                 "number of mesh components and the referenced meshes; total of distinct meshes. " +
+                 "Quick overview BEFORE validate_appearance (which resolves and validates " +
+                 "each .mesh). Lightweight: a single CR2W→JSON conversion, without mesh resolution.")]
     public static async Task<string> InspectApp(
         Cp77ToolsRunner runner,
-        [Description("Chemin d'un fichier .app extrait.")] string appFile,
-        [Description("Nb max d'apparences détaillées renvoyées (défaut 100). appearanceCount donne " +
-                     "toujours le total réel.")] int maxAppearances = 100,
+        [Description("Path of an extracted .app file.")] string appFile,
+        [Description("Max number of detailed appearances returned (default 100). appearanceCount always " +
+                     "gives the real total.")] int maxAppearances = 100,
         CancellationToken ct = default)
     {
         if (!File.Exists(appFile))
-            return Err($"Fichier .app introuvable : {appFile}");
+            return Err($".app file not found: {appFile}");
         var appJson = await ConvertCr2wToJsonText(runner, appFile, ct);
-        if (appJson is null) return Err("Conversion du .app échouée.");
+        if (appJson is null) return Err(".app conversion failed.");
 
         var s = SummarizeApp(appJson);
         var cap = Math.Max(1, maxAppearances);
@@ -2268,9 +2268,9 @@ public static class ModdingTools
             ok = s.AppearanceCount > 0,
             status = s.AppearanceCount > 0 ? "success" : "partial",
             summary = s.AppearanceCount == 0
-                ? "Aucune apparence trouvée dans le .app."
-                : $"{s.AppearanceCount} apparence(s), {s.MeshComponentCount} composant(s) mesh, " +
-                  $"{s.DistinctMeshCount} mesh(es) distinct(s)",
+                ? "No appearance found in the .app."
+                : $"{s.AppearanceCount} appearance(s), {s.MeshComponentCount} mesh component(s), " +
+                  $"{s.DistinctMeshCount} distinct mesh(es)",
             appFile,
             appearanceCount = s.AppearanceCount,
             meshComponentCount = s.MeshComponentCount,
@@ -2283,7 +2283,7 @@ public static class ModdingTools
                 meshes = a.Meshes,
             }),
             warnings = s.AppearanceCount == 0
-                ? new[] { "Le .app n'expose aucune apparence (fichier inattendu ou vide)." }
+                ? new[] { "The .app exposes no appearance (unexpected or empty file)." }
                 : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
@@ -2295,9 +2295,9 @@ public static class ModdingTools
         int AppearanceCount, int MeshComponentCount, int DistinctMeshCount,
         IReadOnlyList<AppAppearanceSummary> Appearances);
 
-    /// <summary>Résume un .app JSON : apparences + composants mesh par apparence + meshes
-    /// distincts. Réutilise ParseAppMeshRefs (composants mesh) et ParseAppearanceNames
-    /// (toutes les apparences, même sans composant mesh). Logique pure, testable.</summary>
+    /// <summary>Summarizes a .app JSON: appearances + mesh components per appearance + distinct
+    /// meshes. Reuses ParseAppMeshRefs (mesh components) and ParseAppearanceNames
+    /// (all appearances, even without a mesh component). Pure logic, testable.</summary>
     internal static AppSummary SummarizeApp(string appJson)
     {
         var refs = ParseAppMeshRefs(appJson);
@@ -2323,8 +2323,8 @@ public static class ModdingTools
         return new AppSummary(ordered.Count, refs.Count, distinctMeshes, appSummaries);
     }
 
-    /// <summary>Noms de toutes les apparences d'un .app JSON (y compris celles sans composant
-    /// mesh). Testable.</summary>
+    /// <summary>Names of all the appearances of a .app JSON (including those without a mesh
+    /// component). Testable.</summary>
     internal static List<string> ParseAppearanceNames(string appJson)
     {
         var names = new List<string>();
@@ -2341,12 +2341,12 @@ public static class ModdingTools
                 names.Add(CnameVal(def, "name") ?? "?");
             }
         }
-        catch { /* JSON inattendu */ }
+        catch { /* unexpected JSON */ }
         return names;
     }
 
-    /// <summary>Extrait les (apparence .app, chemin mesh, meshAppearance) des composants
-    /// mesh de chaque apparence d'un .app. Testable.</summary>
+    /// <summary>Extracts the (.app appearance, mesh path, meshAppearance) of the mesh
+    /// components of each appearance of a .app. Testable.</summary>
     internal static List<AppMeshRef> ParseAppMeshRefs(string appJson)
     {
         var refs = new List<AppMeshRef>();
@@ -2369,11 +2369,11 @@ public static class ModdingTools
                 }
             }
         }
-        catch { /* JSON inattendu */ }
+        catch { /* unexpected JSON */ }
         return refs;
     }
 
-    /// <summary>Noms d'apparences de mesh + noms de materialEntries d'un .mesh JSON.</summary>
+    /// <summary>Mesh appearance names + materialEntries names of a .mesh JSON.</summary>
     internal static (List<string> appearances, HashSet<string> materials) ParseMeshAppearancesAndMaterials(string meshJson)
     {
         var appNames = new List<string>();
@@ -2396,12 +2396,12 @@ public static class ModdingTools
                     if (n is not null) mats.Add(n);
                 }
         }
-        catch { /* JSON inattendu */ }
+        catch { /* unexpected JSON */ }
         return (appNames, mats);
     }
 
-    /// <summary>Résout un .mesh par DepotPath : d'abord dans le mod (par nom de base),
-    /// sinon dans les archives de base si gamePath fourni ; renvoie son JSON.</summary>
+    /// <summary>Resolves a .mesh by DepotPath: first in the mod (by base name),
+    /// otherwise in the base archives if gamePath is provided; returns its JSON.</summary>
     private static async Task<string?> ResolveMeshJson(
         Cp77ToolsRunner runner, string meshPath, string? modRoot, string? gamePath, CancellationToken ct)
     {
@@ -2424,7 +2424,7 @@ public static class ModdingTools
         return null;
     }
 
-    // Helpers d'accès CR2W : valeur d'un CName / d'un DepotPath sous une propriété.
+    // CR2W access helpers: value of a CName / a DepotPath under a property.
     private static string? CnameVal(JsonElement obj, string prop)
         => obj.TryGetProperty(prop, out var p) && p.ValueKind == JsonValueKind.Object
            && p.TryGetProperty("$value", out var v) && v.ValueKind == JsonValueKind.String
@@ -2434,9 +2434,9 @@ public static class ModdingTools
            && p.TryGetProperty("DepotPath", out var dp) && dp.TryGetProperty("$value", out var v)
            && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    // ── Helpers diff/extraction ─────────────────────────────────────────────
-    /// <summary>Cherche, parmi les .archive d'un dossier, la première contenant
-    /// le chemin interne donné (via le cache LRU de listings du runner).</summary>
+    // ── Diff/extraction helpers ─────────────────────────────────────────────
+    /// <summary>Searches, among the .archive files of a folder, the first one containing
+    /// the given internal path (via the runner's LRU listing cache).</summary>
     private static async Task<string?> FindArchiveContaining(
         Cp77ToolsRunner runner, string contentDir, string internalPath, CancellationToken ct)
     {
@@ -2450,8 +2450,8 @@ public static class ModdingTools
         return null;
     }
 
-    /// <summary>Extrait un fichier d'une archive et le convertit en JSON (texte).
-    /// Renvoie null en cas d'échec.</summary>
+    /// <summary>Extracts a file from an archive and converts it to JSON (text).
+    /// Returns null on failure.</summary>
     private static async Task<string?> ExtractAsJson(
         Cp77ToolsRunner runner, string archive, string internalPath, CancellationToken ct)
     {
@@ -2461,16 +2461,16 @@ public static class ModdingTools
         Directory.CreateDirectory(rawDir); Directory.CreateDirectory(jsonDir);
         try
         {
-            // Passer le chemin interne COMPLET en pattern (pas seulement le nom de
-            // base) évite de capturer un fichier homonyme d'un autre dossier — donc
-            // un faux diff. Aligné sur la logique éprouvée de read_game_file.
+            // Passing the FULL internal path as a pattern (not just the base name)
+            // avoids capturing a same-named file from another folder — and thus a
+            // false diff. Aligned with the proven logic of read_game_file.
             var normalized = internalPath.Replace('/', '\\');
             await runner.RunAsync(new[] { "unbundle", archive, "--outpath", rawDir, "--pattern", normalized }, ct);
             var raw = Directory.EnumerateFiles(rawDir, "*", SearchOption.AllDirectories).FirstOrDefault();
-            if (raw is null) return null; // fichier absent de l'archive (cas métier)
+            if (raw is null) return null; // file absent from the archive (business case)
             var conv = await runner.RunAsync(new[] { "convert", "serialize", raw, "--outpath", jsonDir }, ct);
             var json = Directory.EnumerateFiles(jsonDir, "*.json", SearchOption.AllDirectories).FirstOrDefault();
-            // json absent + conversion en échec = vrai échec technique (≠ fichier absent).
+            // json absent + conversion failure = true technical failure (≠ file absent).
             if (json is null) return null;
             return await File.ReadAllTextAsync(json, ct);
         }
@@ -2480,9 +2480,9 @@ public static class ModdingTools
 
     internal sealed record JsonChange(string Path, string Base, string Mod);
 
-    /// <summary>Aplati deux JSON en chemins→valeurs et calcule ajouts/suppressions/
-    /// modifications (côté « mod » vs « base »). Le sous-arbre $.Header (bruit de
-    /// conversion) est exclu.</summary>
+    /// <summary>Flattens two JSON into paths→values and computes additions/removals/
+    /// changes ("mod" side vs "base"). The $.Header subtree (conversion noise) is
+    /// excluded.</summary>
     internal static (List<string> added, List<string> removed, List<JsonChange> changed) DiffJson(string baseJson, string modJson)
     {
         var b = new Dictionary<string, string>();
@@ -2490,8 +2490,8 @@ public static class ModdingTools
         try { using var db = JsonDocument.Parse(baseJson); Flatten(db.RootElement, "$", b); } catch { }
         try { using var dm = JsonDocument.Parse(modJson); Flatten(dm.RootElement, "$", m); } catch { }
 
-        // Le sous-arbre $.Header est du bruit de conversion (chemin d'extraction
-        // temporaire, horodatage, version WolvenKit) — pas du contenu de mod.
+        // The $.Header subtree is conversion noise (temporary extraction path,
+        // timestamp, WolvenKit version) — not mod content.
         static bool IsNoise(string k) => k.StartsWith("$.Header.", StringComparison.Ordinal);
         foreach (var k in b.Keys.Where(IsNoise).ToList()) b.Remove(k);
         foreach (var k in m.Keys.Where(IsNoise).ToList()) m.Remove(k);
@@ -2524,10 +2524,10 @@ public static class ModdingTools
         }
     }
 
-    // ── Détection ───────────────────────────────────────────────────────────
-    /// <summary>Parcourt un dossier et déduit les frameworks requis. Renvoie
-    /// {framework → raison}. Remonte aussi les imports inconnus (dépendances
-    /// inter-mods) et des stats de fichiers.</summary>
+    // ── Detection ───────────────────────────────────────────────────────────
+    /// <summary>Walks a folder and infers the required frameworks. Returns
+    /// {framework → reason}. Also reports the unknown imports (cross-mod
+    /// dependencies) and file stats.</summary>
     private static Dictionary<string, string> DetectFrameworks(
         string root, out List<string> unknownImports, out object fileStats)
     {
@@ -2547,8 +2547,8 @@ public static class ModdingTools
             {
                 case ".reds":
                     reds++;
-                    Mark(reasons, "redscript", "fichiers .reds présents");
-                    Mark(reasons, "RED4ext", "requis par redscript");
+                    Mark(reasons, "redscript", ".reds files present");
+                    Mark(reasons, "RED4ext", "required by redscript");
                     try
                     {
                         var parsed = RedscriptParser.Parse(File.ReadAllText(f));
@@ -2561,28 +2561,28 @@ public static class ModdingTools
                                 unknown.Add(rootSeg);
                         }
                     }
-                    catch { /* fichier illisible : ignoré */ }
+                    catch { /* unreadable file: ignored */ }
                     break;
                 case ".xl":
-                    xl++; Mark(reasons, "ArchiveXL", "fichiers .xl présents"); Mark(reasons, "RED4ext", "requis par ArchiveXL");
+                    xl++; Mark(reasons, "ArchiveXL", ".xl files present"); Mark(reasons, "RED4ext", "required by ArchiveXL");
                     break;
                 case ".tweak":
-                    tweak++; Mark(reasons, "TweakXL", "fichiers .tweak présents"); Mark(reasons, "RED4ext", "requis par TweakXL");
+                    tweak++; Mark(reasons, "TweakXL", ".tweak files present"); Mark(reasons, "RED4ext", "required by TweakXL");
                     break;
                 case ".yaml": case ".yml":
                     if (lower.Contains(@"\tweaks\") || lower.Contains("/tweaks/"))
-                    { tweak++; Mark(reasons, "TweakXL", "YAML dans r6/tweaks"); Mark(reasons, "RED4ext", "requis par TweakXL"); }
+                    { tweak++; Mark(reasons, "TweakXL", "YAML in r6/tweaks"); Mark(reasons, "RED4ext", "required by TweakXL"); }
                     break;
                 case ".lua":
                     if (lower.Contains("cyber_engine_tweaks"))
-                    { lua++; Mark(reasons, "Cyber Engine Tweaks", "scripts Lua CET"); }
+                    { lua++; Mark(reasons, "Cyber Engine Tweaks", "CET Lua scripts"); }
                     break;
                 case ".archive":
                     archive++;
                     break;
                 case ".dll":
                     if (lower.Contains(@"red4ext\plugins") || lower.Contains("red4ext/plugins"))
-                    { dll++; Mark(reasons, "RED4ext", "plugin RED4ext (.dll)"); }
+                    { dll++; Mark(reasons, "RED4ext", "RED4ext plugin (.dll)"); }
                     break;
             }
         }
@@ -2595,8 +2595,8 @@ public static class ModdingTools
         { if (!d.ContainsKey(name)) d[name] = why; }
     }
 
-    /// <summary>Détecte si un framework est installé dans le jeu + sa version
-    /// si lisible (dossier de version dans red4ext/plugins/&lt;X&gt;).</summary>
+    /// <summary>Detects whether a framework is installed in the game + its version
+    /// if readable (version folder in red4ext/plugins/&lt;X&gt;).</summary>
     private static (bool installed, string? version) IsInstalled(string gamePath, Framework fw)
     {
         foreach (var marker in fw.InstallMarkers)
@@ -2614,7 +2614,7 @@ public static class ModdingTools
         {
             var dir = Directory.Exists(path) ? path : Path.GetDirectoryName(path);
             if (dir is null) return null;
-            // RED4ext plugins : un fichier de version ou un nom de dossier versionné.
+            // RED4ext plugins: a version file or a versioned folder name.
             foreach (var vf in new[] { "version.txt", "VERSION", ".version" })
             {
                 var p = Path.Combine(dir, vf);

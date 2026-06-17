@@ -1,59 +1,59 @@
-# WolvenKit MCP — serveur MCP pour le modding de Cyberpunk 2077
+# WolvenKit MCP — MCP server for Cyberpunk 2077 modding
 
-Prototype de serveur **MCP (Model Context Protocol)** exposant le CLI de modding
-WolvenKit (`cp77tools`) comme outils utilisables par Claude.
+Prototype **MCP (Model Context Protocol)** server exposing the WolvenKit modding
+CLI (`cp77tools`) as tools usable by Claude.
 
-**État : prototype fonctionnel**, lecture + écriture, validé de bout en bout sur
-**Windows 11** (avec Cyberpunk 2077 installé) et sur macOS Apple Silicon.
+**Status: working prototype**, read + write, validated end-to-end on
+**Windows 11** (with Cyberpunk 2077 installed) and on macOS Apple Silicon.
 
-## Pourquoi le projet a deux parties
+## Why the project has two parts
 
-WolvenKit ne fonctionne pas tel quel sur macOS : le package NuGet `WolvenKit.CLI`
-livre une bibliothèque native Oodle (`libkraken`) cassée sur Apple Silicon —
-x86_64 uniquement, et symboles C++ manglés. Il a donc fallu :
+WolvenKit does not work as-is on macOS: the `WolvenKit.CLI` NuGet package
+ships a native Oodle library (`libkraken`) that is broken on Apple Silicon —
+x86_64 only, with mangled C++ symbols. So two things were needed:
 
-1. **`native/`** — reconstruire `libkraken.dylib` en arm64 natif, compression +
-   décompression (cf. `native/README.md`) ;
-2. **`src/`** — le serveur MCP lui-même, en C# / .NET 8.
+1. **`native/`** — rebuild `libkraken.dylib` as native arm64, compression +
+   decompression (see `native/README.md`);
+2. **`src/`** — the MCP server itself, in C# / .NET 8.
 
 ## Architecture
 
-Serveur MCP **C# / .NET 8** (SDK officiel `ModelContextProtocol` 1.3.0). Les
-appels d'outils passent par un **daemon WolvenKit persistant** : le coûteux
-chargement de la base de hashes (~6 s) n'est payé qu'une fois, au démarrage du
-daemon ; les appels suivants ne coûtent que quelques millisecondes.
+**C# / .NET 8** MCP server (official `ModelContextProtocol` SDK 1.3.0). Tool
+calls go through a **persistent WolvenKit daemon**: the expensive load of the
+hash database (~6 s) is paid only once, at daemon startup; subsequent calls cost
+only a few milliseconds.
 
 ```
-Claude ─MCP/JSON-RPC─▶ WolvenKitMcp ─IPC stdio─▶ WolvenKitDaemon ─▶ libs WolvenKit + libkraken
-                                    └─repli───▶ cp77tools (sous-processus) si daemon indisponible
+Claude ─MCP/JSON-RPC─▶ WolvenKitMcp ─IPC stdio─▶ WolvenKitDaemon ─▶ WolvenKit libs + libkraken
+                                    └─fallback─▶ cp77tools (subprocess) if daemon unavailable
 ```
 
-Le daemon — qui lie les bibliothèques GPL-3.0 de WolvenKit — est un processus
-**séparé** : le serveur MCP ne fait que dialoguer avec lui par IPC, il reste donc
-hors du périmètre du copyleft. Si le daemon est indisponible, chaque appel se
-replie sur un sous-processus `cp77tools` (fonctionnel, mais ~6 s/appel).
+The daemon — which links WolvenKit's GPL-3.0 libraries — is a **separate**
+process: the MCP server only talks to it over IPC, so it stays outside the scope
+of the copyleft. If the daemon is unavailable, each call falls back to a
+`cp77tools` subprocess (functional, but ~6 s/call).
 
 ## Documentation
 
-Documentation détaillée dans [`docs/`](docs/) :
+Detailed documentation in [`docs/`](docs/):
 
-- **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — guide du moddeur : installation, branchement sur Claude, et workflows pas-à-pas (lire un fichier, éditer un tweak, créer/empaqueter/installer un mod, vérifier les dépendances, packager).
-- **[docs/TOOLS.md](docs/TOOLS.md)** — référence exhaustive des 123 outils + 8 prompts + 4 ressources (paramètres compris).
-- **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — recettes copier-coller par type de mod (tweak, redscript, ArchiveXL, REDmod, localisation, texture, analyse).
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — pour contribuer : IPC, cache, parser, et comment ajouter un outil MCP ou un verbe daemon.
-- **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — pont **live in-game** : 35 outils `live_*` pour piloter un jeu **en cours d'exécution** (exécution Lua, état, spawn, téléportation, météo, TweakDB en mémoire vive, observation) via le mod CETBridge / Cyber Engine Tweaks. Optionnel, prérequis à part.
-- **[docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)** — **accès distant** : le serveur peut tourner en **HTTP/Streamable** (au lieu de stdio) via `WOLVENKIT_MCP_TRANSPORT=http`. Sécurisé par défaut (bind loopback + bearer token + fail-closed). Opt-in.
+- **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — modder's guide: installation, wiring up to Claude, and step-by-step workflows (read a file, edit a tweak, create/pack/install a mod, check dependencies, package).
+- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 123 tools + 8 prompts + 4 resources (parameters included).
+- **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — copy-paste recipes by mod type (tweak, redscript, ArchiveXL, REDmod, localization, texture, analysis).
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — for contributors: IPC, cache, parser, and how to add an MCP tool or a daemon verb.
+- **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — **live in-game** bridge: 35 `live_*` tools to drive a **running** game (Lua execution, state, spawn, teleport, weather, in-memory TweakDB, observation) via the CETBridge / Cyber Engine Tweaks mod. Optional, separate prerequisites.
+- **[docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)** — **remote access**: the server can run over **HTTP/Streamable** (instead of stdio) via `WOLVENKIT_MCP_TRANSPORT=http`. Secure by default (loopback bind + bearer token + fail-closed). Opt-in.
 
-## Prérequis
+## Prerequisites
 
 - macOS Apple Silicon (arm64)
 - .NET 8 SDK — `brew install dotnet@8`
 - WolvenKit CLI — `dotnet tool install -g WolvenKit.CLI`
-- `libkraken.dylib` arm64 déployée (étape 1 ci-dessous)
+- `libkraken.dylib` arm64 deployed (step 1 below)
 
 ## Installation
 
-### 1. Reconstruire et déployer libkraken (une fois)
+### 1. Rebuild and deploy libkraken (once)
 
 ```sh
 cd native
@@ -63,25 +63,25 @@ mkdir -p "$PKG/runtimes/osx-arm64/native"
 cp build/libkraken.dylib "$PKG/runtimes/osx-arm64/native/"
 ```
 
-### 2. Compiler le daemon et le serveur MCP
+### 2. Build the daemon and the MCP server
 
 ```sh
-dotnet build src/WolvenKitDaemon   # son build y déploie libkraken.dylib
+dotnet build src/WolvenKitDaemon   # its build deploys libkraken.dylib there
 dotnet build src/WolvenKitMcp
 ```
 
-### 3. Tester
+### 3. Test
 
 ```sh
-python3 test-daemon.py       # daemon seul — latence par requête
-python3 test-mcp-server.py   # serveur MCP de bout en bout
+python3 test-daemon.py       # daemon alone — per-request latency
+python3 test-mcp-server.py   # end-to-end MCP server
 ```
 
-## Brancher sur un client
+## Wire up to a client
 
 ### Claude Desktop
 
-`~/Library/Application Support/Claude/claude_desktop_config.json` :
+`~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -104,290 +104,290 @@ claude mcp add wolvenkit \
      ABSOLUTE/PATH/wolvenkit-mcp/src/WolvenKitMcp/bin/Debug/net8.0/WolvenKitMcp.dll
 ```
 
-## Installation sur Windows
+## Installation on Windows
 
-Sur Windows, `cp77tools` fonctionne nativement — le dossier `native/`
-(reconstruction de libkraken pour macOS) est inutile et peut être ignoré.
+On Windows, `cp77tools` works natively — the `native/` folder
+(libkraken rebuild for macOS) is unnecessary and can be ignored.
 
-1. Installer le SDK .NET 8 ou supérieur — https://dotnet.microsoft.com/download
-2. Installer le CLI WolvenKit : `dotnet tool install -g WolvenKit.CLI`
-3. Compiler le daemon **puis** le serveur :
-   `dotnet build src\WolvenKitDaemon` puis `dotnet build src\WolvenKitMcp`
-   (le build du daemon déploie automatiquement `kraken.dll` et `DirectXTexNet.dll`)
-4. Brancher sur Claude Desktop (`%APPDATA%\Claude\claude_desktop_config.json`) :
+1. Install the .NET 8 SDK or higher — https://dotnet.microsoft.com/download
+2. Install the WolvenKit CLI: `dotnet tool install -g WolvenKit.CLI`
+3. Build the daemon **then** the server:
+   `dotnet build src\WolvenKitDaemon` then `dotnet build src\WolvenKitMcp`
+   (the daemon build automatically deploys `kraken.dll` and `DirectXTexNet.dll`)
+4. Wire up to Claude Desktop (`%APPDATA%\Claude\claude_desktop_config.json`):
 
    ```json
    {
      "mcpServers": {
        "wolvenkit": {
          "command": "dotnet",
-         "args": ["C:\\chemin\\vers\\wolvenkit-mcp\\src\\WolvenKitMcp\\bin\\Debug\\net8.0\\WolvenKitMcp.dll"]
+         "args": ["C:\\path\\to\\wolvenkit-mcp\\src\\WolvenKitMcp\\bin\\Debug\\net8.0\\WolvenKitMcp.dll"]
        }
      }
    }
    ```
 
-   ou Claude Code : `claude mcp add wolvenkit -s user -- dotnet "C:\chemin\...\WolvenKitMcp.dll"`
+   or Claude Code: `claude mcp add wolvenkit -s user -- dotnet "C:\path\...\WolvenKitMcp.dll"`
 
-Aucune variable `DOTNET_ROOT` n'est nécessaire sur Windows. `cp77tools` y gère
-aussi les textures et l'audio (binaires natifs Windows présents).
+No `DOTNET_ROOT` variable is needed on Windows. `cp77tools` there also handles
+textures and audio (Windows native binaries present).
 
-## Outils exposés (88 « classiques » : 63 de base + 25 de workflow — +35 `live_*` = 123 au total)
+## Exposed tools (88 "classic": 63 base + 25 workflow — +35 `live_*` = 123 total)
 
-Chaque outil renvoie un résultat **JSON structuré** (`ok`, `status`, `summary`,
-`produced`, `warnings`, `errors`, `log`) — fiable à analyser pour un agent. Le
-log volumineux est tronqué en préservant tête + erreurs + queue.
+Each tool returns a **structured JSON** result (`ok`, `status`, `summary`,
+`produced`, `warnings`, `errors`, `log`) — reliable for an agent to parse. The
+bulky log is truncated while preserving head + errors + tail.
 
-| Outil | Type | Rôle |
+| Tool | Type | Role |
 |---|---|---|
-| `wolvenkit_status` | diagnostic | Disponibilité et version de cp77tools + **stats du cache LRU** (hits/misses) + **métriques par verbe** (p50/p95) |
-| `compute_hash` | diagnostic | Hash FNV1a64 de chaînes (chemins de fichiers) |
-| `resolve_hash` | diagnostic | Recherche inverse : hash FNV1a64 → chemin de fichier de jeu |
-| `archive_info` | lecture | Informations / listing d'une archive `.archive` (cache LRU) |
-| `archive_stats` | lecture | Répartition du contenu d'une `.archive` par extension (combien de `.mesh`, `.ent`, `.xbm`…) sans tout lister (cache LRU) |
-| `find_in_archives` | lecture | Recherche un fichier à travers toutes les archives d'un dossier (cache LRU, ×6 plus rapide sur appels successifs) |
-| `diff_archives` | lecture | Compare deux archives `.archive` (ajouts / suppressions internes) |
-| `extract_files` | lecture | Extraction de fichiers d'une archive (glob/regex) |
-| `uncook` | lecture | Extraction + conversion en une passe (mesh → glTF, textures → image). Flags : `meshExportType`, `meshExporterType`, `meshExportLodFilter` |
-| `export_animation` | export | Animation `.anims` extraite → glTF binaire (`.glb`) — outil dédié explicite |
-| `export_morphtarget` | export | Morphtarget `.morphtarget` (blendshapes) → glTF binaire (`.glb`) |
-| `export_mlmask` | export | Masque multilayer `.mlmask` → images (une par couche), format réglable (`textureFormat`) |
-| `export_entity` | export | ⚠ exp. — apparence d'entité `.ent` → glTF (`IModTools.ExportEntity` ; nécessite une entité porteuse d'apparences + le nom d'apparence) |
-| `export_materials` | export | Matériaux d'un `.mesh` → JSON + textures (`IModTools.ExportMaterials`, `gamePath` pour résoudre les matériaux de base) |
-| `extract_audio` | audio | Extrait l'audio voix-off (opus) d'une archive vocale ; tout ou `opusHashes` ciblés |
-| `import_audio` | audio | ⚠ exp. — WAV (nommés par hash opus) → `.opus` repacké dans un mod (`opusenc` embarqué) |
-| `loc_resolve` | localisation | ⚠ exp. — LocKey (hash ou clé) → texte localisé (variantes M/F) via on-screens du jeu |
-| `detect_conflicts` | lecture | Conflits entre mods installés (sortie JSON structurée) |
-| `cr2w_to_json` | conversion | REDengine CR2W → JSON éditable |
+| `wolvenkit_status` | diagnostic | Availability and version of cp77tools + **LRU cache stats** (hits/misses) + **per-verb metrics** (p50/p95) |
+| `compute_hash` | diagnostic | FNV1a64 hash of strings (file paths) |
+| `resolve_hash` | diagnostic | Reverse lookup: FNV1a64 hash → game file path |
+| `archive_info` | read | Information / listing of a `.archive` (LRU cache) |
+| `archive_stats` | read | Breakdown of a `.archive`'s content by extension (how many `.mesh`, `.ent`, `.xbm`…) without listing everything (LRU cache) |
+| `find_in_archives` | read | Search for a file across all archives in a folder (LRU cache, ×6 faster on subsequent calls) |
+| `diff_archives` | read | Compare two `.archive` files (internal additions / removals) |
+| `extract_files` | read | Extract files from an archive (glob/regex) |
+| `uncook` | read | Extraction + conversion in one pass (mesh → glTF, textures → image). Flags: `meshExportType`, `meshExporterType`, `meshExportLodFilter` |
+| `export_animation` | export | Extracted `.anims` animation → binary glTF (`.glb`) — explicit dedicated tool |
+| `export_morphtarget` | export | Morphtarget `.morphtarget` (blendshapes) → binary glTF (`.glb`) |
+| `export_mlmask` | export | Multilayer mask `.mlmask` → images (one per layer), adjustable format (`textureFormat`) |
+| `export_entity` | export | ⚠ exp. — entity appearance `.ent` → glTF (`IModTools.ExportEntity`; requires an entity carrying appearances + the appearance name) |
+| `export_materials` | export | Materials of a `.mesh` → JSON + textures (`IModTools.ExportMaterials`, `gamePath` to resolve base materials) |
+| `extract_audio` | audio | Extracts voice-over audio (opus) from a voice archive; all or targeted `opusHashes` |
+| `import_audio` | audio | ⚠ exp. — WAV (named by opus hash) → `.opus` repacked into a mod (embedded `opusenc`) |
+| `loc_resolve` | localization | ⚠ exp. — LocKey (hash or key) → localized text (M/F variants) via the game's on-screens |
+| `detect_conflicts` | read | Conflicts between installed mods (structured JSON output) |
+| `cr2w_to_json` | conversion | REDengine CR2W → editable JSON |
 | `json_to_cr2w` | conversion | JSON → CR2W |
-| `export_files` | conversion | Fichiers REDengine extraits → formats raw |
-| `read_game_file` | lecture | Lit un fichier de jeu en JSON en un seul appel (extract + convert) |
-| `write_game_file` | écriture | Écrit un fichier de jeu édité (JSON → CR2W placé pour `pack_archive`) |
-| `wwise_export` | audio | Audio Wwise WEM → OGG (Windows). Conversions en parallèle (≤ 4) |
-| `oodle_compress` | utilitaire | Compression Oodle Kraken d'un fichier |
-| `oodle_decompress` | utilitaire | Décompression Oodle Kraken d'un fichier |
-| `pack_archive` | écriture | Empaquette un dossier en archive `.archive` |
-| `import_raw` | écriture | Importe des fichiers raw en REDengine CR2W |
-| `build_project` | écriture | Compile un projet WolvenKit `.cpmodproj` → `packed/archive/pc/mod/<mod>.archive` (chaîne avec `create_mod_project` / `generate_modproj`) |
-| `lint_mod` | écriture | Lint pré-install : extensions non-REDengine, conflits avec mods installés |
-| `install_mod` | écriture | Installe une archive de mod dans `archive/pc/mod` du jeu |
-| `create_mod_project` | workflow | Crée la structure d'un projet de mod (`source/{archive,raw,resources,customSounds}`, `packed`) **+ un `.cpmodproj`** directement compilable par `build_project` |
-| `generate_modproj` | workflow | Génère un `.cpmodproj` (XML `<CP77Mod>`) dans un dossier de projet existant — rend compilable un projet qui n'en a pas |
-| `create_redmod_project` | redmod | Crée un projet REDmod (`mods/<nom>/info.json` + sous-dossiers) |
-| `pack_redmod` | redmod | Empaquette un REDmod en `.zip` pour distribution |
-| `install_redmod` | redmod | Installe un REDmod dans `<jeu>/mods/<nom>/` |
-| `list_installed_mods` | workflow | Liste les mods installés d'un dossier de jeu (archive + REDmod) |
-| `read_tweak` | tweakdb | Lit un fichier `.tweak` (TweakXL — YAML) en JSON éditable |
-| `write_tweak` | tweakdb | Reconvertit un JSON édité en `.tweak` (YAML) |
-| `validate_tweak` | tweakdb | Valide un `.tweak` contre `tweakdb.bin` (clés inconnues détectées) |
-| `install_tweak` | tweakdb | Copie un `.tweak` dans `<jeu>/r6/tweaks/` |
-| `tweakdb_resolve` | tweakdb | Recherche inverse : hash d'identifiant TweakDB → nom |
-| `tweakdb_query` | tweakdb | Charge une `tweakdb.bin` et liste records / flats filtrés (cap 100 + champ `truncated`) |
-| `describe_tweak_record` | tweakdb | Pour un record TweakDB, liste tous ses flats avec types et valeurs |
-| `generate_tweak_template` | tweakdb | Scaffolds `.tweak` (patterns : `override_field`, `new_record`, `boost_stat`) |
-| `inspect_mesh` | inspection | Résumé d'un `.mesh` (LODs, sous-meshes, matériaux, bones) sans uncook complet |
-| `inspect_texture` | inspection | Métadonnées d'un `.xbm` (résolution, format, mipmaps) sans conversion |
-| `read_script` | scripts | Lit un fichier `.reds` / `.script` + extrait sa structure (func, class, @addMethod...) |
-| `lint_script` | scripts | **Vrai parser de grammaire REDscript** (tokenizer + descente récursive) : erreurs de syntaxe avec ligne:colonne (signatures/types/génériques, appariement `(){}[]`, chaînes) **+ checks sémantiques** (annotations bien ciblées, `@wrapMethod`→`wrappedMethod()`, doublons). Calibré à **0 faux positif** sur 1374 `.reds` réels |
-| `backup_mods` | sécurité | Snapshot ZIP horodaté de `archive/pc/mod` + `mods/` + `r6/tweaks/` |
-| `restore_mods` | sécurité | Restaure un backup ZIP (modes `merge` / `replace`) |
-| `uninstall_mod` | uninstall | Retire une `.archive` de `archive/pc/mod/` (garde-fou sandbox) |
-| `uninstall_redmod` | uninstall | Supprime récursivement `mods/<nom>/` |
-| `uninstall_tweak` | uninstall | Supprime un `.tweak` de `r6/tweaks/` |
-| `deploy_redmod` | redmod | Wrap de `redMod.exe deploy` (compile scripts + applique tweaks) |
-| `launch_game` | in-game | ⚠ Lance `Cyberpunk2077.exe` (avec `deploy_redmod` préalable optionnel) |
-| `tail_game_logs` | in-game | Tail des logs `r6/logs/*.log` + `tools/redmod/logs/` (game / redmod / redscript / all) |
-| `mod_summary` | intelligence | Synthèse compacte d'un mod : .archive (par extension) ou REDmod (info.json + tweaks + scripts) |
-| `dump_records` | intelligence | Exporte tous les records TweakDB d'un type en JSONL / CSV (ex. toutes les armes) |
+| `export_files` | conversion | Extracted REDengine files → raw formats |
+| `read_game_file` | read | Reads a game file as JSON in a single call (extract + convert) |
+| `write_game_file` | write | Writes an edited game file (JSON → CR2W placed for `pack_archive`) |
+| `wwise_export` | audio | Wwise WEM audio → OGG (Windows). Conversions in parallel (≤ 4) |
+| `oodle_compress` | utility | Oodle Kraken compression of a file |
+| `oodle_decompress` | utility | Oodle Kraken decompression of a file |
+| `pack_archive` | write | Packs a folder into a `.archive` |
+| `import_raw` | write | Imports raw files into REDengine CR2W |
+| `build_project` | write | Compiles a WolvenKit `.cpmodproj` project → `packed/archive/pc/mod/<mod>.archive` (chains with `create_mod_project` / `generate_modproj`) |
+| `lint_mod` | write | Pre-install lint: non-REDengine extensions, conflicts with installed mods |
+| `install_mod` | write | Installs a mod archive into the game's `archive/pc/mod` |
+| `create_mod_project` | workflow | Creates a mod project structure (`source/{archive,raw,resources,customSounds}`, `packed`) **+ a `.cpmodproj`** directly compilable by `build_project` |
+| `generate_modproj` | workflow | Generates a `.cpmodproj` (XML `<CP77Mod>`) in an existing project folder — makes a project without one compilable |
+| `create_redmod_project` | redmod | Creates a REDmod project (`mods/<name>/info.json` + subfolders) |
+| `pack_redmod` | redmod | Packs a REDmod into a `.zip` for distribution |
+| `install_redmod` | redmod | Installs a REDmod into `<game>/mods/<name>/` |
+| `list_installed_mods` | workflow | Lists installed mods of a game folder (archive + REDmod) |
+| `read_tweak` | tweakdb | Reads a `.tweak` file (TweakXL — YAML) as editable JSON |
+| `write_tweak` | tweakdb | Reconverts edited JSON into a `.tweak` (YAML) |
+| `validate_tweak` | tweakdb | Validates a `.tweak` against `tweakdb.bin` (unknown keys detected) |
+| `install_tweak` | tweakdb | Copies a `.tweak` into `<game>/r6/tweaks/` |
+| `tweakdb_resolve` | tweakdb | Reverse lookup: TweakDB identifier hash → name |
+| `tweakdb_query` | tweakdb | Loads a `tweakdb.bin` and lists filtered records / flats (cap 100 + `truncated` field) |
+| `describe_tweak_record` | tweakdb | For a TweakDB record, lists all its flats with types and values |
+| `generate_tweak_template` | tweakdb | Scaffolds `.tweak` (patterns: `override_field`, `new_record`, `boost_stat`) |
+| `inspect_mesh` | inspection | Summary of a `.mesh` (LODs, submeshes, materials, bones) without a full uncook |
+| `inspect_texture` | inspection | Metadata of a `.xbm` (resolution, format, mipmaps) without conversion |
+| `read_script` | scripts | Reads a `.reds` / `.script` file + extracts its structure (func, class, @addMethod...) |
+| `lint_script` | scripts | **Real REDscript grammar parser** (tokenizer + recursive descent): syntax errors with line:column (signatures/types/generics, `(){}[]` matching, strings) **+ semantic checks** (well-targeted annotations, `@wrapMethod`→`wrappedMethod()`, duplicates). Calibrated to **0 false positives** on 1374 real `.reds` |
+| `backup_mods` | safety | Timestamped ZIP snapshot of `archive/pc/mod` + `mods/` + `r6/tweaks/` |
+| `restore_mods` | safety | Restores a ZIP backup (`merge` / `replace` modes) |
+| `uninstall_mod` | uninstall | Removes a `.archive` from `archive/pc/mod/` (sandbox safeguard) |
+| `uninstall_redmod` | uninstall | Recursively removes `mods/<name>/` |
+| `uninstall_tweak` | uninstall | Removes a `.tweak` from `r6/tweaks/` |
+| `deploy_redmod` | redmod | Wraps `redMod.exe deploy` (compiles scripts + applies tweaks) |
+| `launch_game` | in-game | ⚠ Launches `Cyberpunk2077.exe` (with optional prior `deploy_redmod`) |
+| `tail_game_logs` | in-game | Tails `r6/logs/*.log` + `tools/redmod/logs/` logs (game / redmod / redscript / all) |
+| `mod_summary` | intelligence | Compact summary of a mod: .archive (by extension) or REDmod (info.json + tweaks + scripts) |
+| `dump_records` | intelligence | Exports all TweakDB records of a type to JSONL / CSV (e.g. all weapons) |
 | `generate_redscript_template` | scaffolds | Scaffolds `.reds` (add_method, wrap_method, replace_method, add_field, new_class) |
-| `extract_localization` | localisation | Extrait depuis TweakDB tous les champs traduisibles (displayName, etc.) en JSON |
-| `build_localization` | localisation | Construit un `.tweak` de traduction depuis un JSON `{recordId: {field: value}}` |
-| `clear_cache` | maintenance | Vide manuellement le cache LRU ou les métriques (`scope` ∈ archives / metrics / all) |
+| `extract_localization` | localization | Extracts from TweakDB all translatable fields (displayName, etc.) as JSON |
+| `build_localization` | localization | Builds a translation `.tweak` from a `{recordId: {field: value}}` JSON |
+| `clear_cache` | maintenance | Manually clears the LRU cache or the metrics (`scope` ∈ archives / metrics / all) |
 
-### Outils de workflow haut-niveau (25)
+### High-level workflow tools (25)
 
-Composent les primitives ci-dessus + la connaissance de l'écosystème pour simplifier
-la **création / évolution / maintenance** des mods.
+Compose the primitives above + ecosystem knowledge to simplify the
+**creation / evolution / maintenance** of mods.
 
-| Outil | Type | Rôle |
+| Tool | Type | Role |
 |---|---|---|
-| `analyze_dependencies` | maintenance | Déduit les frameworks requis d'un mod (redscript, RED4ext, ArchiveXL, TweakXL, Codeware, Audioware, Mod Settings, CET…) via imports/.xl/.tweak/types, et marque installé/manquant si `gamePath` fourni |
-| `check_requirements` | maintenance | Inventaire des frameworks de modding **installés** (+ version) dans une install |
-| `mod_doctor` | maintenance | Diagnostic santé en un appel : frameworks installés/manquants, dépendances requises par le contenu présent mais absentes, conflits, inventaire + recommandations |
-| `validate_xl` | archivexl | Valide un fichier ArchiveXL `.xl` (YAML bien formé + sections reconnues) |
-| `scaffold_archivexl` | archivexl | Génère un `.xl` de départ commenté (factory / customSounds / localization / resource) |
-| `find_references` | évolution | Cherche toutes les références (TweakDBID / chemin / LocKey / nom) dans les sources d'un mod (.reds/.tweak/.yaml/.xl/.lua/.json/.csv) → fichier:ligne |
-| `diff_mod_vs_base` | évolution | Diff sémantique d'un fichier surchargé vs sa version de base (ajouts/suppressions/modifs, bruit `$.Header` filtré) |
-| `scaffold_mod` | création | Crée en 1 appel un mod fonctionnel (archive / redscript / tweak / redmod) + `MOD_MANIFEST.json` (type, deps déclarées) |
-| `package_mod` | distribution | Empaquette un layout jeu (`archive/`, `r6/`, `mods/`…) en `.zip` distribuable (séparateurs `/` conformes) |
-| `inspect_journal` | journal | Résumé navigable d'un `.journal` (28 000+ entrées, ~70 Mo) : total, répartition par `$type`, catégories de 1er niveau — sans tout charger |
-| `find_journal_entry` | journal | Localise une entrée du journal par id / type / titre → **chemin JSON exact** pour l'éditer puis réinjecter via `write_game_file` |
-| `inspect_cr2w` | navigation | Résumé navigable de N'IMPORTE quel gros CR2W (quête/scène/secteur/UI) : type racine, objets par `$type`, profondeur — généralise `inspect_journal` |
-| `find_in_cr2w` | navigation | Cherche dans un CR2W par `$type` / champ / `*` → **chemin JSON exact** du nœud (édition ciblée puis `write_game_file`) |
-| `diagnose_logs` | debug | Parse les 6 logs (redscript/RED4ext/ArchiveXL/TweakXL/Codeware/CET/REDmod), extrait/classe les erreurs et mappe les erreurs connues → correctif |
-| `analyze_conflicts` | maintenance | Conflits **robustes** (sans le verbe WolvenKit buggé) : fichiers fournis par plusieurs `.archive` (+ qui gagne) et records définis par plusieurs `.tweak` |
-| `validate_item_mod` | création | Valide la chaîne de références d'un item ArchiveXL (`.yaml` entityName ↔ `.csv`, displayName ↔ `.json secondaryKey`, présence `.ent` ; `deep` vérifie l'appearanceName dans le `.ent`) — tue la cause n°1 d'échec silencieux |
-| `lint_tweak` | création | Lint sémantique TweakXL : TABS interdits, indentation, records en double, `inlineN` utilisé comme `$base` (casse aux MAJ) |
-| `generate_manifest` | maintenance | Manifeste de dépendances + `REQUIREMENTS.md` (façon Nexus) depuis la détection de frameworks |
-| `resolve_dynamic_appearance` | création | Développe un pattern d'apparence dynamique ArchiveXL (`{gender}`/`{camera}`) en chemins concrets + vérif d'existence |
-| `migration_check` | maintenance | Un mod `.archive` est-il encore aligné sur la version du jeu ? (surcharges actives vs devenues inertes après une MAJ) |
-| `toggle_mods` | maintenance | Active/désactive des `.archive` (déplacement réversible vers `_disabled`) — primitive de bissection de conflits |
-| `list_entity_appearances` | création | Liste les apparences d'une entité `.ent` (`name` + `appearanceName` + `.app`) — pour savoir ce qu'elle expose avant d'éditer/exporter |
-| `inspect_app` | inspection | Résumé d'un `.app` (apparences, composants mesh par apparence, meshes distincts) — vue d'ensemble avant `validate_appearance` |
-| `validate_appearance` | création | **Validation profonde** `.app`→`.mesh` : le `meshAppearance` référencé existe-t-il dans le `.mesh` ? (sinon mesh invisible) — résout les meshes mod ou base (`gamePath`) |
-| `validate_redmod` | maintenance | Valide le `info.json` d'un REDmod (champs requis `name`/`version` + format, cohérence des entrées `customSounds`) |
+| `analyze_dependencies` | maintenance | Infers a mod's required frameworks (redscript, RED4ext, ArchiveXL, TweakXL, Codeware, Audioware, Mod Settings, CET…) via imports/.xl/.tweak/types, and marks installed/missing if `gamePath` is provided |
+| `check_requirements` | maintenance | Inventory of the modding frameworks **installed** (+ version) in an install |
+| `mod_doctor` | maintenance | One-call health diagnostic: installed/missing frameworks, dependencies required by the present content but absent, conflicts, inventory + recommendations |
+| `validate_xl` | archivexl | Validates an ArchiveXL `.xl` file (well-formed YAML + recognized sections) |
+| `scaffold_archivexl` | archivexl | Generates a commented starter `.xl` (factory / customSounds / localization / resource) |
+| `find_references` | evolution | Searches all references (TweakDBID / path / LocKey / name) in a mod's sources (.reds/.tweak/.yaml/.xl/.lua/.json/.csv) → file:line |
+| `diff_mod_vs_base` | evolution | Semantic diff of an overridden file vs its base version (additions/removals/changes, `$.Header` noise filtered) |
+| `scaffold_mod` | creation | Creates in 1 call a working mod (archive / redscript / tweak / redmod) + `MOD_MANIFEST.json` (type, declared deps) |
+| `package_mod` | distribution | Packs a game layout (`archive/`, `r6/`, `mods/`…) into a distributable `.zip` (compliant `/` separators) |
+| `inspect_journal` | journal | Navigable summary of a `.journal` (28,000+ entries, ~70 MB): total, breakdown by `$type`, top-level categories — without loading everything |
+| `find_journal_entry` | journal | Locates a journal entry by id / type / title → **exact JSON path** to edit it then re-inject via `write_game_file` |
+| `inspect_cr2w` | navigation | Navigable summary of ANY large CR2W (quest/scene/sector/UI): root type, objects by `$type`, depth — generalizes `inspect_journal` |
+| `find_in_cr2w` | navigation | Searches in a CR2W by `$type` / field / `*` → **exact JSON path** of the node (targeted edit then `write_game_file`) |
+| `diagnose_logs` | debug | Parses the 6 logs (redscript/RED4ext/ArchiveXL/TweakXL/Codeware/CET/REDmod), extracts/classifies errors and maps known errors → fix |
+| `analyze_conflicts` | maintenance | **Robust** conflicts (without the buggy WolvenKit verb): files provided by several `.archive` (+ who wins) and records defined by several `.tweak` |
+| `validate_item_mod` | creation | Validates the reference chain of an ArchiveXL item (`.yaml` entityName ↔ `.csv`, displayName ↔ `.json secondaryKey`, presence of `.ent`; `deep` checks the appearanceName in the `.ent`) — kills the #1 cause of silent failure |
+| `lint_tweak` | creation | TweakXL semantic lint: forbidden TABS, indentation, duplicate records, `inlineN` used as `$base` (breaks on updates) |
+| `generate_manifest` | maintenance | Dependency manifest + `REQUIREMENTS.md` (Nexus-style) from framework detection |
+| `resolve_dynamic_appearance` | creation | Expands an ArchiveXL dynamic appearance pattern (`{gender}`/`{camera}`) into concrete paths + existence check |
+| `migration_check` | maintenance | Is a `.archive` mod still aligned with the game version? (active overrides vs ones that became inert after an update) |
+| `toggle_mods` | maintenance | Enables/disables `.archive` files (reversible move to `_disabled`) — conflict-bisection primitive |
+| `list_entity_appearances` | creation | Lists the appearances of a `.ent` entity (`name` + `appearanceName` + `.app`) — to know what it exposes before editing/exporting |
+| `inspect_app` | inspection | Summary of an `.app` (appearances, mesh components per appearance, distinct meshes) — overview before `validate_appearance` |
+| `validate_appearance` | creation | **Deep validation** `.app`→`.mesh`: does the referenced `meshAppearance` exist in the `.mesh`? (otherwise invisible mesh) — resolves mod or base meshes (`gamePath`) |
+| `validate_redmod` | maintenance | Validates a REDmod's `info.json` (required fields `name`/`version` + format, consistency of `customSounds` entries) |
 
-### Prompts MCP (8)
+### MCP prompts (8)
 
-Recettes prêtes à l'emploi qu'un agent peut invoquer pour démarrer un workflow.
+Ready-to-use recipes an agent can invoke to kick off a workflow.
 
-| Prompt | Rôle |
+| Prompt | Role |
 |---|---|
-| `read_game_file_workflow` | Localiser et lire un fichier de jeu en un appel |
-| `edit_tweakdb_item` | Modifier un item TweakDB via `.tweak` (TweakXL) |
-| `pack_and_install_mod` | Empaqueter et installer un mod `.archive` |
-| `recolor_texture` | Extraire / éditer / réimporter une texture |
-| `create_archivexl_item` | Créer un mod d'item ArchiveXL de bout en bout |
-| `diagnose_broken_mod` | Diagnostic global → logs → bissection d'un mod cassé |
-| `live_iteration_loop` | Itérer sur TweakDB à chaud, jeu lancé |
-| `inspect_mesh` | Exporter un mesh en glTF pour inspection |
+| `read_game_file_workflow` | Locate and read a game file in one call |
+| `edit_tweakdb_item` | Modify a TweakDB item via `.tweak` (TweakXL) |
+| `pack_and_install_mod` | Pack and install a `.archive` mod |
+| `recolor_texture` | Extract / edit / re-import a texture |
+| `create_archivexl_item` | Create an ArchiveXL item mod end-to-end |
+| `diagnose_broken_mod` | Global diagnostic → logs → bisection of a broken mod |
+| `live_iteration_loop` | Iterate on TweakDB live, game running |
+| `inspect_mesh` | Export a mesh to glTF for inspection |
 
-## Ressources MCP (4)
+## MCP resources (4)
 
-En plus des outils, le serveur expose des **resources** — données lisibles
-adressées par URI, que le client peut consulter ou attacher au contexte.
+In addition to tools, the server exposes **resources** — readable data
+addressed by URI, that the client can consult or attach to the context.
 
-| URI | Type | Contenu |
+| URI | Type | Content |
 |---|---|---|
-| `wolvenkit://reference` | directe | Aide-mémoire : commandes, formats REDengine, workflow de modding |
-| `wolvenkit://archive/{+path}` | template | Listing du contenu de l'archive `.archive` au chemin donné |
-| `wolvenkit://cr2w-json/{+path}` | template | Fichier REDengine CR2W rendu en JSON |
-| `wolvenkit://mods/{+gamePath}` | template | Inventaire des mods installés (archives `.archive` + REDmod) |
+| `wolvenkit://reference` | direct | Cheat sheet: commands, REDengine formats, modding workflow |
+| `wolvenkit://archive/{+path}` | template | Listing of the `.archive` content at the given path |
+| `wolvenkit://cr2w-json/{+path}` | template | REDengine CR2W file rendered as JSON |
+| `wolvenkit://mods/{+gamePath}` | template | Inventory of installed mods (`.archive` archives + REDmod) |
 
-## Configuration (variables d'environnement)
+## Configuration (environment variables)
 
-| Variable | Défaut | Rôle |
+| Variable | Default | Role |
 |---|---|---|
-| `WOLVENKIT_DAEMON` | projet frère | Chemin de `WolvenKitDaemon.dll` (le chemin rapide) |
-| `WOLVENKIT_CP77TOOLS` | `~/.dotnet/tools/cp77tools[.exe]` | Chemin de cp77tools (repli sous-processus) |
-| `DOTNET_ROOT` | *auto-détecté* | Racine du runtime .NET — rarement à définir |
-| `WOLVENKIT_CLI_TIMEOUT_SECONDS` | `300` | Délai maximal d'une commande |
+| `WOLVENKIT_DAEMON` | sibling project | Path to `WolvenKitDaemon.dll` (the fast path) |
+| `WOLVENKIT_CP77TOOLS` | `~/.dotnet/tools/cp77tools[.exe]` | Path to cp77tools (subprocess fallback) |
+| `DOTNET_ROOT` | *auto-detected* | .NET runtime root — rarely needs setting |
+| `WOLVENKIT_CLI_TIMEOUT_SECONDS` | `300` | Maximum delay for a command |
 
-## État de validation
+## Validation status
 
-Le serveur expose aujourd'hui **123 outils, 8 prompts et 4 ressources** ; le
-handshake MCP, l'enregistrement complet des outils, leurs annotations et leurs
-schémas sont vérifiés à chaque build par un **test E2E automatique** (129 tests
-xUnit, CI Windows). La dernière validation **sur jeu réel** (Windows 11 +
-Cyberpunk 2077, script `validate-windows.py`) a exercé les 69 outils de
-l'époque sur de vrais assets : bilan **78 OK · 2 réserves · 0 échec** — détail
-et bugs corrigés dans `WINDOWS-VALIDATION.md`.
+The server today exposes **123 tools, 8 prompts and 4 resources**; the MCP
+handshake, the full registration of tools, their annotations and their schemas
+are verified at every build by an **automatic E2E test** (129 xUnit tests,
+Windows CI). The most recent validation **on a real game** (Windows 11 +
+Cyberpunk 2077, `validate-windows.py` script) exercised the 69 tools of the time
+on real assets: result **78 OK · 2 reservations · 0 failures** — detail and
+fixed bugs in `WINDOWS-VALIDATION.md`.
 
-- ✅ Handshake MCP, `tools/list`, `prompts/list`, `tools/call`, ressources
-- ✅ **Outils de workflow** : `check_requirements` (10/10 frameworks détectés),
-  `analyze_dependencies`, `mod_doctor` (santé du setup), `validate_xl` +
-  `scaffold_archivexl`, `find_references`, `diff_mod_vs_base` (bruit `$.Header`
-  filtré), `scaffold_mod`, `package_mod` — tous vérifiés sur l'install réelle
-- ✅ Lecture (`archive_info`, `find_in_archives` cache ×6, `diff_archives`,
+- ✅ MCP handshake, `tools/list`, `prompts/list`, `tools/call`, resources
+- ✅ **Workflow tools**: `check_requirements` (10/10 frameworks detected),
+  `analyze_dependencies`, `mod_doctor` (setup health), `validate_xl` +
+  `scaffold_archivexl`, `find_references`, `diff_mod_vs_base` (`$.Header` noise
+  filtered), `scaffold_mod`, `package_mod` — all verified on the real install
+- ✅ Read (`archive_info`, `find_in_archives` cache ×6, `diff_archives`,
   `extract_files`, `uncook`), conversion (`cr2w_to_json`/`json_to_cr2w`,
-  `export_files`, `import_raw`), écriture (`pack_archive`, `lint_mod`,
-  `install_mod`), audio (`wwise_export`), TweakDB (`tweakdb_query` capé,
+  `export_files`, `import_raw`), write (`pack_archive`, `lint_mod`,
+  `install_mod`), audio (`wwise_export`), TweakDB (`tweakdb_query` capped,
   `read_tweak`/`write_tweak`/`validate_tweak`/`install_tweak`), REDmod
-  (`create_redmod_project`/`pack_redmod`/`install_redmod`), hash — sur de
-  vrais assets Cyberpunk 2077
-- ✅ Compression Kraken native : aller-retour `oodle compress`/`decompress` byte-exact
-- ✅ Daemon : après le démarrage (~3 s, une fois), les appels suivants tombent à
-  quelques millisecondes ; **plusieurs requêtes en vol simultanées** (pipelining)
-- ✅ Cache LRU des listings d'archives (33 archives content + 318 mods) ;
-  `find_in_archives` ×6 plus rapide sur appels successifs
-- ✅ **Nouveaux outils** : `export_morphtarget`/`export_mlmask` (vérifiés sur
-  assets réels), `extract_audio` (**82 578 fichiers opus** extraits d'une archive
-  vocale), `generate_modproj`, `create_mod_project` étendu, `lint_script` sémantique,
-  **`loc_resolve`** (LocKey→texte, 70 579 entrées en_us ; clé `40`→« News »),
-  **`import_audio`** (WAV→opus, câblage vérifié)
-- ✅ **`build_project`** : compile désormais le `.cpmodproj` généré par
+  (`create_redmod_project`/`pack_redmod`/`install_redmod`), hash — on real
+  Cyberpunk 2077 assets
+- ✅ Native Kraken compression: `oodle compress`/`decompress` round-trip byte-exact
+- ✅ Daemon: after startup (~3 s, once), subsequent calls drop to a few
+  milliseconds; **several requests in flight simultaneously** (pipelining)
+- ✅ LRU cache of archive listings (33 content archives + 318 mods);
+  `find_in_archives` ×6 faster on subsequent calls
+- ✅ **New tools**: `export_morphtarget`/`export_mlmask` (verified on real
+  assets), `extract_audio` (**82,578 opus files** extracted from a voice
+  archive), `generate_modproj`, extended `create_mod_project`, semantic `lint_script`,
+  **`loc_resolve`** (LocKey→text, 70,579 en_us entries; key `40`→"News"),
+  **`import_audio`** (WAV→opus, wiring verified)
+- ✅ **`build_project`**: now compiles the `.cpmodproj` generated by
   `create_mod_project` → `packed/archive/pc/mod/<mod>.archive`
-- ✅ **Tests unitaires C#** (`WolvenKitMcp.Tests`, xUnit) : 129 tests verts (helpers purs
-  `Truncate`/`MatchesGlob`/`BuildCpmodprojXml` + parser REDscript : acceptation du corpus
-  réaliste, détection d'erreurs de syntaxe, extraction module/déclarations)
-- ✅ **Parser REDscript** (`lint_script`) : 0 erreur sur les 1374 `.reds` de `r6/scripts`,
-  erreurs ligne:colonne sur du code cassé (vérifié de bout en bout via le serveur MCP)
-- ⚠️ `detect_conflicts` : le verbe `conflicts` de WolvenKit.CLI 8.18.0 plante sur
-  un install réel — bug amont, reproductible tel quel avec `cp77tools`
+- ✅ **C# unit tests** (`WolvenKitMcp.Tests`, xUnit): 129 tests green (pure helpers
+  `Truncate`/`MatchesGlob`/`BuildCpmodprojXml` + REDscript parser: acceptance of the
+  realistic corpus, syntax error detection, module/declaration extraction)
+- ✅ **REDscript parser** (`lint_script`): 0 errors on the 1374 `.reds` of `r6/scripts`,
+  line:column errors on broken code (verified end-to-end via the MCP server)
+- ⚠️ `detect_conflicts`: the `conflicts` verb of WolvenKit.CLI 8.18.0 crashes on
+  a real install — upstream bug, reproducible as-is with `cp77tools`
 
-## Limites connues
+## Known limitations
 
-- **Textures / audio.** La conversion de textures (`texconv`) et l'audio Wwise
-  dépendent de binaires natifs Windows — hors périmètre macOS.
-- **Démarrage du daemon.** Le tout premier appel après le lancement du serveur
-  attend le préchauffage du daemon (~7 s, une fois) ; ensuite tout est instantané.
-- **Compresseur.** `rarten/ooz` n'est pas garanti byte-identique à Oodle pour les
-  très petits blocs Mermaid/Selkie — sans incidence (le jeu décode tout flux valide).
+- **Textures / audio.** Texture conversion (`texconv`) and Wwise audio depend on
+  Windows native binaries — outside the macOS scope.
+- **Daemon startup.** The very first call after launching the server waits for
+  the daemon warm-up (~7 s, once); afterwards everything is instant.
+- **Compressor.** `rarten/ooz` is not guaranteed byte-identical to Oodle for
+  very small Mermaid/Selkie blocks — no impact (the game decodes any valid stream).
 
-## Pistes restantes
+## Remaining work
 
-Livré jusqu'ici : sortie JSON structurée, `read_game_file` / `write_game_file`,
-`install_mod`, `diff_archives`, `lint_mod`, REDmod packaging, édition TweakDB
-structurée + `describe_tweak_record` + `generate_tweak_template`, inspection
-mesh/texture, lecture + lint scripts `.reds` + `generate_redscript_template`,
+Delivered so far: structured JSON output, `read_game_file` / `write_game_file`,
+`install_mod`, `diff_archives`, `lint_mod`, REDmod packaging, structured TweakDB
+editing + `describe_tweak_record` + `generate_tweak_template`, mesh/texture
+inspection, reading + linting `.reds` scripts + `generate_redscript_template`,
 backup/restore mods, **uninstall trio + `deploy_redmod`**, **launch_game /
-tail_game_logs** (boucle d'itération en jeu), **`mod_summary` + `dump_records`**
+tail_game_logs** (in-game iteration loop), **`mod_summary` + `dump_records`**
 (intelligence), **`extract_localization` / `build_localization`** (UI strings),
-5 prompts MCP, cache LRU + stats + **métriques par verbe** + `clear_cache`,
-parallélisation `wwise_export`, pipelining daemon, mode `verbose` pour debug,
-**export anim/morphtarget/mlmask**, **`extract_audio` (opus voix-off)**,
-**génération `.cpmodproj`** (`generate_modproj` + `create_mod_project` →
-`build_project` de bout en bout), **lint sémantique `.reds`**, **tests unitaires
-C# xUnit**, **bundle `.mcpb`** (`build-mcpb.ps1`) + **CI GitHub Actions**.
+5 MCP prompts, LRU cache + stats + **per-verb metrics** + `clear_cache`,
+`wwise_export` parallelization, daemon pipelining, `verbose` mode for debugging,
+**anim/morphtarget/mlmask export**, **`extract_audio` (opus voice-over)**,
+**`.cpmodproj` generation** (`generate_modproj` + `create_mod_project` →
+`build_project` end-to-end), **semantic `.reds` lint**, **C# xUnit unit
+tests**, **`.mcpb` bundle** (`build-mcpb.ps1`) + **GitHub Actions CI**.
 
-Round 3 : **`loc_resolve`** (LocKey → texte, vérifié : 70 579 entrées en_us, résolution
-hash et clé secondaire OK), **`import_audio`** (WAV → `.opus` via `OpusTools.ImportWavs`,
-encodeur `opusenc` embarqué), exports anim/morphtarget/mlmask vérifiés sur assets réels.
+Round 3: **`loc_resolve`** (LocKey → text, verified: 70,579 en_us entries, hash
+and secondary-key resolution OK), **`import_audio`** (WAV → `.opus` via `OpusTools.ImportWavs`,
+embedded `opusenc` encoder), anim/morphtarget/mlmask exports verified on real assets.
 
-### Restant
+### Remaining
 
-- **`import_audio`** — câblé et vérifié au niveau du verbe (charge l'ArchiveManager,
-  atteint `OpusTools.ImportWavs`) ; le **round-trip complet** n'a pas été testé faute
-  de WAV nommés par un vrai hash opus. À valider sur un cas de remplacement de voix réel.
-- **`export_animation`** — fonctionne, mais une `.anims` **seule** (sans rig associé)
-  ne produit pas de glTF (contrainte WolvenKit) ; un mode « anim + rig » serait utile.
-- **Toggles d'export fins** — `IsBinary`/`incRootMotion` (anim), `ExportTextures`
-  (morphtarget) ne passent pas par `ConsoleFunctions.ExportTask` ; nécessiteraient
-  d'appeler `IModTools.Export` directement avec un `GlobalExportArgs` construit.
-- **Type-checking `.reds`** — la validation **syntaxique** est désormais faite par un
-  vrai parser de grammaire (`RedscriptParser.cs`, 0 faux positif sur 1374 fichiers réels) ;
-  la résolution de **types/signatures externes** exigerait le compilateur `scc` + tout
-  l'écosystème de mods (lent ~15 min, échoue sur les deps manquantes — cf. note ci-dessous).
-- **Re-validation macOS** — n'a pas été refaite depuis les extensions Windows.
+- **`import_audio`** — wired and verified at the verb level (loads the ArchiveManager,
+  reaches `OpusTools.ImportWavs`); the **full round-trip** has not been tested for lack
+  of WAVs named by a real opus hash. To be validated on a real voice-replacement case.
+- **`export_animation`** — works, but a `.anims` **alone** (without an associated rig)
+  does not produce glTF (WolvenKit constraint); an "anim + rig" mode would be useful.
+- **Fine export toggles** — `IsBinary`/`incRootMotion` (anim), `ExportTextures`
+  (morphtarget) do not go through `ConsoleFunctions.ExportTask`; they would require
+  calling `IModTools.Export` directly with a constructed `GlobalExportArgs`.
+- **`.reds` type-checking** — **syntactic** validation is now done by a real grammar
+  parser (`RedscriptParser.cs`, 0 false positives on 1374 real files); resolving
+  **external types/signatures** would require the `scc` compiler + the whole mod
+  ecosystem (slow ~15 min, fails on missing deps — see note above).
+- **macOS re-validation** — has not been redone since the Windows extensions.
 
 ## Structure
 
 ```
 wolvenkit-mcp/
-├── native/                  Reconstruction de libkraken.dylib (arm64)
+├── native/                  Rebuild of libkraken.dylib (arm64)
 │   ├── build-libkraken.sh
 │   ├── README.md
-│   ├── ooz-rarten/          Source rarten/ooz (modifiée — cf. native/README.md)
+│   ├── ooz-rarten/          rarten/ooz source (modified — see native/README.md)
 │   └── build/libkraken.dylib
-├── src/WolvenKitMcp/        Serveur MCP C# / .NET 8
-│   ├── Program.cs           Hôte + transport stdio
-│   ├── Cp77ToolsRunner.cs   Pilote le daemon (IPC pipeliné, cache d'archives, repli cp77tools)
-│   ├── WolvenKitTools.cs    Les 62 outils MCP de base
-│   ├── ModdingTools.cs      Les 23 outils de workflow (deps, santé, scaffolding, refs, diff)
-│   ├── LiveTools.cs         Les 35 outils live_* (jeu en cours, via CetBridge.cs)
-│   ├── RedscriptParser.cs   Parser de grammaire REDscript (lint_script)
-│   ├── WolvenKitPrompts.cs  Les 8 prompts MCP (recettes)
-│   └── WolvenKitResources.cs  Les 4 ressources MCP (référence générée par réflexion)
+├── src/WolvenKitMcp/        C# / .NET 8 MCP server
+│   ├── Program.cs           Host + stdio transport
+│   ├── Cp77ToolsRunner.cs   Drives the daemon (pipelined IPC, archive cache, cp77tools fallback)
+│   ├── WolvenKitTools.cs    The 62 base MCP tools
+│   ├── ModdingTools.cs      The 23 workflow tools (deps, health, scaffolding, refs, diff)
+│   ├── LiveTools.cs         The 35 live_* tools (running game, via CetBridge.cs)
+│   ├── RedscriptParser.cs   REDscript grammar parser (lint_script)
+│   ├── WolvenKitPrompts.cs  The 8 MCP prompts (recipes)
+│   └── WolvenKitResources.cs  The 4 MCP resources (reference generated by reflection)
 ├── docs/                    USER_GUIDE · TOOLS · MODDING_RECIPES · ARCHITECTURE
-├── src/WolvenKitMcp.Tests/  Tests unitaires xUnit des helpers purs
-├── src/WolvenKitDaemon/     Daemon persistant — hôte des bibliothèques WolvenKit
-│   └── Program.cs           DI + dispatcher de verbes + IPC stdio pipeliné
-├── manifest.json            Manifest d'extension Desktop (.mcpb)
-├── build-mcpb.ps1           Construit dist/wolvenkit-mcp.mcpb (install 1-clic)
-├── .github/workflows/ci.yml CI : build daemon + serveur + tests + bundle .mcpb
-├── test-mcp-server.py       Client de test du serveur MCP
-├── test-daemon.py           Client de test du daemon seul
-├── validate-windows.py      Valide les outils + prompts sur de vrais assets du jeu
-├── WINDOWS-VALIDATION.md    Checklist + résultats de validation Windows
+├── src/WolvenKitMcp.Tests/  xUnit unit tests of the pure helpers
+├── src/WolvenKitDaemon/     Persistent daemon — host of the WolvenKit libraries
+│   └── Program.cs           DI + verb dispatcher + pipelined stdio IPC
+├── manifest.json            Desktop Extension manifest (.mcpb)
+├── build-mcpb.ps1           Builds dist/wolvenkit-mcp.mcpb (1-click install)
+├── .github/workflows/ci.yml CI: build daemon + server + tests + .mcpb bundle
+├── test-mcp-server.py       MCP server test client
+├── test-daemon.py           Daemon-only test client
+├── validate-windows.py      Validates tools + prompts on real game assets
+├── WINDOWS-VALIDATION.md    Windows validation checklist + results
 └── README.md
 ```
