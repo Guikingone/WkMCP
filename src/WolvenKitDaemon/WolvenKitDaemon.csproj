@@ -9,21 +9,21 @@
 
   <ItemGroup>
     <PackageReference Include="WolvenKit.Modkit" Version="8.18.0" />
-    <!-- WolvenKit.Core / WolvenKit.Common : dépendances transitives de Modkit,
-         référencées explicitement pour exposer $(PkgWolvenKit_Core/_Common) —
-         la cible DeployNativeWindows y puise les binaires natifs nécessaires au
-         daemon mais non copiés de façon fiable depuis une dépendance transitive. -->
+    <!-- WolvenKit.Core / WolvenKit.Common: transitive dependencies of Modkit,
+         referenced explicitly to expose $(PkgWolvenKit_Core/_Common) —
+         the DeployNativeWindows target pulls the native binaries the daemon needs
+         but that are not copied reliably from a transitive dependency. -->
     <PackageReference Include="WolvenKit.Core" Version="8.18.0" GeneratePathProperty="true" />
     <PackageReference Include="WolvenKit.Common" Version="8.18.0" GeneratePathProperty="true" />
-    <!-- YamlDotNet : parser pour les fichiers .tweak (format TweakXL, YAML).
-         Déjà tiré transitivement par WolvenKit ; référencé explicitement pour
-         garantir la disponibilité au compile et fixer la version. -->
+    <!-- YamlDotNet: parser for .tweak files (TweakXL format, YAML).
+         Already pulled transitively by WolvenKit; referenced explicitly to
+         guarantee availability at compile time and pin the version. -->
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
 
-  <!-- Sur macOS, déploie automatiquement notre libkraken.dylib arm64 reconstruite
-       dans la sortie : le package NuGet n'en fournit pas d'utilisable sur Apple
-       Silicon. Lancer native/build-libkraken.sh au préalable. -->
+  <!-- On macOS, automatically deploys our rebuilt arm64 libkraken.dylib into the
+       output: the NuGet package does not provide one usable on Apple Silicon.
+       Run native/build-libkraken.sh beforehand. -->
   <Target Name="DeployLibKraken" AfterTargets="Build"
           Condition="$([MSBuild]::IsOSPlatform('OSX'))">
     <PropertyGroup>
@@ -37,12 +37,11 @@
           Condition="Exists('$(_LibKrakenSrc)')" SkipUnchangedFiles="true" />
   </Target>
 
-  <!-- Sur Windows, le daemon a besoin de binaires natifs que les packages
-       WolvenKit livrent comme contentFiles, non copiés de façon fiable depuis
-       une dépendance transitive :
-         kraken.dll         P/Invoke Oodle, requis au démarrage (Oodle.Load())
-         DirectXTexNet.dll  conversion de textures xbm <-> png (uncook / import)
-       On les déploie donc explicitement à côté de WolvenKitDaemon.dll. -->
+  <!-- On Windows, the daemon needs native binaries that the WolvenKit packages
+       ship as contentFiles, not copied reliably from a transitive dependency:
+         kraken.dll         P/Invoke Oodle, required at startup (Oodle.Load())
+         DirectXTexNet.dll  texture conversion xbm <-> png (uncook / import)
+       They are therefore deployed explicitly next to WolvenKitDaemon.dll. -->
   <Target Name="DeployNativeWindows" AfterTargets="Build"
           Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <Copy SourceFiles="$(PkgWolvenKit_Core)\content\kraken.dll"

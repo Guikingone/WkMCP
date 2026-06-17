@@ -2,6 +2,45 @@
 
 Dates are those of the development sessions.
 
+## 1.0.0 — 2026-06-17
+
+First public, stable release. The server is functionally complete (123 tools,
+8 prompts, 4 resources) and the packaging and documentation are now v1-ready.
+
+### Documentation
+- README rewritten as a v1 landing page: a Windows quickstart (~5 min), highlights,
+  a one-click `.mcpb` install path, a tools/prompts/resources overview (the full tool
+  table moved to `docs/TOOLS.md`), the license split, troubleshooting, and a corrected
+  repository tree. The "Prototype" framing and the macOS-first install were removed.
+- `docs/` de-duplicated and expanded: `TOOLS.md` gained a table of contents and full
+  parameter tables for §20; `LIVE_BRIDGE.md` now documents all 35 `live_*` tool
+  parameters; `HTTP_TRANSPORT.md` adds a "why HTTP" intro, a complete curl example and
+  troubleshooting; `MODDING_RECIPES.md` opens with a "which recipe" decision table;
+  `USER_GUIDE.md` troubleshooting expanded; `ARCHITECTURE.md` count fixes.
+- `native/README.md` translated to English; French comments in `.gitignore` and the
+  `.csproj` files translated.
+
+### Packaging & metadata
+- `manifest.json`: version `1.0.0`, plus `author`, `repository`, `homepage`, `bugs`
+  and discoverability keywords.
+- License reconciliation: root `LICENCE` (MIT) for the server source;
+  `src/WolvenKitDaemon/LICENSE` (GPL-3.0 — the daemon links WolvenKit's GPL libs);
+  a root `NOTICE` explaining the per-component split; the `.mcpb` manifest license
+  stays GPL-3.0 (the bundle ships the daemon).
+- Community health files: `SECURITY.md`, `CONTRIBUTING.md` (with the `ConsistencyTests`
+  anti-drift contract and the salvaged known pitfalls), `CODE_OF_CONDUCT.md`, and
+  issue/PR templates.
+- GitHub release workflow (`.github/workflows/release.yml`): tag-triggered, builds +
+  tests + bundles the `.mcpb` and attaches it to a GitHub Release.
+
+### Dev-only files moved out of the user surface
+- `HANDOFF.md` removed (pitfalls salvaged into `CONTRIBUTING.md`);
+  `WINDOWS-VALIDATION.md` moved under `dev/` as a point-in-time internal QA log.
+
+### Counts
+- 123 tools (63 base + 25 workflow + 35 live), 8 prompts, 4 resources — unchanged
+  from 0.4.0; the first release tagged for distribution.
+
 ## 0.4.0 — 2026-06-15
 
 Finalization: full audit of the server (deemed functionally complete), fix of a
@@ -126,28 +165,38 @@ Quality work resulting from a full audit of the server.
 
 ## 0.2.0 — 2026-05-29 → 2026-06-05
 
-- **Round 12**: opt-in **HTTP/Streamable** transport (`WOLVENKIT_MCP_TRANSPORT=http`),
+A large feature batch that took the server from 60 to 120 tools: the HTTP
+transport, the live in-game bridge, and many workflow / appearance / maintenance
+tools. Counts below are point-in-time.
+
+### Transports
+- Opt-in **HTTP/Streamable** transport (`WOLVENKIT_MCP_TRANSPORT=http`),
   SDK 1.3.0 → 1.4.0, loopback bind by default, bearer token (constant-time
   SHA-256), fail-closed off loopback without a token. `docs/HTTP_TRANSPORT.md`.
-- **Round 11**: live in-game bridge — 35 `live_*` tools talking to a running game
-  via the **CETBridge** Lua mod (TCP 127.0.0.1:27010 + file fallback). 120 tools.
-- **Round 10**: appearance hardening (`list_entity_appearances`,
-  `validate_appearance`). 85 tools.
-- **Round 9** ("take it all"): `lint_tweak`, `generate_manifest`,
+
+### Live in-game bridge (CETBridge)
+- 35 `live_*` tools talking to a running game via the **CETBridge** Lua mod
+  (TCP 127.0.0.1:27010 + file fallback). 120 tools.
+
+### Creation / maintenance tools
+- Appearance hardening: `list_entity_appearances`, `validate_appearance` (85 tools).
+- Advanced creation/maintenance: `lint_tweak`, `generate_manifest`,
   `resolve_dynamic_appearance`, `migration_check`, `toggle_mods`,
-  `export_entity`/`export_materials`. 83 tools.
-- **Round 8**: `inspect_cr2w`/`find_in_cr2w`, `diagnose_logs`,
-  `analyze_conflicts`, `validate_item_mod`. 76 tools.
-- **Round 7**: journal intelligence (`inspect_journal`/`find_journal_entry`,
-  28,476 entries). 71 tools.
-- **Round 6**: multi-agent audit — fix TweakDB singleton (per-path
-  reload), Zip-Slip in `restore_mods`, temp collisions. `docs/` documentation.
-- **Round 5**: 9 workflow tools (`ModdingTools.cs`) — analyze_dependencies,
-  mod_doctor, validate_xl, scaffold_*, diff_mod_vs_base, find_references,
-  package_mod. Dedicated REDscript parser for `lint_script` (0 false positives on the
-  1374 .reds of the game). 69 tools.
-- **Rounds 3-4**: `loc_resolve`, `import_audio`, `extract_audio` (82k opus
-  verified), generated `.cpmodproj` (build_project end-to-end). 60 tools.
+  `export_entity` / `export_materials` (83 tools).
+- Generic CR2W navigation: `inspect_cr2w` / `find_in_cr2w`, `diagnose_logs`,
+  `analyze_conflicts`, `validate_item_mod` (76 tools).
+- Journal intelligence: `inspect_journal` / `find_journal_entry` (28,476 entries,
+  71 tools).
+- 9 workflow tools (`ModdingTools.cs`): `analyze_dependencies`, `mod_doctor`,
+  `validate_xl`, `scaffold_*`, `diff_mod_vs_base`, `find_references`,
+  `package_mod`. Dedicated REDscript parser for `lint_script` (0 false positives on
+  the 1374 `.reds` of the game). 69 tools.
+- Localization & audio: `loc_resolve`, `import_audio`, `extract_audio` (82k opus
+  verified), generated `.cpmodproj` (`build_project` end-to-end). 60 tools.
+
+### Hardening
+- TweakDB singleton fixed (per-path reload), Zip-Slip in `restore_mods`, temp
+  collisions. `docs/` documentation added.
 
 ## 0.1.0 — 2026-05-19/20
 

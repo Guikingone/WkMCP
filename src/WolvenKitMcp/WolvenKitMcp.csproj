@@ -14,8 +14,8 @@
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
 
-  <!-- Transport HTTP (mode opt-in) : WebApplication exige le framework partagé ASP.NET Core,
-       tout en gardant le SDK console (Microsoft.NET.Sdk) pour le mode stdio par défaut. -->
+  <!-- HTTP transport (opt-in): WebApplication requires the shared ASP.NET Core framework,
+       while keeping the console SDK (Microsoft.NET.Sdk) for the default stdio mode. -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>

@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest a new tool, prompt, or behavior
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that the current tools do not let you?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: The tool/verb and the arguments you would expect.
+    validations:
+      required: true

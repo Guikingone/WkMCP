@@ -1,0 +1,72 @@
+name: Release
+
+# Triggered by a version tag (e.g. v1.0.0): builds the daemon + server, runs the
+# tests (incl. ConsistencyTests), builds and validates the .mcpb bundle, then
+# creates a GitHub Release with the bundle attached. The durable publish path —
+# ci.yml handles main/PR builds.
+
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, test, bundle & release
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # The daemon must be compiled first: its build deploys the Windows native
+      # binaries (kraken.dll, DirectXTexNet.dll, opus-tools).
+      - name: Build daemon
+        run: dotnet build src/WolvenKitDaemon -c Release --nologo
+
+      - name: Build MCP server
+        run: dotnet build src/WolvenKitMcp -c Release --nologo
+
+      - name: Unit tests (incl. ConsistencyTests)
+        run: dotnet test src/WolvenKitMcp.Tests -c Release --nologo --verbosity normal
+
+      - name: Build .mcpb
+        run: pwsh ./build-mcpb.ps1 -Configuration Release
+
+      # A bundle that builds is not necessarily a valid bundle: we unzip it
+      # and verify manifest + entry points + native binaries + Lua mod.
+      - name: Validate the .mcpb bundle
+        shell: pwsh
+        run: |
+          $zip  = "dist/wolvenkit-mcp.mcpb"
+          $dest = "obj/mcpb-verify"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::ExtractToDirectory((Resolve-Path $zip), $dest)
+          $manifest = Get-Content "$dest/manifest.json" -Raw | ConvertFrom-Json
+          if (-not $manifest.name)    { throw "manifest.json: name field missing" }
+          if (-not $manifest.version) { throw "manifest.json: version field missing" }
+          $required = @(
+            $manifest.server.entry_point,
+            "daemon/WolvenKitDaemon.dll",
+            "daemon/kraken.dll",
+            "live-bridge/CETBridge/init.lua"
+          )
+          foreach ($p in $required) {
+            if (-not (Test-Path (Join-Path $dest $p))) { throw "missing from the bundle: $p" }
+          }
+          $sizeMb = [Math]::Round((Get-Item $zip).Length / 1MB, 1)
+          Write-Host "Valid bundle: v$($manifest.version), $sizeMb MB"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/wolvenkit-mcp.mcpb
+          generate_release_notes: true
+          draft: false
+          prerelease: false

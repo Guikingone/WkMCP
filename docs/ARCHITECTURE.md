@@ -25,7 +25,7 @@ Claude ─MCP/JSON-RPC (stdio)─▶ WolvenKitMcp ─IPC stdio JSON─▶ Wolven
 - **`src/WolvenKitDaemon`** — a persistent process that links the WolvenKit
   libraries (`WolvenKit.Modkit`, `WolvenKit.RED4.CR2W`, …) and `libkraken`/Oodle.
   It loads the heavy reference data **once** then processes requests in a loop.
-- **`src/WolvenKitMcp.Tests`** — 129 xUnit tests (pure helpers: `Truncate`,
+- **`src/WolvenKitMcp.Tests`** — the xUnit test suite (pure helpers: `Truncate`,
   `MatchesGlob`, `BuildCpmodprojXml`, REDscript lint, archive histogram,
   REDmod validation, `.app` summary, doc safeguard, etc.).
 
@@ -216,7 +216,7 @@ compute `produced`), `MatchesGlob`, `BuildCpmodprojXml`.
 ## 6. Guide: adding a new MCP tool
 
 A tool is a **static method** in a `[McpServerToolType]` class
-(`WolvenKitTools.cs` for the 62 base tools, `ModdingTools.cs` for the 23
+(`WolvenKitTools.cs` for the 63 base tools, `ModdingTools.cs` for the 25
 high-level workflow tools, `LiveTools.cs` for the 35 live tools).
 **Registration is automatic via reflection**: `Program.cs` calls
 `.WithToolsFromAssembly()`, so there is nothing to register manually.
@@ -400,7 +400,7 @@ overriding it).
 ### 9.2 Tests
 
 ```sh
-dotnet test                        # 129 xUnit tests (src/WolvenKitMcp.Tests)
+dotnet test                        # the xUnit suite (src/WolvenKitMcp.Tests)
 python3 test-daemon.py             # daemon-only latency, per request
 python3 test-mcp-server.py         # end-to-end MCP server
 python  test-new-tools.py "<game>" # real-game validation: archive_stats / validate_redmod / inspect_app
@@ -412,7 +412,7 @@ python  test-new-tools.py "<game>" # real-game validation: archive_stats / valid
 python3 validate-windows.py        # exercises the tools + prompts on real game assets
 ```
 
-See `WINDOWS-VALIDATION.md` for the details and prerequisites (game installation,
+See `dev/WINDOWS-VALIDATION.md` for the details and prerequisites (game installation,
 TweakDB, etc.).
 
 ### 9.4 DLL lock pitfall (Windows) — kill the processes before rebuild
@@ -436,8 +436,8 @@ MCP client — Claude Desktop restarts the server, which keeps the daemon alive.
 |---------|------|
 | `src/WolvenKitMcp/Program.cs` | MCP host, stdio transport, DI, daemon warmup. |
 | `src/WolvenKitMcp/Cp77ToolsRunner.cs` | Daemon driver: pipelined IPC, LRU cache, p50/p95 metrics, cp77tools fallback. |
-| `src/WolvenKitMcp/WolvenKitTools.cs` | 62 base MCP tools + helpers (`Structured`, `Err`, `Truncate`, `MatchesGlob`, `Snapshot`/`ProducedIn`, `BuildCpmodprojXml`). |
-| `src/WolvenKitMcp/ModdingTools.cs` | 23 high-level workflow tools + framework knowledge base. |
+| `src/WolvenKitMcp/WolvenKitTools.cs` | 63 base MCP tools + helpers (`Structured`, `Err`, `Truncate`, `MatchesGlob`, `Snapshot`/`ProducedIn`, `BuildCpmodprojXml`). |
+| `src/WolvenKitMcp/ModdingTools.cs` | 25 high-level workflow tools + framework knowledge base. |
 | `src/WolvenKitMcp/LiveTools.cs` | 35 `live_*` tools (running game, via CetBridge). |
 | `src/WolvenKitMcp/CetBridge.cs` | TCP/file bridge to the CETBridge Lua mod (live game). |
 | `src/WolvenKitMcp/RedscriptParser.cs` | REDscript tokenizer + recursive parser (`lint_script`). |

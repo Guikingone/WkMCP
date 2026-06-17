@@ -7,7 +7,7 @@ namespace WolvenKitMcp.Tests;
 /// <summary>
 /// End-to-end MCP smoke test, without game or cp77tools: launches the actually
 /// compiled stdio server, does the initialize handshake, then paginates tools/list and
-/// verifies that the ~120 tools register with their annotations. This is the
+/// verifies that the 123 tools register with their annotations. This is the
 /// test that catches a reflection-based registration regression or a parameter
 /// that the SDK cannot bind (the error would otherwise only appear at runtime on the
 /// user's machine).

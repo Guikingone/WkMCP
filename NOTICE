@@ -1,0 +1,48 @@
+WolvenKit MCP — NOTICE
+=======================
+
+This project is a multi-component distribution with a different license per
+component. The shipped Desktop Extension bundle (`.mcpb`) is marked GPL-3.0 in
+`manifest.json` because it contains the daemon, which links GPL-3.0-licensed
+WolvenKit libraries. The MIT-licensed MCP server source is kept out of the
+copyleft by a process boundary (see "Why two processes" below).
+
+Components
+----------
+
+1. MCP server source — MIT License
+   Files: `src/WolvenKitMcp/`, the Python validation/test helpers
+   (`test-*.py`, `validate-windows.py`, `tools/annotate_tools.py`),
+   `build-mcpb.ps1`, and `.github/workflows/*`.
+   Copyright (c) 2026 Guillaume Loulier.
+   See `./LICENCE` for the full MIT text.
+
+2. WolvenKit daemon — GPL-3.0
+   Files: `src/WolvenKitDaemon/`.
+   The daemon links the WolvenKit libraries (`WolvenKit.Modkit`,
+   `WolvenKit.Core`, `WolvenKit.Common` 8.18.0), which are GPL-3.0. Linking them
+   makes the daemon a GPL-3.0 work. It runs as a separate process; the
+   MIT-licensed MCP server talks to it only over an IPC protocol and is therefore
+   not combined with the GPL code into a single work.
+   Copyright (c) 2026 Guillaume Loulier; WolvenKit library contributors
+   (https://github.com/WolvenKit/WolvenKit).
+   See `./src/WolvenKitDaemon/LICENSE` for the full GPL-3.0 text.
+
+3. CETBridge live-bridge Lua mod — MIT License
+   Files: `live-bridge/CETBridge/` (taken as-is from
+   `Y4rd13/cyber-engine-tweak-mcp`; `json.lua` from `rxi/json.lua`).
+   Copyright (c) 2026 y4rd13 — see `live-bridge/CETBridge/LICENSE.upstream`.
+
+4. Vendored ooz (macOS native build only) — upstream license
+   The rebuilt `libkraken.dylib` for macOS arm64 is built from `rarten/ooz`
+   (a fork of `powzix/ooz`). See `native/ooz-rarten/` for upstream attribution.
+   This component is only used to build for macOS; it is not part of the
+   Windows `.mcpb` bundle.
+
+Why two processes
+-----------------
+
+The GPL-3.0 daemon hosts the WolvenKit libraries so the MIT-licensed MCP server
+never links them and stays outside the copyleft. The `.mcpb` bundle ships both
+the server and the daemon; per the project's licensing stance, the bundle's
+manifest license reflects the most restrictive component present (GPL-3.0).

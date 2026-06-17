@@ -1,5 +1,11 @@
 # Windows validation checklist — WolvenKit MCP
 
+> **Internal QA log — point in time.** This file records validation passes at the
+> dates shown below. It is *not* an authoritative count of tools/prompts/resources;
+> the source of truth is `manifest.json` (123 tools / 8 prompts / 4 resources) and
+> the `ConsistencyTests` guard. Kept under `dev/` for contributors — not part of the
+> user-facing documentation.
+
 The server exposes 123 tools, 8 prompts and 4 resources (count verified at every
 build by the E2E test of `WolvenKitMcp.Tests`). This checklist validates them on
 Windows with a real installation of Cyberpunk 2077; the counts cited in the

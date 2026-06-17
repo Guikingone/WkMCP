@@ -34,9 +34,10 @@ This guide targets **Windows** (the end-to-end validated platform, with Cyberpun
    This installs `cp77tools` in `~\.dotnet\tools\`.
 5. **Claude**: Claude Desktop or Claude Code (the MCP client that will drive the tools).
 
-> macOS note: the project also works on macOS Apple Silicon, but it requires
-> rebuilding `libkraken.dylib` (see `native/README.md`). Texture conversion
-> and Wwise audio remain out of scope on macOS. This guide targets Windows.
+> macOS (**experimental**, build-from-source only): the project can be built on
+> Apple Silicon by rebuilding `libkraken.dylib` — see `native/README.md`. Texture
+> conversion and Wwise audio are not supported there. This guide targets Windows,
+> the validated v1 platform.
 
 ---
 
@@ -371,6 +372,23 @@ game layout.
 - **`wolvenkit_status` returns `ok: false`** → `cp77tools` not found:
   `dotnet tool install -g WolvenKit.CLI`, or point `WOLVENKIT_CP77TOOLS`.
 - **First call slow (~7 s)** → daemon warmup, normal and one-time.
+- **Every call is slow (~6 s/call)** → the daemon (fast path) is not being used.
+  Build it (`dotnet build src\WolvenKitDaemon`) so the server finds the sibling
+  DLL, or set `WOLVENKIT_DAEMON` to its path. `wolvenkit_status` shows which path is used.
 - **A tool seems to fail** → look first at `produced` (files actually
   created) and `errors`, not just `log`; rerun with `verbose: true` on the
   tools that offer it (`extract_files`, `uncook`, `pack_archive`, `import_raw`…).
+- **`File .ent` / `.mesh` not found** → the offline export/import tools work on
+  **extracted** files, not archives. Extract first with `extract_files` / `uncook`,
+  or use `read_game_file`, which chains extraction for you.
+- **`resolve_hash` / `tweakdb_*` error out** → these rely on the daemon; if it is
+  unavailable they degrade. Re-run `wolvenkit_status` and rebuild the daemon.
+- **`export_entity` says "can not be exported"** → WolvenKit refuses headless export
+  of certain entity types. Use `list_entity_appearances` to inspect, and `uncook`
+  the referenced `.mesh` to view it instead.
+- **A mod does not load in-game** → run `mod_doctor` (are the required frameworks
+  installed?), `lint_mod` (non-REDengine extensions?), `detect_conflicts` (another
+  mod providing the same file?), and confirm the archive is in `archive\pc\mod`.
+- **`dotnet build` fails with "file in use"** → the daemon DLLs are locked by a
+  running server. Stop the MCP client (Claude Desktop restarts the server) and kill
+  `WolvenKitDaemon` / `dotnet`, then rebuild.

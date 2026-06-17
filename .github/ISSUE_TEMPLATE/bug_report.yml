@@ -1,0 +1,31 @@
+name: Bug report
+description: Something is wrong with a tool or the server
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: The tool, the arguments you passed, and the result you got vs. what you expected.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform / runtime
+      placeholder: "Windows 11, .NET 8, transport: stdio | http"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: The `errors` / `log` fields or the MCP response. Paste the JSON.
+      render: json

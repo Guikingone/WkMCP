@@ -64,35 +64,80 @@ in TCP. In pure TCP, you can therefore omit it.
 
 ## Tools (35)
 
+Every tool accepts an optional `gamePath` (string) — the root folder of the
+Cyberpunk 2077 installation. It is **only** used by the file transport to locate the
+mod; in TCP mode it can be omitted. The tables below list the **tool-specific**
+parameters only.
+
+> The `RO` / `D` / `I` tags after a tool name mean **read-only**, **destructive** and
+> **idempotent** — they mirror the `[ReadOnly]` / `[Destructive]` / `[Idempotent]`
+> attributes declared in `LiveTools.cs` (and enforced by `ConsistencyTests`).
+
 ### Foundation (unlocks everything)
-| Tool | Role |
-|---|---|
-| `live_status` | Bridge connectivity (transport, heartbeat, folder). Works with the game shut down. |
-| `live_execute_lua` | Executes Lua (side effects; `print()` output captured). |
-| `live_eval` | Evaluates a Lua expression and returns its value (CET types serialized). |
-| `live_batch` | Several Lua statements in one round trip. |
+
+| Tool | Parameters | Role |
+|---|---|---|
+| `live_status` `RO` `I` | — | Bridge connectivity (transport, heartbeat, folder). Works with the game shut down — call first. |
+| `live_execute_lua` `D` | `code` (string) — Lua to run (one or more statements). | Executes Lua for side effects; `print()` output is captured. To read a value, prefer `live_eval`. |
+| `live_eval` | `expression` (string) — Lua expression to evaluate. | Returns the serialized value (CET types handled: `CName`, `TweakDBID`, `Vector4`, `Quaternion`). |
+| `live_batch` `D` | `commands` (string[]) — Lua snippets run sequentially. | Several statements in one round trip; each is independent (one failing does not stop the others). |
 
 ### State reading
-`live_player_info`, `live_game_state`, `live_inventory`, `live_equipped`,
-`live_active_effects`, `live_appearance`, `live_vehicles`, `live_nearby_entities`,
-`live_scanner`.
+
+| Tool | Parameters | Role |
+|---|---|---|
+| `live_player_info` `RO` `I` | — | Level, street cred, health, position. Requires the player spawned. |
+| `live_game_state` `RO` `I` | — | In-game time, scene tier (gameplay/menu/cinematic), weather, zone type. |
+| `live_inventory` `RO` `I` | `type` (string?) — filter by item type (Weapon/Clothing/Consumable/Gadget/Cyberware/Mod/Crafting/Quest/Junk). `limit` (int, default 50) — max items. | Player inventory (name, quantity, TweakDBID, quality). |
+| `live_equipped` `RO` `I` | — | Equipped weapons by slot, clothing, cyberware, quickslots. |
+| `live_active_effects` `RO` `I` | — | Active status effects (ID, remaining duration, stacks). |
+| `live_appearance` `RO` `I` | — | Current appearance (appearance name + customization). |
+| `live_vehicles` `RO` `I` | — | Vehicles owned (garage): names + TweakDBID. |
+| `live_nearby_entities` `RO` `I` | `radius` (double, default 20) — search radius in meters. `type` (string?) — NPC/Vehicle/Item/Device. `limit` (int, default 20) — max entities. | Entities near the player (name, type, distance, position). |
+| `live_scanner` `RO` `I` | — | Detail on the targeted entity, like a scan (type, name, health, level, faction). |
 
 ### Player & world mutation
-`live_add_item`, `live_remove_item`, `live_teleport`, `live_set_stat`, `live_apply_effect`,
-`live_remove_effect`, `live_god_mode`, `live_set_level`, `live_spawn_vehicle`,
-`live_set_time`, `live_set_weather`, `live_kill_nearby`, `live_notify`, `live_play_sound`.
+
+| Tool | Parameters | Role |
+|---|---|---|
+| `live_add_item` | `itemId` (string) — item TweakDBID (e.g. `Items.Preset_Katana_Saburo`). `quantity` (int, default 1). | Adds an item to the inventory. |
+| `live_remove_item` `D` | `itemId` (string) — TweakDBID. `quantity` (int?) — quantity to remove (omitted = all). | Removes an item from the inventory. |
+| `live_teleport` `I` | `x`, `y`, `z` (double) — world coordinates. | Teleports the player (use `live_player_info` for the current position). |
+| `live_set_stat` `D` `I` | `stat` (string) — Health/Stamina/Armor/Level/StreetCred. `value` (double) — new value. | Modifies a player stat (discover stats via `live_dump_type` `gamedataStatType`). |
+| `live_apply_effect` | `effectId` (string) — effect TweakDBID (e.g. `BaseStatusEffect.Berserk`). | Applies a status effect to the player. |
+| `live_remove_effect` `I` | `effectId` (string) — TweakDBID. | Removes a status effect from the player. |
+| `live_god_mode` `I` | `enabled` (bool) — true = enable, false = disable. | Toggles player invulnerability (combat testing without dying). |
+| `live_set_level` `D` `I` | `level` (int?) — 1-60. `streetCred` (int?) — 1-50. | Sets level and/or street cred directly. |
+| `live_spawn_vehicle` | `vehicleId` (string) — TweakDBID (e.g. `Vehicle.v_sport2_quadra_type66`). `distance` (double, default 5) — meters in front of the player. | Spawns a vehicle near the player (find IDs via `live_tweakdb_search` `Vehicle.`). |
+| `live_set_time` `I` | `hours` (int, 0-23). `minutes` (int, default 0). `seconds` (int, default 0). | Sets the in-game time of day. |
+| `live_set_weather` `I` | `weather` (string) — preset (Sunny/Cloudy/Rain/HeavyRain/Fog/Toxic/Sandstorm/Pollution). | Changes the in-game weather. |
+| `live_kill_nearby` `D` | `radius` (double, default 30) — meters. `allNpcs` (bool, default false) — true = all NPCs, false = hostiles only. | Kills NPCs within a radius. |
+| `live_notify` | `message` (string) — text. | Shows a notification in the game UI. |
+| `live_play_sound` | `soundEvent` (string) — sound event name (e.g. `ui_menu_hover`, `w_gun_reload`). | Plays a sound event in-game. |
 
 ### TweakDB in live memory + RTTI
-`live_tweakdb_get`, `live_tweakdb_set`, `live_dump_type`, `live_tweakdb_search`.
+
+| Tool | Parameters | Role |
+|---|---|---|
+| `live_tweakdb_get` `RO` `I` | `path` (string) — record/flat path (e.g. `Items.Preset_Katana_Saburo`). | Reads a flat or record **in live memory** (distinct from offline `read_tweak` / `tweakdb_query`). |
+| `live_tweakdb_set` `D` `I` | `path` (string) — flat to modify. `value` (string) — text value (auto-detected, or forced via `type`). `type` (string?) — `Int` / `Float` / `Bool` / `String` / `CName`. | Writes a flat **in live memory** (persists until the game restarts; a bad value can crash the game). |
+| `live_dump_type` `RO` `I` | `typeName` (string) — RTTI type (e.g. `PlayerPuppet`, `gameItemData`). | Introspects a live engine RTTI type (methods, properties, inheritance — distinct from offline `inspect_cr2w`). |
+| `live_tweakdb_search` `RO` `I` | `pattern` (string) — substring, case-insensitive. `type` (string?) — record type filter (e.g. `gamedataItem_Record`). `limit` (int, default 20) — max results. | Searches TweakDB records **in live memory**. |
 
 ### Quests & events
-`live_get_quest_fact`, `live_set_quest_fact`, `live_observe`, `live_observations`.
 
-Everything goes through the same 3 protocol verbs (`exec`/`eval`/`query`): the first-class
-tools above are merely ergonomic shortcuts on top of named Lua handlers.
-Anything else is doable via `live_execute_lua` / `live_eval`.
+| Tool | Parameters | Role |
+|---|---|---|
+| `live_get_quest_fact` `RO` `I` | `factName` (string) — quest fact (e.g. `q001_rogue_met`). | Reads a quest fact (progression flag). |
+| `live_set_quest_fact` `D` `I` | `factName` (string) — fact name. `value` (int) — typically 0 (not done) or 1 (done). | Sets a quest fact (can break quest progression or unlock content). |
+| `live_observe` | `className` (string) — game class (e.g. `PlayerPuppet`). `eventName` (string) — event/method (e.g. `OnDamageReceived`). `maxBuffer` (int, default 50) — buffer size before overwriting the oldest. | Subscribes to a game event via CET's Observe/ObserveAfter. |
+| `live_observations` `RO` `I` | `subscriptionId` (string) — the ID returned by `live_observe`, **or** the `Class/Event` label (e.g. `PlayerPuppet/OnDamageReceived`). | Reads (and clears) the observed-event buffer. The label registry lives in the server and is lost on its restart. |
 
-## Security & limits (no beating around the bush)
+Everything goes through the same three protocol verbs (`exec` / `eval` / `query`):
+the tools above are ergonomic shortcuts on top of named Lua handlers. Anything
+else is doable via `live_execute_lua` / `live_eval`.
+
+## Security & limits
 
 - **Executing Lua in the live game is powerful and risky**: an infinite loop can
   **freeze** the game. On the Lua side, each execution is protected by `pcall`; on the server side a

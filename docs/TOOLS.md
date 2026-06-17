@@ -2,7 +2,17 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WolvenKit MCP server for Cyberpunk 2077 modding.
 
-> **Note on the count.** The server exposes **88 MCP tools** (63 in `WolvenKitTools.cs`, 25 in `ModdingTools.cs`), **8 prompts** (`WolvenKitPrompts.cs`) and **4 resources** (`WolvenKitResources.cs`) — figure confirmed by `tools/list`. The internal cheat sheet (resource `wolvenkit://reference`) still mentions "53": that is historical. To this are added **35 `live_*` tools** (in-game live bridge, `LiveTools.cs`), documented in [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — that is **123 tools** in total.
+> **Counts.** The server exposes **88 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **35 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **123 tools** in total.
+
+## Contents
+
+- [Result convention](#result-convention) · [Live in-game bridge](#live-in-game-cetbridge-bridge)
+- [1. Diagnostics](#1-diagnostics) · [2. Archive reading / inspection](#2-archive-reading--inspection) · [3. Extraction / uncook](#3-extraction--uncook) · [4. Conversion](#4-conversion)
+- [5. Direct read/write of a game file](#5-direct-reading--writing-of-a-game-file) · [6. Quick inspection](#6-quick-inspection-summaries-without-heavy-conversion) · [7. TweakDB](#7-tweakdb) · [8. Template generation](#8-template-generation-scaffolding)
+- [9. REDscript scripts](#9-redscript-scripts-reds) · [10. Audio / low-level compression](#10-audio--low-level-compression) · [11. Localization](#11-localization) · [12. Mod writing / packing](#12-mod-writing--packing)
+- [13. REDmod](#13-redmod-post-16) · [14. Installation / uninstallation](#14-installation--uninstallation) · [15. Safety](#15-safety-backup--restore) · [16. In-game (launch / logs)](#16-in-game-launch--logs)
+- [17. Intelligence / workflow](#17-intelligence--workflow-high-level--moddingtools) · [18. Quest/codex journal](#18-questcodex-journal-journal) · [19. CR2W navigation & conflicts](#19-generic-cr2w-navigation-diagnostics--conflicts) · [20. Advanced creation / maintenance](#20-advanced-creation--maintenance)
+- [MCP prompts (recipes)](#mcp-prompts-recipes) · [MCP resources](#mcp-resources)
 
 ## Result convention
 
@@ -784,28 +794,83 @@ Validates the reference chain of an ArchiveXL item mod: `.yaml`(entityName)↔`.
 ## 20. Advanced creation / maintenance
 
 ### `lint_tweak`
-TweakXL semantic lint: tabs forbidden, indentation, duplicate records, `inlineN` as `$base`. — `tweakFile` (required).
+Semantic lint of a TweakXL file (`.tweak` / `.yaml`): tabs forbidden (silent load failure), indentation not a multiple of 2, duplicate record names, and an auto-generated `inlineN` record used as `$base` (breaks on every game update). Complements `validate_tweak` (which checks the keys vs `tweakdb.bin`). Read-only.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `tweakFile` | string | yes | Path of the `.tweak` / `.yaml` file to lint. |
 
 ### `generate_manifest`
-Dependency manifest + `REQUIREMENTS.md`. — `modPath` (required), `modName`/`version` (opt), `writeFile` (default true).
+Generates a dependency manifest for a mod (detects its required frameworks, like `analyze_dependencies`) and writes a `REQUIREMENTS.md` (Nexus "Requirements" tab style) plus a structured object. Fills the absence of a machine-readable dependency system in the ecosystem.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `modPath` | string | yes | Mod folder to analyze. |
+| `modName` | string | no | Mod name (for the manifest header). Defaults to the folder name. |
+| `version` | string | no | Mod version (printed in the header). |
+| `writeFile` | bool | no | Write `REQUIREMENTS.md` in the mod folder (default `true`). |
 
 ### `resolve_dynamic_appearance`
-Expands a dynamic ArchiveXL appearance pattern (`{gender}`/`{camera}`). — `pattern` (required), `modPath` (opt, existence check).
+Expands a dynamic ArchiveXL appearance path/pattern (`*` prefix, `{gender}`→`m`/`w`, `{camera}`→`fpp`/`tpp`) into its concrete paths — and, if `modPath` is provided, which ones actually exist. Targets the ArchiveXL trap where a substitution error only shows the first appearance. Read-only.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `pattern` | string | yes | Path pattern (e.g. `*base\mod\item_{gender}_{camera}.mesh`). |
+| `modPath` | string | no | Mod folder, to check the existence of the concrete paths. |
 
 ### `migration_check`
-Does the mod still override the current game version? — `modArchive` + `gamePath` (required), `maxResults` (default 100).
+Checks whether a `.archive` mod is still aligned with the **current** game version: for each file the mod provides, indicates whether it overrides an existing base file (active override) or not (an addition, or an override gone inert after a game update). Targets "updates silently break mods". Read-only.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `modArchive` | string | yes | `.archive` of the mod to check. |
+| `gamePath` | string | yes | Cyberpunk 2077 installation root folder. |
+| `maxResults` | int | no | Max number of non-matching paths listed (default `100`). |
 
 ### `toggle_mods`
-Enables/disables `.archive` files (reversible, to `_disabled`) — bisection. — `gamePath` (required), `archives` (opt, empty = list), `enable` (default false).
+Enables or disables `.archive` mods by moving them between `archive/pc/mod` and `archive/pc/mod/_disabled` (reversible, non-destructive). The primitive of conflict bisection: disable half the mods → launch → diagnose → narrow down. Returns the up-to-date enabled/disabled lists.
 
-### `export_entity` / `export_materials`
-Entity appearance `.ent` → glTF / materials of a `.mesh` → JSON+textures (`IModTools`). See §4. — `entFile`/`meshFile` + `outputPath` (required), `appearance`/`gamePath` (opt). `export_entity` discovers/validates the appearance and surfaces "can not be exported" (WolvenKit headless limit).
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `gamePath` | string | yes | Cyberpunk 2077 installation root folder. |
+| `archives` | string | no | Archive names separated by commas (with or without `.archive`). Empty = move nothing, just list. |
+| `enable` | bool | no | `true` = enable (re-enable), `false` = disable (default `false`). |
+
+### `export_entity`
+Exports a REDengine entity (`.ent`) appearance to glTF (`.glb`) via `IModTools.ExportEntity`. Discovers the entity's appearances first: if `appearance` is empty, takes the first; if invalid, returns the available list. ⚠ **Experimental** — WolvenKit refuses headless export of certain entity types ("can not be exported"); use `list_entity_appearances` to inspect, and `uncook` the referenced `.mesh` to view it reliably. See §4.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `entFile` | string | yes | Path to an extracted `.ent` (entity) file. |
+| `outputPath` | string | yes | Output `.glb` file. |
+| `appearance` | string | no | Appearance name (the entity's `name`). Empty = the first. |
+| `gamePath` | string | no | Game root (loads archives to resolve meshes/materials). |
+
+### `export_materials`
+Exports the materials of a REDengine mesh (`.mesh`) to JSON + textures via `IModTools.ExportMaterials`. `gamePath` loads the archives to resolve the base material dependencies. Writes several files (JSON + textures) into the output folder. See §4.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `meshFile` | string | yes | Path to an extracted `.mesh` file. |
+| `outputPath` | string | yes | Output file (materials JSON). |
+| `gamePath` | string | no | Game root (loads archives to resolve the base materials). |
 
 ### `list_entity_appearances`
-Lists the appearances of a `.ent`: `name` (to pass to export_entity / in the .yaml), `appearanceName` (.app side), referenced `.app`. — `entFile` (required).
+Lists the appearances of a REDengine entity (`.ent`): for each one, its entity `name` (to pass to `export_entity` / in the `.yaml`), the `appearanceName` on the `.app` side, and the referenced `.app` resource. Reliable and indispensable to know what an entity exposes before editing/exporting an appearance. Read-only.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `entFile` | string | yes | Path of an extracted `.ent` file. |
 
 ### `validate_appearance`
-Deep `.app`→`.mesh` validation: does each component's `meshAppearance` exist in the `.mesh` (otherwise invisible mesh)? — `appFile` (required), `modRoot`/`gamePath` (opt, to resolve the meshes), `maxMeshes` (default 40).
+Deep validation of the `.app` → `.mesh` appearance chain: for each appearance of the `.app` and each mesh component, checks that the referenced `meshAppearance` actually exists in the `.mesh` (otherwise an invisible mesh) and that its materials (`chunkMaterials`) match the `materialEntries` (otherwise a black/inconsistent material). Resolves the `.mesh` in the mod, otherwise in the base game if `gamePath` is provided. Read-only.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `appFile` | string | yes | Path of an extracted `.app` file. |
+| `modRoot` | string | no | Root of the mod folder (to resolve the mod's `.mesh`). |
+| `gamePath` | string | no | Game root (to resolve base `.mesh` files not found in the mod). |
+| `maxMeshes` | int | no | Max number of resolved `.mesh` (default `40`). |
 
 ---
 

@@ -9,7 +9,7 @@ using WolvenKitMcp;
 //   stdio (default) — local Claude Desktop/Code; stdout reserved for JSON-RPC, logs on stderr.
 //   http           — HTTP/Streamable server (ModelContextProtocol.AspNetCore), secure by
 //                    default (loopback bind + bearer token + fail-closed). See docs/HTTP_TRANSPORT.md.
-// The tools (120, including the live_*), the daemon and the CetBridge bridge are identical regardless
+// The 123 tools (including the 35 live_*), the daemon and the CetBridge bridge are identical regardless
 // of the transport — only the host construction differs.
 
 var transport = (Environment.GetEnvironmentVariable(HttpBridgeSecurity.TransportEnv) ?? "stdio")

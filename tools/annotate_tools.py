@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Applies the MCP tool annotations (ReadOnly/Destructive/Idempotent) to the 120 tools.
+"""Applies the MCP tool annotations (ReadOnly/Destructive/Idempotent) to the 123 tools.
 
 Usage: python tools/annotate_tools.py
 Rewrites each `[McpServerTool(Name = "x")]` line with the hints from the table

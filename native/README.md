@@ -1,42 +1,41 @@
-# libkraken pour macOS arm64
+# libkraken for macOS arm64
 
-Reconstruction de la bibliothèque native Oodle (Kraken) utilisée par WolvenKit —
-**décompression et compression**.
+Rebuild of the native Oodle (Kraken) library used by WolvenKit —
+**decompression and compression**.
 
-## Pourquoi
+## Why
 
-Le package NuGet `WolvenKit.CLI` 8.18.0 livre une `libkraken.dylib` **x86_64
-uniquement**, et dont les symboles sont **manglés C++** (`__Z17Kraken_Decompress...`).
-Le P/Invoke .NET de WolvenKit (`[DllImport("kraken")]`) ne peut donc pas la
-charger sur Apple Silicon — toute commande de `cp77tools` touchant à la
-compression plante :
+The `WolvenKit.CLI` 8.18.0 NuGet package ships a `libkraken.dylib` that is
+**x86_64 only**, with **mangled C++ symbols** (`__Z17Kraken_Decompress...`).
+WolvenKit's .NET P/Invoke (`[DllImport("kraken")]`) therefore cannot load it on
+Apple Silicon — any `cp77tools` command that touches compression crashes:
 
-- en natif arm64 : `DllNotFoundException` (architecture incompatible) ;
-- forcé en x86_64 sous Rosetta : `EntryPointNotFoundException` (symboles manglés).
+- in native arm64: `DllNotFoundException` (incompatible architecture);
+- forced into x86_64 under Rosetta: `EntryPointNotFoundException` (mangled symbols).
 
-Cette `libkraken.dylib` reconstruite est en **arm64 natif** et exporte
-`Kraken_Decompress` et `Kraken_Compress` en **`extern "C"`** — le P/Invoke les
-charge alors correctement.
+This rebuilt `libkraken.dylib` is **native arm64** and exports
+`Kraken_Decompress` and `Kraken_Compress` as **`extern "C"`** — the P/Invoke then
+loads them correctly.
 
 ## Source
 
-`ooz-rarten/` = clone de https://github.com/rarten/ooz (fork de powzix/ooz).
-Codec Kraken / Mermaid / Selkie / Leviathan / LZNA / Bitknit open-source —
-décompresseur **et** compresseur natifs, sans dépendance propriétaire (la DLL
-Oodle du jeu n'est pas nécessaire).
+`ooz-rarten/` = a clone of https://github.com/rarten/ooz (a fork of powzix/ooz).
+Open-source Kraken / Mermaid / Selkie / Leviathan / LZNA / Bitknit codec — native
+**decompressor and** compressor, with no proprietary dependency (the game's Oodle
+DLL is not required).
 
-## Modifications apportées à la source vendorée
+## Modifications to the vendored source
 
-- **`ooz-rarten/sse2neon.h`** — ajouté (https://github.com/DLTcollab/sse2neon).
-  Mappe les intrinsics SSE x86 vers NEON → rend possible le build arm64.
-- **`ooz-rarten/stdafx.h`** — `#include <xmmintrin.h>` remplacé par un include
-  conditionnel de `sse2neon.h` sur arm64 (le chemin x86 d'origine est conservé).
-- **`ooz-rarten/kraken.cpp`** — `Kraken_Decompress` passé en `extern "C"` ;
-  `main()` (l'outil CLI `ooz`) entouré de `#if 0` (non pertinent pour une lib).
-- **`ooz-rarten/compr_leviathan.cpp`** — `std::auto_ptr` (supprimé en C++17)
-  remplacé par `std::unique_ptr<uint8[]>`.
-- **`ooz-rarten/kraken_compress.cpp`** — *fichier ajouté*. Wrapper
-  `extern "C" Kraken_Compress` délégant à `CompressBlock` (codec Kraken).
+- **`ooz-rarten/sse2neon.h`** — added (https://github.com/DLTcollab/sse2neon).
+  Maps x86 SSE intrinsics to NEON → makes the arm64 build possible.
+- **`ooz-rarten/stdafx.h`** — `#include <xmmintrin.h>` replaced by a conditional
+  include of `sse2neon.h` on arm64 (the original x86 path is preserved).
+- **`ooz-rarten/kraken.cpp`** — `Kraken_Decompress` made `extern "C"`; `main()`
+  (the `ooz` CLI tool) wrapped in `#if 0` (irrelevant for a library).
+- **`ooz-rarten/compr_leviathan.cpp`** — `std::auto_ptr` (removed in C++17)
+  replaced with `std::unique_ptr<uint8[]>`.
+- **`ooz-rarten/kraken_compress.cpp`** — *added file*. `extern "C" Kraken_Compress`
+  wrapper delegating to `CompressBlock` (Kraken codec).
 
 ## Build
 
@@ -44,31 +43,31 @@ Oodle du jeu n'est pas nécessaire).
 ./build-libkraken.sh
 ```
 
-Produit `build/libkraken.dylib` (Mach-O arm64), exportant `Kraken_Decompress`
-et `Kraken_Compress`.
+Produces `build/libkraken.dylib` (Mach-O arm64), exporting `Kraken_Decompress`
+and `Kraken_Compress`.
 
-## Déploiement
+## Deploy
 
-Copier la dylib à l'emplacement RID attendu par .NET, à côté de `WolvenKit.CLI.dll` :
+Copy the dylib to the RID location expected by .NET, next to `WolvenKit.CLI.dll`:
 
 ```
 <pkg>/tools/net8.0/any/runtimes/osx-arm64/native/libkraken.dylib
 ```
 
-où `<pkg>` est p. ex. `~/.dotnet/tools/.store/wolvenkit.cli/<version>/wolvenkit.cli/<version>`.
-Le binaire x86_64 cassé dans `tools/net8.0/any/` est laissé intact : le résolveur
-.NET choisit `runtimes/osx-arm64/native/` en premier pour un process arm64.
+where `<pkg>` is e.g. `~/.dotnet/tools/.store/wolvenkit.cli/<version>/wolvenkit.cli/<version>`.
+The broken x86_64 binary in `tools/net8.0/any/` is left untouched: the .NET resolver
+picks `runtimes/osx-arm64/native/` first for an arm64 process.
 
-## Validé
+## Validated
 
-- Aller-retour `cp77tools oodle compress` + `oodle decompress` : 12 200 o → 106 o
-  → 12 200 o, **SHA-256 identique**.
-- `cp77tools pack` produit une `.archive` valide (compression Kraken native).
+- Round-trip `cp77tools oodle compress` + `oodle decompress`: 12,200 B → 106 B →
+  12,200 B, **identical SHA-256**.
+- `cp77tools pack` produces a valid `.archive` (native Kraken compression).
 
-## Limites
+## Limits
 
-- **Textures / audio** hors périmètre : `texconv` (textures) et l'audio Wwise
-  dépendent de binaires natifs Windows.
-- Le compresseur de `rarten/ooz` n'est pas garanti 100 % byte-identique à Oodle
-  pour les très petits blocs Mermaid/Selkie — sans incidence pour Cyberpunk, le
-  jeu décodant n'importe quel flux Kraken valide.
+- **Textures / audio** out of scope: `texconv` (textures) and Wwise audio depend on
+  Windows native binaries.
+- The `rarten/ooz` compressor is not guaranteed 100% byte-identical to Oodle for
+  very small Mermaid/Selkie blocks — no impact for Cyberpunk, the game decodes any
+  valid Kraken stream.

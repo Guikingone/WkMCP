@@ -4,6 +4,19 @@ Concrete, copy-paste-ready recipes for the most common Cyberpunk 2077 mod
 types. Each recipe chains **MCP tool calls** (with example
 arguments) and ends with a **verification**.
 
+## Which recipe for what?
+
+| If you want to… | Recipe | Needs |
+|---|---|---|
+| Change a stat/field of an existing item | 1. Weapon / item tweak | TweakXL, `tweakdb.bin` |
+| Add behavior with REDscript (hook a game method) | 2. REDscript mod | redscript |
+| Add an item/appearance/resource via ArchiveXL | 3. Appearance / item | ArchiveXL |
+| Ship a mod in the official REDmod format | 4. REDmod | REDmod DLC (`redMod.exe`) |
+| Translate UI strings (items, etc.) | 5. Localization | TweakXL, `tweakdb.bin` |
+| Replace a texture (retexture) | 6. Texture replacement | an image editor |
+| Understand/audit an existing mod | 7. Analyzing a mod | the mod to inspect |
+| Edit a quest/codex/journal entry | 8. Quest/codex journal | a mod project (`source/archive`) |
+
 ## Conventions
 
 - All tools return a JSON `{ ok, status, summary, produced, warnings, errors, log }`.
@@ -266,7 +279,7 @@ If `diff_mod_vs_base` does not find the file in the base, it is probably a file
 
 ---
 
-## Recipe — Editing the quest/codex journal (`.journal`)
+## 8. Editing the quest/codex journal (`.journal`)
 
 The journal (`base\journal\cooked_journal.journal`) is a standard CR2W, so editable
 via the generic pipeline — but its JSON weighs **~70 MB** (28,000+ entries). You

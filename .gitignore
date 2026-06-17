@@ -2,24 +2,24 @@
 [Bb]in/
 [Oo]bj/
 
-# Sortie du bundle d'extension Desktop
+# Desktop extension bundle output
 dist/
 
-# IDE / éditeurs
+# IDE / editors
 .vs/
 .idea/
 *.user
 
-# Divers
+# Miscellaneous
 *.log
 
 # Python
 __pycache__/
 *.pyc
 
-# Zone de build natif macOS : clones tiers embarquant leur propre .git
-# (native/ooz ~617 Mo, native/ooz-rarten) + artefacts de build. Les scripts et
-# la doc propres (build-libkraken.sh, README.md) restent suivis.
+# macOS native build zone: third-party clones carrying their own .git
+# (native/ooz ~617 MB, native/ooz-rarten) + build artifacts. The project's own
+# scripts and docs (build-libkraken.sh, README.md) remain tracked.
 native/ooz/
 native/ooz-rarten/
 native/build/
