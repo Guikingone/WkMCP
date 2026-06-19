@@ -37,6 +37,12 @@ First public, stable release. The server is functionally complete (123 tools,
 - `HANDOFF.md` removed (pitfalls salvaged into `CONTRIBUTING.md`);
   `WINDOWS-VALIDATION.md` moved under `dev/` as a point-in-time internal QA log.
 
+### Fixes
+- `FileSendAsync` (CETBridge file transport) no longer deletes `response.json`
+  before validating it: a partial read of an in-flight atomic rename used to
+  destroy the real response and force a full timeout. This removed a flaky
+  `FileSendTests` failure on loaded CI runners.
+
 ### Counts
 - 123 tools (63 base + 25 workflow + 35 live), 8 prompts, 4 resources — unchanged
   from 0.4.0; the first release tagged for distribution.
