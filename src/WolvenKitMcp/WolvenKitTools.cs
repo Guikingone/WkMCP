@@ -1485,8 +1485,8 @@ public static class WolvenKitTools
                           $"{stats.LodCount} LOD(s), {stats.SubMeshCount} sub-mesh, " +
                           $"{stats.MaterialCount} material(s), {stats.BoneCount} bone(s)",
                 produced = Array.Empty<string>(),
-                warnings = LogLines(r.Stdout, "Warning"),
-                errors = LogLines(r.Stdout, "Error"),
+                warnings = LogLines(r.Stdout + r.Stderr, "Warning"),
+                errors = LogLines(r.Stdout + r.Stderr, "Error"),
                 meshFile,
                 lodCount = stats.LodCount,
                 subMeshCount = stats.SubMeshCount,
@@ -1542,8 +1542,8 @@ public static class WolvenKitTools
                 summary = $"Texture inspected: {Path.GetFileName(xbmFile)} — " +
                           $"{props.Width}x{props.Height} {props.Format}",
                 produced = Array.Empty<string>(),
-                warnings = LogLines(r.Stdout, "Warning"),
-                errors = LogLines(r.Stdout, "Error"),
+                warnings = LogLines(r.Stdout + r.Stderr, "Warning"),
+                errors = LogLines(r.Stdout + r.Stderr, "Error"),
                 xbmFile,
                 width = props.Width,
                 height = props.Height,

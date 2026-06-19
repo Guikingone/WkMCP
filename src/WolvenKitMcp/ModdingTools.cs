@@ -24,6 +24,8 @@ public static class ModdingTools
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
+    // Same shape as WolvenKitTools.Err (incl. exitCode/log) so error JSON is
+    // identical across both tool classes — the agent parses one consistent schema.
     private static string Err(string summary) => JsonSerializer.Serialize(new
     {
         ok = false,
@@ -32,6 +34,8 @@ public static class ModdingTools
         produced = Array.Empty<string>(),
         warnings = Array.Empty<string>(),
         errors = new[] { summary },
+        exitCode = -1,
+        log = "",
     }, JsonOpts);
 
     // ── Modding frameworks knowledge base ───────────────────────────────────
