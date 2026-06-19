@@ -7,7 +7,7 @@ query and patch the TweakDB, create/pack/install mods, export meshes and texture
 lint REDscript, diagnose a broken install, and even drive a **running** game live.
 
 **Status: stable v1.0.0 · Windows.** Built on the official `ModelContextProtocol`
-SDK 1.4.0 and WolvenKit 8.18.0; validated end-to-end on Windows 11 with a real
+SDK 1.4.0 and [WolvenKit](https://github.com/WolvenKit/WolvenKit) 8.18.0; validated end-to-end on Windows 11 with a real
 Cyberpunk 2077 install.
 
 ## Highlights
@@ -174,9 +174,20 @@ All optional. Set in the `"env"` block of the Claude Desktop config, or via `-e 
 This project is **dual-licensed by component** (see [`NOTICE`](NOTICE)):
 
 - **Server source** (`src/WolvenKitMcp`, the `.py` test helpers, `build-mcpb.ps1`) — **MIT**, © 2026 Guillaume Loulier ([`LICENCE`](LICENCE)).
-- **Daemon** (`src/WolvenKitDaemon`) — **GPL-3.0**, because it links WolvenKit's GPL-3.0 libraries (© WolvenKit contributors; [`src/WolvenKitDaemon/LICENSE`](src/WolvenKitDaemon/LICENSE)). It runs as a separate process, so the MIT server stays out of the copyleft.
+- **Daemon** (`src/WolvenKitDaemon`) — **GPL-3.0**, because it links [WolvenKit](https://github.com/WolvenKit/WolvenKit)'s GPL-3.0 libraries (© WolvenKit contributors; [`src/WolvenKitDaemon/LICENSE`](src/WolvenKitDaemon/LICENSE)). It runs as a separate process, so the MIT server stays out of the copyleft.
 - **CETBridge** (`live-bridge/CETBridge`) — **MIT**, © y4rd13 ([`live-bridge/CETBridge/LICENSE.upstream`](live-bridge/CETBridge/LICENSE.upstream)).
 - **The shipped `.mcpb` bundle** includes the daemon, so that portion is GPL-3.0 (matches the `license` field in `manifest.json`).
+
+## Credits
+
+This project stands on the work of the Cyberpunk 2077 modding community — full attributions in [`NOTICE`](NOTICE):
+
+- **[WolvenKit](https://github.com/WolvenKit/WolvenKit)** (GPL-3.0) — the modding toolkit and CLI this server wraps.
+- **[Cyber Engine Tweaks](https://github.com/maximegmd/CyberEngineTweaks)** — hosts the live in-game Lua bridge.
+- **[CETBridge](https://github.com/Y4rd13/cyber-engine-tweak-mcp)** by y4rd13 (MIT) — the live-bridge Lua mod.
+- **[ooz](https://github.com/powzix/ooz)** (powzix / rarten) — the open-source Kraken decompressor (no proprietary Oodle is redistributed).
+
+WolvenKit is licensed GPL-3.0; that license is itself the permission to build on, wrap and redistribute it — this project complies (the daemon is GPL-3.0, notices preserved, full source here). It is **not** affiliated with or endorsed by the WolvenKit team.
 
 ## Documentation
 
