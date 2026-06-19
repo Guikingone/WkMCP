@@ -476,12 +476,16 @@ internal static class BridgeProtocol
                     if (File.Exists(res))
                     {
                         var data = await File.ReadAllTextAsync(res, ct);
-                        SafeDelete(res);
                         if (!string.IsNullOrWhiteSpace(data))
                         {
+                            // Only consume a complete payload. A partial/empty read means
+                            // response.json is mid-write (atomic rename not yet flushed):
+                            // leave it on disk so the next tick re-reads the full content,
+                            // instead of deleting a response we never actually observed.
+                            SafeDelete(res);
                             var resp = ParseResponse(data, "file");
                             if (resp.Id == id) return resp;
-                            // Stale response from another request — keep waiting.
+                            // Stale response from another request — discarded, keep waiting.
                         }
                     }
                 }
