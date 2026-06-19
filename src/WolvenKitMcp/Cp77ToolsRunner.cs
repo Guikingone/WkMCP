@@ -155,6 +155,18 @@ public sealed class Cp77ToolsRunner : IDisposable
     /// <summary>Shared instance — also used by the MCP resources.</summary>
     public static Cp77ToolsRunner Shared { get; } = new();
 
+    static Cp77ToolsRunner()
+    {
+        // Belt-and-suspenders daemon cleanup: the daemon already exits when the
+        // server closes its stdin (EOF), but on a graceful host shutdown this kills
+        // the child process tree promptly instead of waiting on pipe teardown —
+        // avoiding a stray `dotnet WolvenKitDaemon.dll` lingering between sessions.
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            try { Shared.Dispose(); } catch { /* shutting down anyway */ }
+        };
+    }
+
     public Cp77ToolsRunner()
     {
         _cp77tools = ResolveCp77Tools();
@@ -490,7 +502,11 @@ public sealed class Cp77ToolsRunner : IDisposable
 
         // INACTIVITY timeout: as long as the daemon emits progress, the verb
         // is working — we re-arm the delay instead of killing a long but alive uncook.
+        // ABSOLUTE ceiling (3× inactivity): backstop for a verb that keeps emitting
+        // progress yet never completes, so the call can't be re-armed forever.
         var timeout = TimeoutFor(argv.Length > 0 ? argv[0] : "");
+        var hardCeilingMs = timeout.TotalMilliseconds * 3;
+        var startTick = Environment.TickCount64;
         while (true)
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -502,14 +518,17 @@ public sealed class Cp77ToolsRunner : IDisposable
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 var idle = Environment.TickCount64 - entry.LastActivity;
-                if (idle < timeout.TotalMilliseconds)
-                    continue; // progress arrived: we let it work
+                var elapsed = Environment.TickCount64 - startTick;
+                if (idle < timeout.TotalMilliseconds && elapsed < hardCeilingMs)
+                    continue; // progress arrived recently and we're under the absolute cap
 
                 _outstanding.TryRemove(id, out _);
                 KillDaemon();
-                return new CliResult(-1, "",
-                    $"Inactivity delay exceeded ({timeout.TotalSeconds:F0} s without response " +
-                    "or progress) — daemon interrupted.", true);
+                var reason = elapsed >= hardCeilingMs
+                    ? $"Absolute time limit exceeded ({hardCeilingMs / 1000:F0} s total) — daemon interrupted."
+                    : $"Inactivity delay exceeded ({timeout.TotalSeconds:F0} s without response " +
+                      "or progress) — daemon interrupted.";
+                return new CliResult(-1, "", reason, true);
             }
         }
     }
