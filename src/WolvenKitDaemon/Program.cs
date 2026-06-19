@@ -1339,6 +1339,15 @@ sealed class CapturingTextWriter : TextWriter
     public override void Write(char value) => _sink.AppendRaw(value.ToString());
     public override void Write(string? value) { if (value is not null) _sink.AppendRaw(value); }
     public override void WriteLine(string? value) => _sink.AppendRaw((value ?? "") + Environment.NewLine);
+
+    // Batched overrides: without these, TextWriter's base implementation routes
+    // buffer/span writes through Write(char) one character at a time — a string
+    // allocation and a lock per character. A large archive listing went through
+    // this path; one AppendRaw per chunk instead removes the alloc/lock storm.
+    public override void Write(char[] buffer, int index, int count)
+        => _sink.AppendRaw(new string(buffer, index, count));
+    public override void Write(ReadOnlySpan<char> buffer)
+        => _sink.AppendRaw(new string(buffer));
 }
 
 #pragma warning disable CS0067 // events never raised — minimal relay

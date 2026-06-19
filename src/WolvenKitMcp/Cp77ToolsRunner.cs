@@ -58,8 +58,14 @@ public sealed class Cp77ToolsRunner : IDisposable
     private readonly ConcurrentDictionary<int, Outstanding> _outstanding = new();
 
     // Cache of archive listings (key = absolute path). Invalidated by mtime + size
-    // (mtime alone can survive a very fast repack).
+    // (mtime alone can survive a very fast repack). Bounded LRU (P5): the working set
+    // is the game content + installed mods (~hundreds), so the cap is generous enough
+    // not to thrash a full find_in_archives scan while still bounding memory across a
+    // long session that touches many distinct archives.
+    private const int MaxCachedListings = 1024;
     private readonly ConcurrentDictionary<string, ArchiveListing> _archiveCache = new();
+    private readonly ConcurrentDictionary<string, long> _listingAccess = new(); // path → last-access tick (LRU)
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _listingLocks = new(); // per-archive single-flight gate
     private long _cacheHits;
     private long _cacheMisses;
 
@@ -201,19 +207,66 @@ public sealed class Cp77ToolsRunner : IDisposable
         var fi = new FileInfo(archivePath);
         var mtime = fi.LastWriteTimeUtc;
         var size = fi.Length;
-        if (_archiveCache.TryGetValue(archivePath, out var cached)
-            && cached.Mtime == mtime && cached.Size == size)
+        if (TryGetFresh(archivePath, mtime, size, out var cached))
         {
             Interlocked.Increment(ref _cacheHits);
-            return (cached.Entries, true, new CliResult(0, "", "", false));
+            return (cached, true, new CliResult(0, "", "", false));
         }
 
-        Interlocked.Increment(ref _cacheMisses);
-        var r = await RunAsync(new[] { "archive", archivePath, "--list" }, ct);
-        var entries = ExtractListingEntries(r.Stdout + r.Stderr);
-        if (entries.Count > 0)
-            _archiveCache[archivePath] = new ArchiveListing(mtime, size, entries);
-        return (entries, false, r);
+        // Single-flight: collapse concurrent misses for the same archive into one
+        // daemon call (find_in_archives fans out over many overlapping archives).
+        var gate = _listingLocks.GetOrAdd(archivePath, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
+            // Double-check: another caller may have populated the cache while we waited.
+            if (TryGetFresh(archivePath, mtime, size, out var nowCached))
+            {
+                Interlocked.Increment(ref _cacheHits);
+                return (nowCached, true, new CliResult(0, "", "", false));
+            }
+
+            Interlocked.Increment(ref _cacheMisses);
+            var r = await RunAsync(new[] { "archive", archivePath, "--list" }, ct);
+            var entries = ExtractListingEntries(r.Stdout + r.Stderr);
+            if (entries.Count > 0)
+            {
+                _archiveCache[archivePath] = new ArchiveListing(mtime, size, entries);
+                _listingAccess[archivePath] = Environment.TickCount64;
+                TrimListingCache();
+            }
+            return (entries, false, r);
+        }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>Cache hit test that also refreshes the LRU access stamp.</summary>
+    private bool TryGetFresh(string archivePath, DateTime mtime, long size, out IReadOnlyList<string> entries)
+    {
+        if (_archiveCache.TryGetValue(archivePath, out var c) && c.Mtime == mtime && c.Size == size)
+        {
+            _listingAccess[archivePath] = Environment.TickCount64;
+            entries = c.Entries;
+            return true;
+        }
+        entries = Array.Empty<string>();
+        return false;
+    }
+
+    /// <summary>Bounds the listing cache to <see cref="MaxCachedListings"/> entries,
+    /// evicting the least-recently-accessed ones (true LRU, not insertion order).</summary>
+    private void TrimListingCache()
+    {
+        var over = _archiveCache.Count - MaxCachedListings;
+        if (over <= 0) return;
+        foreach (var path in _listingAccess.OrderBy(kv => kv.Value).Take(over).Select(kv => kv.Key).ToList())
+        {
+            _archiveCache.TryRemove(path, out _);
+            _listingAccess.TryRemove(path, out _);
+            // Don't Dispose the gate: another thread may still hold it. Dropping the
+            // reference is enough; GC reclaims it once no caller is using it.
+            _listingLocks.TryRemove(path, out _);
+        }
     }
 
     /// <summary>Clears the archive listing cache (by default all, or
