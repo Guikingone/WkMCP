@@ -18,10 +18,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: '8.0.x'
 
@@ -63,10 +63,21 @@ jobs:
           $sizeMb = [Math]::Round((Get-Item $zip).Length / 1MB, 1)
           Write-Host "Valid bundle: v$($manifest.version), $sizeMb MB"
 
+      # Integrity anchor: users installing the .mcpb can verify it against this hash.
+      - name: Checksum the bundle
+        shell: pwsh
+        run: |
+          $h = Get-FileHash dist/wolvenkit-mcp.mcpb -Algorithm SHA256
+          "$($h.Hash.ToLower())  wolvenkit-mcp.mcpb" |
+            Out-File -Encoding ascii dist/wolvenkit-mcp.mcpb.sha256
+          Get-Content dist/wolvenkit-mcp.mcpb.sha256
+
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          files: dist/wolvenkit-mcp.mcpb
+          files: |
+            dist/wolvenkit-mcp.mcpb
+            dist/wolvenkit-mcp.mcpb.sha256
           generate_release_notes: true
           draft: false
           prerelease: false

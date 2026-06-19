@@ -6,16 +6,20 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Least privilege: CI only needs to read the repo (no releases/writes here).
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     name: Build & test (Windows)
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: '8.0.x'
 
@@ -59,7 +63,7 @@ jobs:
           Write-Host "Valid bundle: v$($manifest.version), $sizeMb MB"
 
       - name: Upload .mcpb
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wolvenkit-mcp-mcpb
           path: dist/wolvenkit-mcp.mcpb
