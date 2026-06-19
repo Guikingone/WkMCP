@@ -44,6 +44,54 @@ public class TweakTemplateTests
     }
 }
 
+public class SetTextureFormatTests
+{
+    // Synthetic xbm setup: textureGroup as a CName object ({$value}), compression/rawFormat as bare strings.
+    private static System.Text.Json.Nodes.JsonNode Sample() => System.Text.Json.Nodes.JsonNode.Parse("""
+    { "Data": { "RootChunk": { "setup": {
+        "textureGroup": { "$type": "CName", "$value": "TEXG_Generic_Color" },
+        "compression": "TCM_None",
+        "rawFormat": "TRF_TrueColor"
+    } } } }
+    """)!;
+
+    [Fact]
+    public void Sets_group_compression_and_rawformat_across_node_shapes()
+    {
+        var node = Sample();
+        var (changed, warnings, err) = WolvenKitTools.ApplyTextureFormat(
+            node, "TEXG_Generic_Normal", "TCM_Normalmap", "TRF_TrueColor");
+
+        Assert.Null(err);
+        Assert.Equal(3, changed);
+        Assert.Empty(warnings);
+        var setup = node["Data"]!["RootChunk"]!["setup"]!;
+        Assert.Equal("TEXG_Generic_Normal", setup["textureGroup"]!["$value"]!.GetValue<string>());
+        Assert.Equal("TCM_Normalmap", setup["compression"]!.GetValue<string>());
+    }
+
+    [Theory]
+    [InlineData("Generic_Color", null, null)]   // group missing TEXG_ prefix
+    [InlineData(null, "Normalmap", null)]        // compression missing TCM_
+    [InlineData(null, null, "TrueColor")]        // rawFormat missing TRF_
+    public void Rejects_values_with_the_wrong_enum_prefix(string? g, string? c, string? r)
+    {
+        var (changed, _, err) = WolvenKitTools.ApplyTextureFormat(Sample(), g, c, r);
+        Assert.NotNull(err);
+        Assert.Equal(0, changed);
+    }
+
+    [Fact]
+    public void No_matching_field_warns_and_changes_nothing()
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse("""{ "Data": { "other": 1 } }""")!;
+        var (changed, warnings, err) = WolvenKitTools.ApplyTextureFormat(node, "TEXG_Generic_Color", null, null);
+        Assert.Null(err);
+        Assert.Equal(0, changed);
+        Assert.NotEmpty(warnings);
+    }
+}
+
 public class ArchiveStatsTests
 {
     [Fact]

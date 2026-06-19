@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml;
 using ModelContextProtocol;
@@ -809,6 +810,129 @@ public static class WolvenKitTools
             $"Deserialization JSON → CR2W: {path} → {outputPath}",
             () => runner.RunAsync(
                 new[] { "convert", "deserialize", path, "--outpath", outputPath }, ct));
+    }
+
+    [McpServerTool(Name = "set_texture_format", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [Description("Sets the texture group / compression / raw format of an extracted .xbm — the #1 " +
+                 "silent retexture failure (wrong group/compression on reimport loses alpha, breaks " +
+                 "normal maps, or drops mipmaps). Round-trips the CR2W via JSON. Provide at least one of " +
+                 "group/compression/rawFormat. Common values — group: TEXG_Generic_Color / " +
+                 "TEXG_Generic_Normal / TEXG_Generic_UIColor; compression: TCM_QualityColor / TCM_Normalmap / " +
+                 "TCM_DXTAlpha / TCM_None; rawFormat: TRF_TrueColor / TRF_HDRFloat. Use inspect_texture to read current values.")]
+    public static async Task<string> SetTextureFormat(
+        Cp77ToolsRunner runner,
+        [Description("Path to an extracted .xbm file.")] string xbmFile,
+        [Description("Texture group CName (TEXG_…). Drives engine-side decoding/streaming.")] string? group = null,
+        [Description("Compression enum (TCM_…).")] string? compression = null,
+        [Description("Raw format enum (TRF_…).")] string? rawFormat = null,
+        [Description("Optional output .xbm path (default: overwrite xbmFile in place).")] string? outputFile = null,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(xbmFile)) return Err($".xbm file not found: {xbmFile}");
+        if (group is null && compression is null && rawFormat is null)
+            return Err("set_texture_format: provide at least one of group / compression / rawFormat.");
+
+        var dir = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-texfmt", Guid.NewGuid().ToString("N"));
+        var jsonDir = Path.Combine(dir, "json");
+        var outDir = Path.Combine(dir, "out");
+        Directory.CreateDirectory(jsonDir);
+        Directory.CreateDirectory(outDir);
+        try
+        {
+            // 1. CR2W → JSON
+            var ser = await runner.RunAsync(new[] { "convert", "serialize", xbmFile, "--outpath", jsonDir }, ct);
+            var jsonFile = Directory.EnumerateFiles(jsonDir, "*.json", SearchOption.AllDirectories).FirstOrDefault();
+            if (jsonFile is null) return Structured("set_texture_format: serialization produced no JSON", ser, new List<string>());
+
+            // 2. mutate the setup fields
+            var node = JsonNode.Parse(await File.ReadAllTextAsync(jsonFile, ct));
+            var (changed, warnings, applyErr) = ApplyTextureFormat(node, group, compression, rawFormat);
+            if (applyErr is not null) return Err(applyErr);
+            await File.WriteAllTextAsync(jsonFile, node!.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), ct);
+
+            // 3. JSON → CR2W
+            var de = await runner.RunAsync(new[] { "convert", "deserialize", jsonFile, "--outpath", outDir }, ct);
+            var produced = Directory.EnumerateFiles(outDir, "*.xbm", SearchOption.AllDirectories).FirstOrDefault()
+                           ?? Directory.EnumerateFiles(outDir, "*", SearchOption.AllDirectories).FirstOrDefault();
+            if (produced is null) return Structured("set_texture_format: deserialization produced no CR2W", de, new List<string>());
+
+            var dest = outputFile ?? xbmFile;
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(dest))!);
+            File.Copy(produced, dest, overwrite: true);
+
+            return JsonSerializer.Serialize(new
+            {
+                ok = true,
+                status = changed > 0 ? "success" : "no_change",
+                summary = changed > 0
+                    ? $"Set {changed} texture field(s) on {Path.GetFileName(dest)}" +
+                      (group is null ? "" : $" group={group}") + (compression is null ? "" : $" compression={compression}") +
+                      (rawFormat is null ? "" : $" rawFormat={rawFormat}")
+                    : "No matching texture field found — file unchanged.",
+                produced = new[] { dest },
+                changed,
+                applied = new { group, compression, rawFormat },
+                warnings,
+                errors = Array.Empty<string>(),
+            }, JsonOpts);
+        }
+        catch (JsonException ex) { return Err($"Could not parse/edit the texture JSON: {ex.Message}"); }
+        finally { try { Directory.Delete(dir, true); } catch { /* best-effort temp cleanup */ } }
+    }
+
+    /// <summary>Pure mutation core of set_texture_format: validates the enum prefixes and sets
+    /// textureGroup / compression / rawFormat wherever they occur in the CR2W JSON (handling both
+    /// the bare-string and {$value}/{Value} node shapes). Returns (#changed, warnings, error).</summary>
+    internal static (int Changed, List<string> Warnings, string? Error) ApplyTextureFormat(
+        JsonNode? root, string? group, string? compression, string? rawFormat)
+    {
+        var warnings = new List<string>();
+        if (group is not null && !group.StartsWith("TEXG_", StringComparison.OrdinalIgnoreCase))
+            return (0, warnings, $"group '{group}' should start with TEXG_ (e.g. TEXG_Generic_Color).");
+        if (compression is not null && !compression.StartsWith("TCM_", StringComparison.OrdinalIgnoreCase))
+            return (0, warnings, $"compression '{compression}' should start with TCM_ (e.g. TCM_QualityColor).");
+        if (rawFormat is not null && !rawFormat.StartsWith("TRF_", StringComparison.OrdinalIgnoreCase))
+            return (0, warnings, $"rawFormat '{rawFormat}' should start with TRF_ (e.g. TRF_TrueColor).");
+
+        var targets = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (group is not null) targets["textureGroup"] = group;
+        if (compression is not null) targets["compression"] = compression;
+        if (rawFormat is not null) targets["rawFormat"] = rawFormat;
+
+        var changed = 0;
+        void Walk(JsonNode? n)
+        {
+            if (n is JsonObject o)
+            {
+                foreach (var kv in o.ToList())
+                {
+                    if (targets.TryGetValue(kv.Key, out var newVal) && SetScalarOrValue(o, kv.Key, newVal))
+                        changed++;
+                    Walk(kv.Value);
+                }
+            }
+            else if (n is JsonArray a)
+            {
+                foreach (var item in a) Walk(item);
+            }
+        }
+        Walk(root);
+        if (changed == 0)
+            warnings.Add("No textureGroup/compression/rawFormat field found in the JSON — nothing changed.");
+        return (changed, warnings, null);
+    }
+
+    /// <summary>Sets a field that may be a bare string or a CName/enum object ({$value} or {Value}).</summary>
+    private static bool SetScalarOrValue(JsonObject parent, string key, string newVal)
+    {
+        if (parent[key] is JsonObject obj)
+        {
+            if (obj.ContainsKey("$value")) { obj["$value"] = newVal; return true; }
+            if (obj.ContainsKey("Value")) { obj["Value"] = newVal; return true; }
+            return false; // unknown object shape — don't clobber it
+        }
+        parent[key] = newVal; // scalar / null
+        return true;
     }
 
     [McpServerTool(Name = "export_files", ReadOnly = false, Destructive = false, Idempotent = true)]

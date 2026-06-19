@@ -5,7 +5,7 @@ Dates are those of the development sessions.
 ## Unreleased — post-1.0.1 audit hardening
 
 A multi-axis audit (security, daemon performance, live bridge, code quality,
-features) drove the following. **123 → 126 tools** (90 offline + 36 live).
+features) drove the following. **123 → 127 tools** (91 offline + 36 live).
 
 ### Security & correctness
 - **Path traversal fixed** in `write_game_file` and `toggle_mods` via a new, unit-tested
@@ -28,6 +28,8 @@ features) drove the following. **123 → 126 tools** (90 offline + 36 live).
 - **`find_record_by_name`** — reverse displayName → TweakDBID lookup.
 - **`diff_against_installed`** — working-build vs installed-copy file-set diff.
 - **`live_unobserve`** — cancels a `live_observe` subscription (fixes an observer leak).
+- **`set_texture_format`** — sets the group/compression/rawFormat of an extracted `.xbm`
+  (the #1 silent retexture failure); CR2W round-trip via JSON.
 - **`generate_tweak_template` → `new_item`** — typed item scaffolds
   (weapon/clothing/cyberware/consumable/recipe).
 

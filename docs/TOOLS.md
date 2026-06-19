@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WolvenKit MCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **90 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **126 tools** in total.
+> **Counts.** The server exposes **91 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **127 tools** in total.
 
 ## Contents
 
@@ -192,6 +192,17 @@ Reconverts JSON files (produced by `cr2w_to_json`) into binary CR2W files.
 |---|---|---|---|
 | `path` | string | yes | JSON file or folder containing them. |
 | `outputPath` | string | yes | Destination folder for the CR2W. |
+
+### `set_texture_format`
+Sets the texture group / compression / raw format of an extracted `.xbm` — the #1 silent retexture failure (wrong group/compression on reimport loses alpha, breaks normal maps, drops mipmaps). Round-trips the CR2W via JSON. Provide at least one of group/compression/rawFormat; read current values with `inspect_texture`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `xbmFile` | string | yes | Extracted `.xbm` file. |
+| `group` | string? | no | Texture group CName (`TEXG_…`, e.g. `TEXG_Generic_Color` / `TEXG_Generic_Normal`). |
+| `compression` | string? | no | Compression enum (`TCM_…`, e.g. `TCM_QualityColor` / `TCM_Normalmap` / `TCM_DXTAlpha`). |
+| `rawFormat` | string? | no | Raw format enum (`TRF_…`, e.g. `TRF_TrueColor`). |
+| `outputFile` | string? | no | Output `.xbm` (default: overwrite `xbmFile`). |
 
 ### `export_files`
 Exports extracted REDengine files to raw formats (mesh → glTF, texture → image...).
