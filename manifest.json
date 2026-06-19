@@ -2,7 +2,7 @@
   "manifest_version": "0.1",
   "name": "wolvenkit-mcp",
   "display_name": "WolvenKit MCP",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for Cyberpunk 2077 modding — exposes the WolvenKit toolkit (.archive archives, CR2W/JSON, TweakDB, REDmod, .reds scripts, audio, mesh/texture/animation) as tools usable by an agent.",
   "long_description": "C#/.NET 8 MCP server backed by a persistent WolvenKit daemon (pipelined IPC) with cp77tools fallback. 123 tools: archive read/write, CR2W↔JSON conversion, structured TweakDB editing, .archive and REDmod packaging, .cpmodproj project generation, mesh/texture/animation/morphtarget/mlmask export, opus audio extraction, REDscript (dedicated parser) and TweakXL linting, mod diagnostics (mod_doctor, diagnose_logs, analyze_conflicts, validate_item_mod), backup/restore, in-game iteration loop (launch + tail logs) and live in-game bridge via the CETBridge mod (35 live_* tools: player state, inventory, teleport, live TweakDB, quest facts, event observation). Windows only (native cp77tools).",
   "author": {
@@ -15,9 +15,7 @@
     "url": "https://github.com/Guikingone/WolvenkitMCP"
   },
   "homepage": "https://github.com/Guikingone/WolvenkitMCP",
-  "bugs": {
-    "url": "https://github.com/Guikingone/WolvenkitMCP/issues"
-  },
+  "support": "https://github.com/Guikingone/WolvenkitMCP/issues",
   "server": {
     "type": "binary",
     "entry_point": "server/WolvenKitMcp.dll",
@@ -37,10 +35,7 @@
   "compatibility": {
     "platforms": [
       "win32"
-    ],
-    "runtimes": {
-      "dotnet": ">=8.0"
-    }
+    ]
   },
   "user_config": {
     "cli_timeout_seconds": {

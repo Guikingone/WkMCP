@@ -2,6 +2,19 @@
 
 Dates are those of the development sessions.
 
+## 1.0.1 — 2026-06-19
+
+Hotfix: the `.mcpb` bundle failed to install / preview (Claude Desktop and Nexus)
+because `manifest.json` carried keys outside the MCPB manifest schema.
+
+### Fixes
+- Removed the non-schema top-level `bugs` key (replaced by the spec's `support` URL).
+- Removed `compatibility.runtimes.dotnet` — `compatibility.runtimes` only accepts
+  `python`/`node`; the .NET 8 requirement stays documented in the description/README.
+  `compatibility` is now just `{ "platforms": ["win32"] }`.
+
+No tool/behavior change; rebuild of the bundle only.
+
 ## 1.0.0 — 2026-06-17
 
 First public, stable release. The server is functionally complete (123 tools,
