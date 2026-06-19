@@ -495,23 +495,27 @@ public static class WolvenKitTools
         var cacheHits = 0;
         var errors = new List<string>();
 
-        foreach (var archive in archives)
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            var (entries, fromCache, raw) = await runner.GetArchiveListingAsync(archive, ct);
-            if (fromCache) cacheHits++;
-            if (entries.Count == 0 && raw.ExitCode != 0)
+            foreach (var archive in archives)
             {
-                errors.Add($"{Path.GetFileName(archive)}: empty listing (exit={raw.ExitCode})");
-                continue;
-            }
-            foreach (var e in entries)
-            {
-                var match = rx is not null ? rx.IsMatch(e) : MatchesGlob(e, pattern!);
-                if (match)
-                    matches.Add($"{e}  ({Path.GetFileName(archive)})");
+                ct.ThrowIfCancellationRequested();
+                var (entries, fromCache, raw) = await runner.GetArchiveListingAsync(archive, ct);
+                if (fromCache) cacheHits++;
+                if (entries.Count == 0 && raw.ExitCode != 0)
+                {
+                    errors.Add($"{Path.GetFileName(archive)}: empty listing (exit={raw.ExitCode})");
+                    continue;
+                }
+                foreach (var e in entries)
+                {
+                    var match = rx is not null ? rx.IsMatch(e) : MatchesGlob(e, pattern!);
+                    if (match)
+                        matches.Add($"{e}  ({Path.GetFileName(archive)})");
+                }
             }
         }
+        catch (OperationCanceledException) { return Cancelled("find_in_archives"); }
 
         // Bounded response: a broad pattern over base content can produce
         // tens of thousands of entries — enough to saturate the agent context.
@@ -907,6 +911,11 @@ public static class WolvenKitTools
         // call (leak). jsonFile remains readable after the call as documented.
         var work = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-read",
                                 StableHash(archivePath + "|" + gameFilePath));
+        // Wipe any prior extraction first: the folder is reused per (archive,file),
+        // so a stale *.json from an earlier call (e.g. the archive changed, or this
+        // extraction yields nothing) must not be picked up by FirstOrDefault below.
+        try { if (Directory.Exists(work)) Directory.Delete(work, recursive: true); }
+        catch { /* best-effort; recreation below still proceeds */ }
         var rawDir = Path.Combine(work, "raw");
         var jsonDir = Path.Combine(work, "json");
         Directory.CreateDirectory(rawDir);
@@ -973,6 +982,13 @@ public static class WolvenKitTools
         if (!File.Exists(jsonFile))
             return Err($"JSON file not found: {jsonFile}");
 
+        // Containment guard: gameFilePath is agent-controlled and documented as an
+        // "internal path". A rooted or ..\-laden value would otherwise let
+        // Path.Combine write outside the mod folder (arbitrary overwrite).
+        if (!PathSafety.TryResolveInside(modArchiveFolder, gameFilePath, out var dest))
+            return Err($"Refused: gameFilePath '{gameFilePath}' escapes the mod folder " +
+                       $"'{modArchiveFolder}' (must be a relative path inside it).");
+
         var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-write",
                                Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
@@ -989,7 +1005,6 @@ public static class WolvenKitTools
                 new List<string>());
         }
 
-        var dest = Path.Combine(modArchiveFolder, gameFilePath);
         Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
         File.Copy(cr2w, dest, overwrite: true);
         try { Directory.Delete(tmp, recursive: true); } catch { /* best-effort cleanup */ }
@@ -1031,32 +1046,37 @@ public static class WolvenKitTools
         var errorCodes = new ConcurrentBag<int>();
         var done = 0;
 
-        await Parallel.ForEachAsync(wems,
-            new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Math.Min(4, Environment.ProcessorCount),
-                CancellationToken = ct,
-            },
-            async (wem, token) =>
-            {
-                var ogg = Path.Combine(outputPath,
-                    Path.GetFileNameWithoutExtension(wem) + ".ogg");
-                var r = await runner.RunAsync(new[] { "wwise", wem, ogg, "--wem" }, token);
-                logs.Add(
-                    $"{Path.GetFileName(wem)} → {Path.GetFileName(ogg)}\n" +
-                    (r.Stdout + r.Stderr).Trim());
-                if (r.ExitCode != 0) errorCodes.Add(r.ExitCode);
-                var n = Interlocked.Increment(ref done);
-                progress?.Report(new ProgressNotificationValue
+        try
+        {
+            await Parallel.ForEachAsync(wems,
+                new ParallelOptions
                 {
-                    Progress = n,
-                    Total = wems.Length,
-                    Message = Path.GetFileName(wem),
+                    MaxDegreeOfParallelism = Math.Min(4, Environment.ProcessorCount),
+                    CancellationToken = ct,
+                },
+                async (wem, token) =>
+                {
+                    var ogg = Path.Combine(outputPath,
+                        Path.GetFileNameWithoutExtension(wem) + ".ogg");
+                    var r = await runner.RunAsync(new[] { "wwise", wem, ogg, "--wem" }, token);
+                    logs.Add(
+                        $"{Path.GetFileName(wem)} → {Path.GetFileName(ogg)}\n" +
+                        (r.Stdout + r.Stderr).Trim());
+                    if (r.ExitCode != 0) errorCodes.Add(r.ExitCode);
+                    var n = Interlocked.Increment(ref done);
+                    progress?.Report(new ProgressNotificationValue
+                    {
+                        Progress = n,
+                        Total = wems.Length,
+                        Message = Path.GetFileName(wem),
+                    });
                 });
-            });
+        }
+        catch (OperationCanceledException) { return Cancelled("wwise_export"); }
 
         var aggregate = new CliResult(
-            errorCodes.IsEmpty ? 0 : errorCodes.First(),
+            // Deterministic aggregate exit code (ConcurrentBag has no defined order).
+            errorCodes.IsEmpty ? 0 : errorCodes.Max(),
             string.Join("\n", logs), "", false);
         return Structured(
             $"Wwise WEM → OGG conversion: {wems.Length} file(s) → {outputPath} (parallel)",
@@ -2252,7 +2272,7 @@ public static class WolvenKitTools
         }
     }
 
-    [McpServerTool(Name = "restore_mods", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [McpServerTool(Name = "restore_mods", ReadOnly = false, Destructive = true, Idempotent = false)]
     [Description("Restores a mods backup produced by backup_mods. `merge` mode (default): " +
                  "extracts over the existing without deleting. `replace` mode: first empties " +
                  "the target folders (archive/pc/mod, mods, r6/tweaks) then extracts — " +
@@ -2377,6 +2397,7 @@ public static class WolvenKitTools
 
         // 2. Conflicts with installed mods (shared internal paths).
         if (!string.IsNullOrWhiteSpace(gamePath) && Directory.Exists(gamePath))
+        try
         {
             var modsDir = Path.Combine(gamePath, "archive", "pc", "mod");
             if (Directory.Exists(modsDir))
@@ -2414,6 +2435,7 @@ public static class WolvenKitTools
                 warnings.Add($"Mod folder absent: {modsDir} (conflict detection disabled)");
             }
         }
+        catch (OperationCanceledException) { return Cancelled("lint_mod"); }
 
         var ok = errors.Count == 0;
         var status = errors.Count > 0 ? "error"
@@ -2625,7 +2647,7 @@ public static class WolvenKitTools
             $"Dump records {recordType} → {outputFile} (format {format})", r, produced);
     }
 
-    [McpServerTool(Name = "launch_game", ReadOnly = false, Destructive = false, Idempotent = false)]
+    [McpServerTool(Name = "launch_game", ReadOnly = false, Destructive = true, Idempotent = false)]
     [Description("⚠ Launches Cyberpunk 2077: runs <game>/bin/x64/Cyberpunk2077.exe (visible " +
                  "action that is hard to cancel — the game really starts). If " +
                  "deployRedmod=true (default), runs redMod.exe deploy first. " +
@@ -3408,7 +3430,10 @@ public static class WolvenKitTools
     {
         if (value is null) return "null";
         if (value is bool b) return b ? "true" : "false";
-        if (value is long or int or double or float) return value.ToString()!;
+        // Invariant culture: on a fr-FR machine value.ToString() would emit "1,5"
+        // for 1.5, producing invalid YAML.
+        if (value is IFormattable f && value is long or int or double or float)
+            return f.ToString(null, System.Globalization.CultureInfo.InvariantCulture);
         var s = value.ToString() ?? "";
         // Parsable numbers → written bare.
         if (long.TryParse(s, out _) || double.TryParse(s,
@@ -3514,6 +3539,21 @@ public static class WolvenKitTools
         };
         return JsonSerializer.Serialize(result, JsonOpts);
     }
+
+    /// <summary>JSON result for a cancelled/timed-out call — same shape as Err so
+    /// the agent never sees a raw OperationCanceledException leak out of a tool.</summary>
+    private static string Cancelled(string op)
+        => JsonSerializer.Serialize(new
+        {
+            ok = false,
+            status = "cancelled",
+            summary = $"{op} was cancelled or timed out before completion.",
+            produced = Array.Empty<string>(),
+            warnings = Array.Empty<string>(),
+            errors = new[] { "cancelled" },
+            exitCode = -1,
+            log = "",
+        }, JsonOpts);
 
     /// <summary>JSON failure result — for argument validation errors.</summary>
     private static string Err(string summary)

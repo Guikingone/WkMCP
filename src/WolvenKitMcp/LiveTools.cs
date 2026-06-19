@@ -251,13 +251,13 @@ public static class LiveTools
         => Wrap("Level/street cred", await bridge.QueryAsync("set_level", new { level, streetCred }, gamePath, ct));
 
     [McpServerTool(Name = "live_spawn_vehicle", ReadOnly = false, Destructive = false, Idempotent = false)]
-    [Description("Spawns a vehicle near the player (e.g. 'Vehicle.v_sport2_quadra_type66'). " +
+    [Description("Summons a player vehicle (e.g. 'Vehicle.v_sport2_quadra_type66'); the game places it " +
+                 "near the player — exact position is not controllable via this API. " +
                  "Use live_tweakdb_search 'Vehicle.' to find the IDs.")]
     public static async Task<string> LiveSpawnVehicle(CetBridge bridge,
         [Description("Vehicle TweakDBID.")] string vehicleId,
-        [Description("Distance in front of the player in meters (default 5).")] double distance = 5,
         [Description(GamePathDesc)] string? gamePath = null, CancellationToken ct = default)
-        => Wrap($"Spawn vehicle {vehicleId}", await bridge.QueryAsync("spawn_vehicle", new { vehicleId, distance }, gamePath, ct));
+        => Wrap($"Spawn vehicle {vehicleId}", await bridge.QueryAsync("spawn_vehicle", new { vehicleId }, gamePath, ct));
 
     [McpServerTool(Name = "live_set_time", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Sets the in-game time of day (lighting test, NPC schedules, time-based events).")]

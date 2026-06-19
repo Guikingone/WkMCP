@@ -2070,8 +2070,17 @@ public static class ModdingTools
 
         var moved = new List<string>();
         var warnings = new List<string>();
-        var names = (archives ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(n => n.EndsWith(".archive", StringComparison.OrdinalIgnoreCase) ? n : n + ".archive").ToList();
+        var rawNames = (archives ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var names = new List<string>();
+        foreach (var raw in rawNames)
+        {
+            var n = raw.EndsWith(".archive", StringComparison.OrdinalIgnoreCase) ? raw : raw + ".archive";
+            // Guard: toggle_mods MOVES files by name. A name with separators or ..
+            // (e.g. "..\content\foo.archive") would relocate a base-game archive out
+            // of the mod tree. Reject anything that isn't a bare file name.
+            if (!PathSafety.IsBareFileName(n)) { warnings.Add($"Refused (invalid name): {raw}"); continue; }
+            names.Add(n);
+        }
 
         if (names.Count > 0)
         {
