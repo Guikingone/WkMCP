@@ -57,6 +57,7 @@ if (transport == "http")
     var app = builder.Build();
     // Boots the live bridge's TCP listener (idempotent) — coexists with the HTTP server.
     app.Services.GetRequiredService<CetBridge>().EnsureStarted();
+    app.UseWolvenKitOriginGuard(url);  // always-on DNS-rebinding guard (Host/Origin)
     app.UseWolvenKitBearerAuth(token); // no-op if no token (dev loopback)
     app.MapMcp();
 

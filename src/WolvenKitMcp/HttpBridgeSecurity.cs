@@ -47,6 +47,53 @@ internal static class HttpBridgeSecurity
         return (true, null);
     }
 
+    private static string Norm(string h) => h.Trim('[', ']').ToLowerInvariant();
+
+    /// <summary>Hosts accepted in the Host/Origin headers: loopback aliases plus the bound host.</summary>
+    internal static HashSet<string> AllowedHosts(string url)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "localhost", "127.0.0.1", "::1" };
+        if (Uri.TryCreate(url, UriKind.Absolute, out var u) ||
+            Uri.TryCreate("http://" + url, UriKind.Absolute, out u))
+            set.Add(Norm(u!.Host));
+        return set;
+    }
+
+    /// <summary>Host header must be empty (some local clients omit it) or in the allowlist.
+    /// A DNS-rebinding request carries the attacker's domain as Host, which is not allowed.</summary>
+    internal static bool IsHostAllowed(string? host, ISet<string> allowed)
+        => string.IsNullOrEmpty(host) || allowed.Contains(Norm(host));
+
+    /// <summary>Origin must be absent (non-browser client like Claude Desktop) or in the allowlist.
+    /// A malicious web page's fetch carries its own Origin, which is rejected.</summary>
+    internal static bool IsOriginAllowed(string? origin, ISet<string> allowed)
+    {
+        if (string.IsNullOrWhiteSpace(origin)) return true;
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var u)) return false;
+        return allowed.Contains(Norm(u.Host));
+    }
+
+    /// <summary>Always-on DNS-rebinding guard (runs even without a token): rejects requests
+    /// whose Host or Origin header is not loopback / the bound host. The MCP spec calls for
+    /// Origin validation on local HTTP servers; this closes the tokenless-loopback RCE that a
+    /// visited web page could otherwise reach via DNS rebinding.</summary>
+    internal static void UseWolvenKitOriginGuard(this WebApplication app, string url)
+    {
+        var allowed = AllowedHosts(url);
+        app.Use(async (context, next) =>
+        {
+            var host = context.Request.Host.Host; // host only, no port
+            var origin = context.Request.Headers.Origin.ToString();
+            if (!IsHostAllowed(host, allowed) || !IsOriginAllowed(origin, allowed))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsync("403 Forbidden — host/origin not allowed (DNS-rebinding guard).");
+                return;
+            }
+            await next();
+        });
+    }
+
     /// <summary>Constant-time comparison (via SHA-256, fixed length) of two tokens.</summary>
     internal static bool TokenEquals(string? provided, string? expected)
     {

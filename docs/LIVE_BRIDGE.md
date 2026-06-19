@@ -139,11 +139,27 @@ else is doable via `live_execute_lua` / `live_eval`.
 
 ## Security & limits
 
+> ⚠️ **Threat model — local code execution.** The bridge runs **arbitrary Lua inside
+> the game process** (`live_execute_lua` / `live_eval`), and via CET that Lua can touch
+> the filesystem and OS. The TCP listener is bound to **127.0.0.1 with no authentication**,
+> so **any local process or user session on the machine** can connect to port 27010 and
+> drive the game — or, by binding 27010 first, impersonate the bridge to the mod
+> (first-bind-wins). This is acceptable for a **single-user development machine** but is a
+> real exposure on shared/multi-user hosts. There is no public-network exposure (loopback
+> only). An opt-in shared-secret handshake (`CET_BRIDGE_TOKEN`) is planned to close the
+> local-process vector; until then, do not run the bridge on a host you do not trust.
+
+- **Mutating `live_*` calls report submission, not confirmation.** Tools like
+  `live_set_stat`, `live_set_time`, `live_set_weather`, `live_add_item` return success once
+  the command was accepted by the game API — they do **not** re-read state to prove the
+  effect landed. To verify, follow up with the matching read tool (`live_player_info`,
+  `live_inventory`, `live_game_state`, …). Note also: a TCP **timeout** abandons the request
+  on the server side, but the Lua handler may still run it — a destructive call that reports
+  "timeout" may nonetheless have taken effect.
 - **Executing Lua in the live game is powerful and risky**: an infinite loop can
   **freeze** the game. On the Lua side, each execution is protected by `pcall`; on the server side a
   **timeout** (5 s) protects the agent — **not** the game.
-- The TCP listener is restricted to **127.0.0.1** (no public network, no auth — a local
-  development tool).
+- The TCP listener is restricted to **127.0.0.1** (no public network — see threat model above).
 - `live_tweakdb_set` writes persist **until the game restarts**.
 - **Not testable in CI**: only the protocol layer is (see `CetBridgeProtocolTests`). The
   end-to-end path requires the game running — see `test-live-bridge.py`.
