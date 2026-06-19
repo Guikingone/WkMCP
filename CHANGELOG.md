@@ -2,6 +2,39 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — post-1.0.1 audit hardening
+
+A multi-axis audit (security, daemon performance, live bridge, code quality,
+features) drove the following. **123 → 126 tools** (90 offline + 36 live).
+
+### Security & correctness
+- **Path traversal fixed** in `write_game_file` and `toggle_mods` via a new, unit-tested
+  `PathSafety` helper (rejects rooted / `..` paths). DNS-rebinding guard on the HTTP
+  transport (always-on `Host`/`Origin` validation, even in tokenless loopback mode).
+- `read_game_file` no longer returns a stale prior extraction (temp folder wiped per call).
+- `live_set_stat` now SETS instead of STACKING additive modifiers (was non-idempotent and
+  could never lower a stat). `live_spawn_vehicle` no longer advertises a dead `distance`
+  param. Misleading annotations fixed (`launch_game` destructive; `restore_mods` non-idempotent).
+- Cancelled `wwise_export`/`find_in_archives`/`lint_mod` return structured JSON, not a raw
+  exception. Invariant-culture YAML numbers (fr-FR emitted `1,5`). Unified error JSON shape.
+
+### Performance
+- Read-only `resolve_hash`/`tweakdb_resolve` routed around the daemon's global exec lock
+  (responsive even during a long uncook). Cached game `ArchiveManager` (exe+mtime).
+  Archive-listing single-flight + bounded LRU. Daemon killed on process exit; absolute
+  wall-clock backstop on the inactivity timeout. Buffered console capture.
+
+### Features
+- **`find_record_by_name`** — reverse displayName → TweakDBID lookup.
+- **`diff_against_installed`** — working-build vs installed-copy file-set diff.
+- **`live_unobserve`** — cancels a `live_observe` subscription (fixes an observer leak).
+- **`generate_tweak_template` → `new_item`** — typed item scaffolds
+  (weapon/clothing/cyberware/consumable/recipe).
+
+### CI / supply chain
+- Third-party actions pinned to commit SHAs; `ci.yml` least-privilege permissions;
+  `.mcpb.sha256` checksum attached to releases.
+
 ## 1.0.1 — 2026-06-19
 
 Hotfix: the `.mcpb` bundle failed to install / preview (Claude Desktop and Nexus)

@@ -9,6 +9,41 @@ namespace WolvenKitMcp.Tests;
 // archive_stats (HistogramByExtension), validate_redmod (ValidateRedmodInfo),
 // inspect_app (SummarizeApp / ParseAppearanceNames).
 
+public class TweakTemplateTests
+{
+    [Fact]
+    public void New_item_scaffold_emits_instanceOf_and_typed_checklist()
+    {
+        var outFile = Path.Combine(Path.GetTempPath(), "wkmcp-newitem-" + Guid.NewGuid().ToString("N") + ".tweak");
+        try
+        {
+            var json = WolvenKitTools.GenerateTweakTemplate(
+                "new_item",
+                "{\"newId\":\"MyMod.MyGun\",\"baseId\":\"Items.Preset_Lexington\",\"itemType\":\"weapon\"}",
+                outFile);
+
+            using (var doc = System.Text.Json.JsonDocument.Parse(json))
+                Assert.True(doc.RootElement.GetProperty("ok").GetBoolean());
+            var yaml = File.ReadAllText(outFile);
+            Assert.Contains("MyMod.MyGun:", yaml);
+            Assert.Contains("$instanceOf: Items.Preset_Lexington", yaml);
+            Assert.Contains("statModifiers", yaml);     // weapon-specific checklist line
+            Assert.Contains("quality:", yaml);          // universally-safe flat
+        }
+        finally { try { File.Delete(outFile); } catch { /* ignore */ } }
+    }
+
+    [Fact]
+    public void New_item_requires_newId_and_baseId()
+    {
+        var outFile = Path.Combine(Path.GetTempPath(), "wkmcp-newitem-" + Guid.NewGuid().ToString("N") + ".tweak");
+        var json = WolvenKitTools.GenerateTweakTemplate("new_item", "{\"newId\":\"MyMod.X\"}", outFile);
+        using (var doc = System.Text.Json.JsonDocument.Parse(json))
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+        Assert.False(File.Exists(outFile));
+    }
+}
+
 public class ArchiveStatsTests
 {
     [Fact]

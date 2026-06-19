@@ -330,6 +330,19 @@ function handlers.get_observations(args)
     }
 end
 
+function handlers.unobserve_events(args)
+    if not args or not args.subscriptionId then
+        return nil, "subscriptionId is required"
+    end
+    local existed = subscriptions[args.subscriptionId] ~= nil
+    -- Drop the subscription. The ObserveAfter callback early-returns once its
+    -- subscription is gone ("if not sub then return end"), so its buffer stops
+    -- growing and it becomes an inert no-op. CET cannot unregister the observer
+    -- itself, but this stops the per-session memory growth that had no off switch.
+    subscriptions[args.subscriptionId] = nil
+    return { subscriptionId = args.subscriptionId, removed = existed }
+end
+
 function handlers.batch_execute(args)
     if not args or not args.commands then
         return nil, "commands array is required"

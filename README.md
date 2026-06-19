@@ -1,7 +1,7 @@
 # WolvenKit MCP — an MCP server for Cyberpunk 2077 modding
 
 An **MCP (Model Context Protocol)** server that exposes WolvenKit's modding CLI
-(`cp77tools`) as **123 tools** an agent (Claude) can call — so you steer Cyberpunk
+(`cp77tools`) as **126 tools** an agent (Claude) can call — so you steer Cyberpunk
 2077 modding from a chat window without writing code: read and edit game files,
 query and patch the TweakDB, create/pack/install mods, export meshes and textures,
 lint REDscript, diagnose a broken install, and even drive a **running** game live.
@@ -100,7 +100,7 @@ Optional environment variables go in the `"env"` block (Desktop) or via `-e VAR=
 
 ## Tools, prompts, resources
 
-The server exposes **123 tools** (88 offline + 35 `live_*`), **8 prompts** and **4 resources**.
+The server exposes **126 tools** (90 offline + 36 `live_*`), **8 prompts** and **4 resources**.
 
 **Tools by category** (full parameter reference: [docs/TOOLS.md](docs/TOOLS.md)):
 
@@ -192,7 +192,7 @@ WolvenKit is licensed GPL-3.0; that license is itself the permission to build on
 ## Documentation
 
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — modder's guide: install, wire up to Claude, step-by-step workflows (read a file, edit a tweak, create/pack/install a mod, check dependencies, package).
-- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 123 tools + 8 prompts + 4 resources (parameters included).
+- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 126 tools + 8 prompts + 4 resources (parameters included).
 - **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — copy-paste recipes by mod type (tweak, redscript, ArchiveXL, REDmod, localization, texture, analysis).
 - **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — the 35 `live_*` tools to drive a running game (CETBridge / Cyber Engine Tweaks). Optional, separate prerequisites.
 - **[docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)** — remote access over HTTP/Streamable (instead of stdio); secure by default.
@@ -219,12 +219,12 @@ More in [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (§10 troubleshooting) and [doc
 
 ```
 wolvenkit-mcp/
-├── src/WolvenKitMcp/         C# / .NET 8 MCP server (123 tools, 8 prompts, 4 resources)
+├── src/WolvenKitMcp/         C# / .NET 8 MCP server (126 tools, 8 prompts, 4 resources)
 │   ├── Program.cs            Host + stdio/http transport + DI + daemon warmup
 │   ├── Cp77ToolsRunner.cs    Drives the daemon (pipelined IPC, LRU cache, cp77tools fallback)
 │   ├── WolvenKitTools.cs     63 base MCP tools + helpers
 │   ├── ModdingTools.cs       25 workflow tools (deps, health, scaffolding, refs, diff)
-│   ├── LiveTools.cs          35 live_* tools (running game, via CetBridge.cs)
+│   ├── LiveTools.cs          36 live_* tools (running game, via CetBridge.cs)
 │   ├── CetBridge.cs          TCP/file bridge to the CETBridge Lua mod
 │   ├── RedscriptParser.cs    REDscript grammar parser (lint_script)
 │   ├── WolvenKitPrompts.cs   8 MCP prompts (recipes)

@@ -132,6 +132,7 @@ parameters only.
 | `live_set_quest_fact` `D` `I` | `factName` (string) — fact name. `value` (int) — typically 0 (not done) or 1 (done). | Sets a quest fact (can break quest progression or unlock content). |
 | `live_observe` | `className` (string) — game class (e.g. `PlayerPuppet`). `eventName` (string) — event/method (e.g. `OnDamageReceived`). `maxBuffer` (int, default 50) — buffer size before overwriting the oldest. | Subscribes to a game event via CET's Observe/ObserveAfter. |
 | `live_observations` `RO` `I` | `subscriptionId` (string) — the ID returned by `live_observe`, **or** the `Class/Event` label (e.g. `PlayerPuppet/OnDamageReceived`). | Reads (and clears) the observed-event buffer. The label registry lives in the server and is lost on its restart. |
+| `live_unobserve` `I` | `subscriptionId` (string) — ID or `Class/Event` label. | Cancels a subscription and frees its in-game buffer. Without it, observers accumulate for the whole game session (CET can't fully unregister the observer, but the callback becomes an inert no-op). |
 
 Everything goes through the same three protocol verbs (`exec` / `eval` / `query`):
 the tools above are ergonomic shortcuts on top of named Lua handlers. Anything

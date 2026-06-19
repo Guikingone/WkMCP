@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WolvenKit MCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **88 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **35 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **123 tools** in total.
+> **Counts.** The server exposes **90 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **126 tools** in total.
 
 ## Contents
 
@@ -84,6 +84,18 @@ Queries the TweakDB: loads a `tweakdb.bin` and lists the records and flats whose
 
 ---
 
+### `find_record_by_name`
+Reverse lookup: finds TweakDB record IDs by their **human-facing** name. Where `tweakdb_query` matches the identifier, this searches the localized displayName/description **text** (e.g. "Overwatch" → its record IDs). Returns `{recordId: {field: value}}`. Re-scans the tweakdb each call (backed by the `extract_localization` path).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `tweakdbPath` | string | yes | Path of a `tweakdb.bin` file. |
+| `name` | string | yes | Text to search in the localized name/description (substring, case-insensitive). |
+| `recordType` | string | no | Restrict to record IDs containing this substring (e.g. `Items.`, `Vehicle.`). |
+| `maxResults` | int | no (default 50) | Max matches returned. |
+
+---
+
 ## 2. Archive reading / inspection
 
 ### `archive_info`
@@ -121,6 +133,16 @@ Compares two `.archive` files and lists the added files (present in B only) and 
 |---|---|---|---|
 | `archiveA` | string | yes | First archive (reference). |
 | `archiveB` | string | yes | Second archive (to compare). |
+
+---
+
+### `diff_against_installed`
+Compares a built mod `.archive` against the copy currently installed in `<game>/archive/pc/mod` (matched by filename): files only-in-build vs only-in-installed. Answers "is my working build in sync with what's installed?". Compares the file set (paths), not per-file content.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `modArchive` | string | yes | Path to the built mod `.archive`. |
+| `gamePath` | string | yes | Root folder of the Cyberpunk 2077 installation. |
 
 ---
 
@@ -328,11 +350,11 @@ Generates a `.reds` ready to edit from a catalog of patterns: `add_method`, `wra
 - `new_class`: `className` (required), `extends`, `moduleName`.
 
 ### `generate_tweak_template`
-Generates a `.tweak` (TweakXL — YAML) from a catalog of patterns: `override_field`, `new_record`, `boost_stat`.
+Generates a `.tweak` (TweakXL — YAML) from a catalog of patterns: `override_field`, `new_record`, `boost_stat`, `new_item`.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `pattern` | string | yes | `override_field` \| `new_record` \| `boost_stat`. |
+| `pattern` | string | yes | `override_field` \| `new_record` \| `boost_stat` \| `new_item`. |
 | `parametersJson` | string | yes | Template parameters as JSON (depending on the pattern). |
 | `outputFile` | string | yes | `.tweak` file to produce. |
 
@@ -340,6 +362,7 @@ Generates a `.tweak` (TweakXL — YAML) from a catalog of patterns: `override_fi
 - `override_field`: `recordId` (required), `field` (required), `value` (required).
 - `new_record`: `newId` (required), `baseId` (required), `overrides` (sub-JSON `{field: value}`).
 - `boost_stat`: `recordId` (required), `stat` (default `damage`), `value` (required).
+- `new_item`: `newId` (required), `baseId` (required), `itemType` (`weapon`\|`clothing`\|`cyberware`\|`consumable`\|`recipe`). Emits safe item flats + a checklist of the type-specific flats to fill (run `describe_tweak_record` on `baseId` for exact schemas).
 
 ---
 

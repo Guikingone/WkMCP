@@ -121,6 +121,110 @@ public static class WolvenKitTools
             r, produced);
     }
 
+    [McpServerTool(Name = "find_record_by_name", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Reverse lookup: find TweakDB record IDs by their HUMAN-FACING name. " +
+                 "tweakdb_query only matches the identifier (e.g. Items.Preset_Lexington); this " +
+                 "searches the localized displayName/description TEXT instead (e.g. \"Overwatch\" → " +
+                 "its record IDs). Returns {recordId: {field: value}} for matches. Backed by the " +
+                 "extract_localization data path (re-scans the tweakdb each call).")]
+    public static async Task<string> FindRecordByName(
+        Cp77ToolsRunner runner,
+        [Description("Path to the tweakdb.bin (typically <game>/r6/cache/tweakdb.bin).")] string tweakdbPath,
+        [Description("Text to search for in the localized name/description (substring, case-insensitive).")] string name,
+        [Description("Optional: restrict to record IDs containing this substring (e.g. \"Items.\", \"Vehicle.\").")] string? recordType = null,
+        [Description("Max matches to return (default 50).")] int maxResults = 50,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(tweakdbPath)) return Err($"tweakdb.bin file not found: {tweakdbPath}");
+        if (string.IsNullOrWhiteSpace(name)) return Err("find_record_by_name: 'name' is required.");
+        if (maxResults <= 0) maxResults = 50;
+
+        var dir = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-find", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var tmp = Path.Combine(dir, "loc.json");
+        try
+        {
+            var args = new List<string> { "tweakdb-extract-localization", tweakdbPath, tmp };
+            if (!string.IsNullOrWhiteSpace(recordType)) args.Add(recordType); // daemon-side prefilter on recordId
+            var r = await runner.RunAsync(args, ct);
+            if (!File.Exists(tmp))
+                return Structured("find_record_by_name: extraction produced no data", r, new List<string>());
+
+            using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(tmp, ct));
+            var matches = new Dictionary<string, Dictionary<string, string>>();
+            foreach (var rec in doc.RootElement.EnumerateObject())
+            {
+                if (rec.Value.ValueKind != JsonValueKind.Object) continue;
+                var hit = new Dictionary<string, string>();
+                foreach (var f in rec.Value.EnumerateObject())
+                {
+                    var val = f.Value.ValueKind == JsonValueKind.String ? f.Value.GetString() ?? "" : f.Value.ToString();
+                    if (val.Contains(name, StringComparison.OrdinalIgnoreCase)) hit[f.Name] = val;
+                }
+                if (hit.Count > 0) matches[rec.Name] = hit;
+                if (matches.Count >= maxResults) break;
+            }
+            var truncated = matches.Count >= maxResults;
+            return JsonSerializer.Serialize(new
+            {
+                ok = true,
+                status = "success",
+                summary = $"{matches.Count} record(s) matching \"{name}\"" +
+                          (recordType is null ? "" : $" in {recordType}") + (truncated ? " (truncated)" : ""),
+                query = name,
+                recordType,
+                truncated,
+                matches,
+            }, JsonOpts);
+        }
+        catch (JsonException ex) { return Err($"Could not parse extracted localization JSON: {ex.Message}"); }
+        finally { try { Directory.Delete(dir, true); } catch { /* best-effort temp cleanup */ } }
+    }
+
+    [McpServerTool(Name = "diff_against_installed", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Compares a BUILT mod .archive against the copy currently installed in " +
+                 "<game>/archive/pc/mod (matched by filename): files only-in-build vs only-in-installed. " +
+                 "Answers \"is my working build in sync with what's installed?\" — the missing " +
+                 "iteration-loop glue (migration_check / diff_mod_vs_base compare mod-vs-base-game " +
+                 "instead). Compares the file SET (paths), not per-file content.")]
+    public static async Task<string> DiffAgainstInstalled(
+        Cp77ToolsRunner runner,
+        [Description("Path to the built mod .archive (your working output).")] string modArchive,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(modArchive)) return Err($"Mod archive not found: {modArchive}");
+        var installed = Path.Combine(gamePath, "archive", "pc", "mod", Path.GetFileName(modArchive));
+        if (!File.Exists(installed))
+            return JsonSerializer.Serialize(new
+            {
+                ok = true,
+                status = "not_installed",
+                summary = $"No installed copy named {Path.GetFileName(modArchive)} in archive/pc/mod — not installed yet.",
+                installed = (string?)null,
+            }, JsonOpts);
+
+        var (a, _, _) = await runner.GetArchiveListingAsync(modArchive, ct);
+        var (b, _, _) = await runner.GetArchiveListingAsync(installed, ct);
+        var setA = new HashSet<string>(a, StringComparer.OrdinalIgnoreCase);
+        var setB = new HashSet<string>(b, StringComparer.OrdinalIgnoreCase);
+        var onlyInBuild = a.Where(x => !setB.Contains(x)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        var onlyInInstalled = b.Where(x => !setA.Contains(x)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        var inSync = onlyInBuild.Count == 0 && onlyInInstalled.Count == 0;
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            status = inSync ? "in_sync" : "out_of_sync",
+            summary = inSync
+                ? "Build matches the installed copy (same file set)."
+                : $"{onlyInBuild.Count} file(s) only in build, {onlyInInstalled.Count} only in installed.",
+            installed,
+            inSync,
+            addedInBuild = onlyInBuild,
+            missingFromBuild = onlyInInstalled,
+        }, JsonOpts);
+    }
+
     [McpServerTool(Name = "build_localization", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Builds a .tweak file (TweakXL) that overrides displayName / " +
                  "localizedDescription / etc. from a translations JSON file in the format " +
@@ -1816,9 +1920,11 @@ public static class WolvenKitTools
                  "catalog of common patterns. Avoids knowing the TweakXL syntax by hand. " +
                  "Supported patterns: override_field (modifies a field of an existing record), " +
                  "new_record (creates a new record via $instanceOf), boost_stat (modifies a " +
-                 "numeric stat with a new value).")]
+                 "numeric stat with a new value), new_item (typed clone of an existing item — " +
+                 "params newId, baseId, itemType=weapon|clothing|cyberware|consumable|recipe — " +
+                 "emits safe item flats + a checklist of the type-specific flats to fill).")]
     public static string GenerateTweakTemplate(
-        [Description("Pattern: override_field | new_record | boost_stat.")] string pattern,
+        [Description("Pattern: override_field | new_record | boost_stat | new_item.")] string pattern,
         [Description("Template parameters as JSON (keys depending on the pattern, see description).")] string parametersJson,
         [Description("Path to the .tweak file to produce.")] string outputFile)
     {
@@ -1910,9 +2016,54 @@ public static class WolvenKitTools
                 description = $"Boost stat: {id}.{stat} = {value}";
                 break;
             }
+            case "new_item":
+            {
+                var newId = Str("newId");
+                var baseId = Str("baseId");
+                var itemType = (Str("itemType") ?? "weapon").ToLowerInvariant();
+                if (string.IsNullOrEmpty(newId))
+                    return Err("new_item: 'newId' required (e.g. MyMod.MyWeapon).");
+                if (string.IsNullOrEmpty(baseId))
+                    return Err("new_item: 'baseId' required — the existing record to clone " +
+                               "(use tweakdb_query / describe_tweak_record to find a canonical base).");
+
+                // Type-specific checklist of the flats authors usually set. Emitted as
+                // comments (not active keys) so the YAML always loads — run
+                // describe_tweak_record on baseId for the exact flat names + current values.
+                var (typeNote, checklist) = itemType switch
+                {
+                    "weapon"     => ("ranged/melee weapon",
+                        new[] { "statModifiers (damage, etc. — list of gameStatModifier handles)",
+                                "attachmentSlots", "evolution", "damageType", "entityName / appearanceName (ArchiveXL)" }),
+                    "clothing"   => ("garment / clothing item",
+                        new[] { "appearanceName", "entityName (ArchiveXL)", "garmentOffsets",
+                                "areaType (head/face/torso/legs/feet)", "placementSlots" }),
+                    "cyberware"  => ("cyberware implant",
+                        new[] { "UI.icon", "humanityCost", "cyberwareType", "slotPartListID",
+                                "statModifiers", "evolution" }),
+                    "consumable" => ("consumable",
+                        new[] { "objectActionsCallbackName", "statModifiers / effectors", "stackSize", "UI.icon" }),
+                    "recipe"     => ("crafting recipe",
+                        new[] { "craftingResult (item produced)", "craftingMaterials", "isPlayerCraftable", "UI.icon" }),
+                    _ => ("generic item",
+                        new[] { "displayName", "localizedDescription", "quality", "UI.icon" }),
+                };
+
+                var sb = new StringBuilder();
+                sb.Append(newId).AppendLine(":");
+                sb.Append("  $instanceOf: ").AppendLine(baseId);
+                sb.AppendLine("  displayName: LocKey#0          # replace with your LocKey or a localization secondaryKey");
+                sb.AppendLine("  localizedDescription: LocKey#0");
+                sb.AppendLine("  quality: Quality.Legendary     # Common/Uncommon/Rare/Epic/Legendary");
+                sb.AppendLine($"  # --- {typeNote}: flats you typically also set (see describe_tweak_record {baseId}) ---");
+                foreach (var c in checklist) sb.Append("  #   ").AppendLine(c);
+                yaml = sb.ToString();
+                description = $"New {itemType}: {newId} <- $instanceOf {baseId}";
+                break;
+            }
             default:
                 return Err($"Unknown pattern: {pattern} " +
-                           "(override_field, new_record, boost_stat).");
+                           "(override_field, new_record, boost_stat, new_item).");
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputFile) ?? ".");

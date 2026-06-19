@@ -430,6 +430,22 @@ public static class LiveTools
         return Wrap("Observations", await bridge.QueryAsync("get_observations", new { subscriptionId }, gamePath, ct));
     }
 
+    [McpServerTool(Name = "live_unobserve", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Cancels a subscription created by live_observe and frees its in-game buffer. " +
+                 "Without this, observers accumulate in the mod and keep firing for the whole game " +
+                 "session. Accepts the raw ID or the 'Class/Event' label.")]
+    public static async Task<string> LiveUnobserve(CetBridge bridge,
+        [Description("Subscription ID returned by live_observe, or 'Class/Event' label.")] string subscriptionId,
+        [Description(GamePathDesc)] string? gamePath = null, CancellationToken ct = default)
+    {
+        var label = subscriptionId;
+        if (subscriptionId.Contains('/') && ObservationLabels.TryGetValue(subscriptionId, out var mapped))
+            subscriptionId = mapped;
+        var resp = await bridge.QueryAsync("unobserve_events", new { subscriptionId }, gamePath, ct);
+        if (resp.Ok) ObservationLabels.TryRemove(label, out _);
+        return Wrap($"Unobserve {label}", resp);
+    }
+
     /// <summary>Converts a text value + type hint into a JSON value of the right type, so that the Lua
     /// <c>tweakdb_set</c> handler auto-detects correctly (number→Int/Float, bool→Bool, string→String).
     /// CName stays a string (the Lua does CName.new via the `type` hint).</summary>
