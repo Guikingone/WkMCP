@@ -9,7 +9,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent / "src" / "WolvenKitMcp"
+ROOT = Path(__file__).resolve().parent.parent / "src" / "WkMcp"
 
 # name: (ReadOnly, Destructive, Idempotent)
 # ReadOnly    : modifies neither user/game files nor game state
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent / "src" / "WolvenKitMcp"
 # Idempotent  : an identical second call has no additional effect.
 TABLE = {
     # ── WolvenKitTools ──────────────────────────────────────────────
-    "wolvenkit_status": (True, False, True),
+    "wk_status": (True, False, True),
     "extract_localization": (False, False, True),
     "build_localization": (False, False, True),
     "clear_cache": (False, False, True),

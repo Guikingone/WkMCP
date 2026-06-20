@@ -1,7 +1,7 @@
-using WolvenKitMcp;
+using WkMcp;
 using Xunit;
 
-namespace WolvenKitMcp.Tests;
+namespace WkMcp.Tests;
 
 /// <summary>HTTP mode safeguards: loopback classification, fail-closed rule, token compare.</summary>
 public class HttpBridgeSecurityTests

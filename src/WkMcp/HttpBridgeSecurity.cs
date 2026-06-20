@@ -4,7 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>
 /// HTTP mode safeguards (opt-in). The server writes game files, installs mods
@@ -17,9 +17,13 @@ namespace WolvenKitMcp;
 /// </summary>
 internal static class HttpBridgeSecurity
 {
-    internal const string TransportEnv = "WOLVENKIT_MCP_TRANSPORT"; // stdio | http
-    internal const string UrlEnv = "WOLVENKIT_MCP_HTTP_URL";        // ex. http://127.0.0.1:3001
-    internal const string TokenEnv = "WOLVENKIT_MCP_HTTP_TOKEN";    // bearer token (recommended)
+    internal const string TransportEnv = "WKMCP_TRANSPORT"; // stdio | http
+    internal const string UrlEnv = "WKMCP_HTTP_URL";        // ex. http://127.0.0.1:3001
+    internal const string TokenEnv = "WKMCP_HTTP_TOKEN";    // bearer token (recommended)
+    // Legacy names (pre-WkMCP rename), still honored as a fallback.
+    internal const string LegacyTransportEnv = "WOLVENKIT_MCP_TRANSPORT";
+    internal const string LegacyUrlEnv = "WOLVENKIT_MCP_HTTP_URL";
+    internal const string LegacyTokenEnv = "WOLVENKIT_MCP_HTTP_TOKEN";
     internal const string DefaultUrl = "http://127.0.0.1:3001";
 
     /// <summary>True if the URL binds to a loopback interface (127.0.0.0/8, ::1, localhost).

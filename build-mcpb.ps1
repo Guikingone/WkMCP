@@ -1,11 +1,11 @@
 ﻿<#
 .SYNOPSIS
-  Builds the Desktop Extension bundle (.mcpb) of the WolvenKit MCP server.
+  Builds the Desktop Extension bundle (.mcpb) of the WkMCP server.
 
 .DESCRIPTION
   Compiles the daemon then the MCP server in Release, assembles the content
   expected by the MCPB format (manifest.json + server/ + daemon/) and produces
-  dist/wolvenkit-mcp.mcpb (a ZIP archive).
+  dist/wkmcp.mcpb (a ZIP archive).
 
   The .mcpb assumes a .NET 8+ runtime and `dotnet` on the PATH of the target
   machine (Windows). The Windows native binaries (kraken.dll, DirectXTexNet.dll,
@@ -25,11 +25,11 @@ $root = $PSScriptRoot
 $tfm = "net8.0"
 
 Write-Host "==> Build daemon ($Configuration)..."
-dotnet build (Join-Path $root "src\WolvenKitDaemon") -c $Configuration --nologo
+dotnet build (Join-Path $root "src\WkDaemon") -c $Configuration --nologo
 if ($LASTEXITCODE -ne 0) { throw "daemon build failed" }
 
 Write-Host "==> Build MCP server ($Configuration)..."
-dotnet build (Join-Path $root "src\WolvenKitMcp") -c $Configuration --nologo
+dotnet build (Join-Path $root "src\WkMcp") -c $Configuration --nologo
 if ($LASTEXITCODE -ne 0) { throw "MCP server build failed" }
 
 $stage = Join-Path $root "obj\mcpb-stage"
@@ -39,8 +39,8 @@ $daemonStage = Join-Path $stage "daemon"
 New-Item -ItemType Directory -Path $serverStage -Force | Out-Null
 New-Item -ItemType Directory -Path $daemonStage -Force | Out-Null
 
-$serverBin = Join-Path $root "src\WolvenKitMcp\bin\$Configuration\$tfm"
-$daemonBin = Join-Path $root "src\WolvenKitDaemon\bin\$Configuration\$tfm"
+$serverBin = Join-Path $root "src\WkMcp\bin\$Configuration\$tfm"
+$daemonBin = Join-Path $root "src\WkDaemon\bin\$Configuration\$tfm"
 
 Write-Host "==> Assembling the bundle..."
 Copy-Item (Join-Path $serverBin "*") $serverStage -Recurse -Force
@@ -62,7 +62,7 @@ if (Test-Path $liveSrc) {
 
 $dist = Join-Path $root $OutputDir
 New-Item -ItemType Directory -Path $dist -Force | Out-Null
-$mcpb = Join-Path $dist "wolvenkit-mcp.mcpb"
+$mcpb = Join-Path $dist "wkmcp.mcpb"
 if (Test-Path $mcpb) { Remove-Item $mcpb -Force }
 
 Write-Host "==> Compression -> $mcpb"

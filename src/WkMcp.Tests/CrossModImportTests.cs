@@ -1,7 +1,7 @@
-using WolvenKitMcp;
+using WkMcp;
 using Xunit;
 
-namespace WolvenKitMcp.Tests;
+namespace WkMcp.Tests;
 
 /// <summary>Resolution of cross-mod REDscript imports (analyze_dependencies).</summary>
 public class CrossModImportTests

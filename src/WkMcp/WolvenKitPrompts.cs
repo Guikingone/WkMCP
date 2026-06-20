@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>
 /// MCP prompts for WolvenKit — ready-to-use recipes a Claude agent can invoke to

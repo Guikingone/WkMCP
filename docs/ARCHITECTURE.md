@@ -1,9 +1,9 @@
-# Architecture — WolvenKit MCP
+# Architecture — WkMCP
 
 Document intended for a **future contributor**. It explains *why* the project
 is structured the way it is, *how* the pieces communicate, and *how* to add
 code to it without breaking the invariants. Paths are given relative to the
-repository root (`wolvenkit-mcp/`).
+repository root (`wkmcp/`).
 
 ---
 
@@ -14,18 +14,18 @@ WolvenKit's Cyberpunk 2077 modding capabilities to an LLM agent. It consists of
 **two processes**:
 
 ```
-Claude ─MCP/JSON-RPC (stdio)─▶ WolvenKitMcp ─IPC stdio JSON─▶ WolvenKitDaemon ─▶ WolvenKit libs + libkraken
+Claude ─MCP/JSON-RPC (stdio)─▶ WkMcp ─IPC stdio JSON─▶ WkDaemon ─▶ WolvenKit libs + libkraken
                                             └─fallback───────▶ cp77tools (subprocess) if daemon unavailable
 ```
 
-- **`src/WolvenKitMcp`** — the MCP host. It speaks MCP JSON-RPC to the client
+- **`src/WkMcp`** — the MCP host. It speaks MCP JSON-RPC to the client
   (Claude) over stdio (or opt-in HTTP/Streamable), exposes **123 tools** (63 base +
   25 workflow + 35 live), **8 prompts** and **4 resources**, and links *no*
   WolvenKit library. It drives the daemon over IPC.
-- **`src/WolvenKitDaemon`** — a persistent process that links the WolvenKit
+- **`src/WkDaemon`** — a persistent process that links the WolvenKit
   libraries (`WolvenKit.Modkit`, `WolvenKit.RED4.CR2W`, …) and `libkraken`/Oodle.
   It loads the heavy reference data **once** then processes requests in a loop.
-- **`src/WolvenKitMcp.Tests`** — the xUnit test suite (pure helpers: `Truncate`,
+- **`src/WkMcp.Tests`** — the xUnit test suite (pure helpers: `Truncate`,
   `MatchesGlob`, `BuildCpmodprojXml`, REDscript lint, archive histogram,
   REDmod validation, `.app` summary, doc safeguard, etc.).
 
@@ -42,8 +42,8 @@ assemblies *in the same process/assembly* as the MCP server would contaminate th
 latter with the copyleft. By isolating all GPL code in a **separate process**
 (the daemon) that the MCP server only talks to via **stdio IPC** (exchanging
 JSON text, no assembly link), the MCP server stays outside the scope of the
-copyleft. This is the project's central separation boundary: **`WolvenKitMcp`
-never references a WolvenKit assembly; only `WolvenKitDaemon` does.**
+copyleft. This is the project's central separation boundary: **`WkMcp`
+never references a WolvenKit assembly; only `WkDaemon` does.**
 
 ### 2.2 Performance: pay the cold-start only once
 
@@ -53,7 +53,7 @@ invocation*. By keeping the daemon alive, this cost is paid **once** at
 startup; subsequent requests only cost a few milliseconds of IPC +
 the real work.
 
-See `src/WolvenKitDaemon/Program.cs`: `HashService`, `TweakDBService`,
+See `src/WkDaemon/Program.cs`: `HashService`, `TweakDBService`,
 `LocKeyService`, `HookService` are **singletons** ("hot"), and an
 explicit warmup builds `ConsoleFunctions` at startup before signaling
 `{"ready":true}`.
@@ -64,7 +64,7 @@ explicit warmup builds `ConsoleFunctions` at startup before signaling
 
 ### 3.1 Message format (one JSON line per message)
 
-Reference: header of `src/WolvenKitDaemon/Program.cs`.
+Reference: header of `src/WkDaemon/Program.cs`.
 
 ```
 request  : {"id":N,"argv":["unbundle","/x.archive","--outpath","/out"]}
@@ -90,7 +90,7 @@ is reserved for MCP JSON-RPC, so **all logs go to stderr**
 
 The transport is **pipelined**: several requests can be in flight
 simultaneously, re-paired by `id`. On the MCP server side
-(`src/WolvenKitMcp/Cp77ToolsRunner.cs`):
+(`src/WkMcp/Cp77ToolsRunner.cs`):
 
 - `SendToDaemonAsync` assigns an incremental `id`, registers a
   `TaskCompletionSource` in the concurrent dictionary `_outstanding[id]`, then
@@ -131,7 +131,7 @@ On each request, the daemon `Drain()`s the buffer before execution, executes, th
 
 ## 4. The runner: warmup, LRU cache, metrics, fallback
 
-Everything lives in `src/WolvenKitMcp/Cp77ToolsRunner.cs`. A **single shared
+Everything lives in `src/WkMcp/Cp77ToolsRunner.cs`. A **single shared
 instance** (`Cp77ToolsRunner.Shared`) is injected via DI into all tools and
 reused by the resources — so **a single daemon** for the whole server.
 
@@ -159,7 +159,7 @@ pipe buffer would block the daemon), then launching the read loop.
 `.archive` (`_archiveCache`, key = absolute path). Invalidation is based on the
 file's **mtime** (`LastWriteTimeUtc`): if the mtime has changed, we rerun
 `archive --list` and replace the entry. The counters `_cacheHits` /
-`_cacheMisses` are exposed via the `wolvenkit_status` tool.
+`_cacheMisses` are exposed via the `wk_status` tool.
 `InvalidateArchiveCache` allows purging (the `clear_cache` tool).
 
 ### 4.3 Per-verb metrics
@@ -167,7 +167,7 @@ file's **mtime** (`LastWriteTimeUtc`): if the mtime has changed, we rerun
 `RunAsync` times each call and records it in `_metrics` (one
 `RunnerMetrics` per verb). `RunnerMetrics` keeps `Count`, `TotalMs`, and a
 **circular ring of the last 100 durations** from which **p50 / p95** are
-computed. Exposed via `wolvenkit_status` (key `metrics`), resettable via
+computed. Exposed via `wk_status` (key `metrics`), resettable via
 `clear_cache(scope=metrics|all)` → `ResetMetrics()`.
 
 ### 4.4 cp77tools fallback
@@ -179,9 +179,9 @@ If the daemon fails (exception other than cancellation), `RunAsync` kills it
 flat-out **missing**, the fallback becomes permanent (`_daemonDisabled = true`).
 
 Path resolution (all by environment variables, otherwise defaults):
-`WOLVENKIT_DAEMON` (daemon DLL, otherwise sibling project), `WOLVENKIT_CP77TOOLS`
+`WKMCP_DAEMON` (daemon DLL, otherwise sibling project), `WKMCP_CP77TOOLS`
 (cp77tools exe, otherwise `~/.dotnet/tools` then PATH), `DOTNET_ROOT` /
-`WOLVENKIT_DOTNET_ROOT`, `WOLVENKIT_CLI_TIMEOUT_SECONDS` (default 300 s).
+`WKMCP_DOTNET_ROOT`, `WKMCP_CLI_TIMEOUT_SECONDS` (default 300 s).
 
 ---
 
@@ -260,7 +260,7 @@ public static async Task<string> MyTool(
 - **Upfront validation**: check the existence of inputs and create the
   output directories *before* calling the daemon; return `Err` early.
 - **Write nothing to stdout** directly (reserved for JSON-RPC).
-- Add a test in `WolvenKitMcp.Tests` if the tool contains pure
+- Add a test in `WkMcp.Tests` if the tool contains pure
   logic (parsing, formatting, path construction).
 
 ---
@@ -268,7 +268,7 @@ public static async Task<string> MyTool(
 ## 7. Guide: adding a daemon verb
 
 Everything happens in the `Dispatch(...)` dispatcher of
-`src/WolvenKitDaemon/Program.cs`, which maps `argv[0]` (the verb) to a method.
+`src/WkDaemon/Program.cs`, which maps `argv[0]` (the verb) to a method.
 
 ### 7.1 Two families of services
 
@@ -345,7 +345,7 @@ Kraken codec. Do not remove these two initializations.
 
 ## 8. The REDscript parser and its anti-false-positive philosophy
 
-`src/WolvenKitMcp/RedscriptParser.cs` powers the `lint_script` tool. It is a
+`src/WkMcp/RedscriptParser.cs` powers the `lint_script` tool. It is a
 home-grown **tokenizer + recursive-descent parser** that validates the **syntax**
 of an isolated `.reds` file. **It is NOT a type-checker**: it does not resolve
 external types/methods (that would require the `scc` compiler and the entire
@@ -389,18 +389,18 @@ rule:
 ### 9.1 Build order (the daemon first)
 
 ```sh
-dotnet build src/WolvenKitDaemon   # also deploys the natives (libkraken/kraken.dll, DirectXTexNet)
-dotnet build src/WolvenKitMcp
+dotnet build src/WkDaemon   # also deploys the natives (libkraken/kraken.dll, DirectXTexNet)
+dotnet build src/WkMcp
 ```
 
 The daemon must be built **before** the MCP server, because the server resolves by
-default the daemon DLL in the sibling project (`WOLVENKIT_DAEMON` allows
+default the daemon DLL in the sibling project (`WKMCP_DAEMON` allows
 overriding it).
 
 ### 9.2 Tests
 
 ```sh
-dotnet test                        # the xUnit suite (src/WolvenKitMcp.Tests)
+dotnet test                        # the xUnit suite (src/WkMcp.Tests)
 python3 test-daemon.py             # daemon-only latency, per request
 python3 test-mcp-server.py         # end-to-end MCP server
 python  test-new-tools.py "<game>" # real-game validation: archive_stats / validate_redmod / inspect_app
@@ -417,12 +417,12 @@ TweakDB, etc.).
 
 ### 9.4 DLL lock pitfall (Windows) — kill the processes before rebuild
 
-As long as a `WolvenKitDaemon` (or an MCP server holding it open) is running, its
+As long as a `WkDaemon` (or an MCP server holding it open) is running, its
 DLLs are **locked** by Windows and `dotnet build` fails with a
 file-in-use error. **Before recompiling, kill the processes**:
 
 ```powershell
-Get-Process dotnet, WolvenKitDaemon, WolvenKitMcp -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process dotnet, WkDaemon, WkMcp -ErrorAction SilentlyContinue | Stop-Process -Force
 ```
 
 (Adapt the names according to the launch mode.) Also remember to close the
@@ -434,14 +434,14 @@ MCP client — Claude Desktop restarts the server, which keeps the daemon alive.
 
 | File | Role |
 |---------|------|
-| `src/WolvenKitMcp/Program.cs` | MCP host, stdio transport, DI, daemon warmup. |
-| `src/WolvenKitMcp/Cp77ToolsRunner.cs` | Daemon driver: pipelined IPC, LRU cache, p50/p95 metrics, cp77tools fallback. |
-| `src/WolvenKitMcp/WolvenKitTools.cs` | 63 base MCP tools + helpers (`Structured`, `Err`, `Truncate`, `MatchesGlob`, `Snapshot`/`ProducedIn`, `BuildCpmodprojXml`). |
-| `src/WolvenKitMcp/ModdingTools.cs` | 25 high-level workflow tools + framework knowledge base. |
-| `src/WolvenKitMcp/LiveTools.cs` | 35 `live_*` tools (running game, via CetBridge). |
-| `src/WolvenKitMcp/CetBridge.cs` | TCP/file bridge to the CETBridge Lua mod (live game). |
-| `src/WolvenKitMcp/RedscriptParser.cs` | REDscript tokenizer + recursive parser (`lint_script`). |
-| `src/WolvenKitMcp/WolvenKitResources.cs` | MCP resources (`[McpServerResourceType]`). |
-| `src/WolvenKitMcp/WolvenKitPrompts.cs` | MCP prompts (`[McpServerPromptType]`). |
-| `src/WolvenKitDaemon/Program.cs` | DI, verb dispatcher, IPC, shims (`CapturingLoggerService`, etc.). |
-| `src/WolvenKitMcp.Tests/` | xUnit tests of the pure helpers. |
+| `src/WkMcp/Program.cs` | MCP host, stdio transport, DI, daemon warmup. |
+| `src/WkMcp/Cp77ToolsRunner.cs` | Daemon driver: pipelined IPC, LRU cache, p50/p95 metrics, cp77tools fallback. |
+| `src/WkMcp/WolvenKitTools.cs` | 63 base MCP tools + helpers (`Structured`, `Err`, `Truncate`, `MatchesGlob`, `Snapshot`/`ProducedIn`, `BuildCpmodprojXml`). |
+| `src/WkMcp/ModdingTools.cs` | 25 high-level workflow tools + framework knowledge base. |
+| `src/WkMcp/LiveTools.cs` | 35 `live_*` tools (running game, via CetBridge). |
+| `src/WkMcp/CetBridge.cs` | TCP/file bridge to the CETBridge Lua mod (live game). |
+| `src/WkMcp/RedscriptParser.cs` | REDscript tokenizer + recursive parser (`lint_script`). |
+| `src/WkMcp/WolvenKitResources.cs` | MCP resources (`[McpServerResourceType]`). |
+| `src/WkMcp/WolvenKitPrompts.cs` | MCP prompts (`[McpServerPromptType]`). |
+| `src/WkDaemon/Program.cs` | DI, verb dispatcher, IPC, shims (`CapturingLoggerService`, etc.). |
+| `src/WkMcp.Tests/` | xUnit tests of the pure helpers. |

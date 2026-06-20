@@ -11,7 +11,7 @@
 
 ## Checklist
 
-- [ ] `dotnet test src/WolvenKitMcp.Tests -c Release` passes (including `ConsistencyTests`).
+- [ ] `dotnet test src/WkMcp.Tests -c Release` passes (including `ConsistencyTests`).
 - [ ] If a tool/prompt/resource was added or removed, `README.md` counts and tables
       are updated (the anti-drift contract in `CONTRIBUTING.md`).
 - [ ] `CHANGELOG.md` updated.

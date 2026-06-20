@@ -28,13 +28,13 @@ jobs:
       # The daemon must be compiled first: its build deploys the Windows native
       # binaries (kraken.dll, DirectXTexNet.dll, opus-tools).
       - name: Build daemon
-        run: dotnet build src/WolvenKitDaemon -c Release --nologo
+        run: dotnet build src/WkDaemon -c Release --nologo
 
       - name: Build MCP server
-        run: dotnet build src/WolvenKitMcp -c Release --nologo
+        run: dotnet build src/WkMcp -c Release --nologo
 
       - name: Unit tests (incl. ConsistencyTests)
-        run: dotnet test src/WolvenKitMcp.Tests -c Release --nologo --verbosity normal
+        run: dotnet test src/WkMcp.Tests -c Release --nologo --verbosity normal
 
       - name: Build .mcpb
         run: pwsh ./build-mcpb.ps1 -Configuration Release
@@ -44,7 +44,7 @@ jobs:
       - name: Validate the .mcpb bundle
         shell: pwsh
         run: |
-          $zip  = "dist/wolvenkit-mcp.mcpb"
+          $zip  = "dist/wkmcp.mcpb"
           $dest = "obj/mcpb-verify"
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           [System.IO.Compression.ZipFile]::ExtractToDirectory((Resolve-Path $zip), $dest)
@@ -53,7 +53,7 @@ jobs:
           if (-not $manifest.version) { throw "manifest.json: version field missing" }
           $required = @(
             $manifest.server.entry_point,
-            "daemon/WolvenKitDaemon.dll",
+            "daemon/WkDaemon.dll",
             "daemon/kraken.dll",
             "live-bridge/CETBridge/init.lua"
           )
@@ -67,17 +67,17 @@ jobs:
       - name: Checksum the bundle
         shell: pwsh
         run: |
-          $h = Get-FileHash dist/wolvenkit-mcp.mcpb -Algorithm SHA256
-          "$($h.Hash.ToLower())  wolvenkit-mcp.mcpb" |
-            Out-File -Encoding ascii dist/wolvenkit-mcp.mcpb.sha256
-          Get-Content dist/wolvenkit-mcp.mcpb.sha256
+          $h = Get-FileHash dist/wkmcp.mcpb -Algorithm SHA256
+          "$($h.Hash.ToLower())  wkmcp.mcpb" |
+            Out-File -Encoding ascii dist/wkmcp.mcpb.sha256
+          Get-Content dist/wkmcp.mcpb.sha256
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
-            dist/wolvenkit-mcp.mcpb
-            dist/wolvenkit-mcp.mcpb.sha256
+            dist/wkmcp.mcpb
+            dist/wkmcp.mcpb.sha256
           generate_release_notes: true
           draft: false
           prerelease: false

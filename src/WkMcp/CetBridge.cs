@@ -7,7 +7,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>Response to a request to the in-game bridge (CETBridge mod).</summary>
 /// <param name="Transport">"tcp" or "file" — through which channel the response was passed.</param>

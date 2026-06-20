@@ -1,6 +1,6 @@
 # Live in-game bridge (CETBridge)
 
-WolvenKit MCP's 88 "classic" tools are **offline**: they operate on
+WkMCP's 88 "classic" tools are **offline**: they operate on
 files and archives, with the game shut down. The **`live_*`** tools do the opposite: they drive
 a **running** Cyberpunk 2077 — executing Lua, reading/writing game state,
 spawning, teleportation, weather, the in-memory TweakDB, observing events.
@@ -15,7 +15,7 @@ mod**. The MCP server talks to a small Lua mod (**CETBridge**, loaded by Cyber E
 Tweaks) which runs the commands in the engine and returns the result.
 
 ```
-Claude ─MCP/JSON-RPC─▶ WolvenKitMcp ──TCP 127.0.0.1:27010──▶ CETBridge mod (Lua/CET) ─▶ game
+Claude ─MCP/JSON-RPC─▶ WkMcp ──TCP 127.0.0.1:27010──▶ CETBridge mod (Lua/CET) ─▶ game
                           (CetBridge.cs)  └─file fallback──▶  (command.json / response.json)
 ```
 

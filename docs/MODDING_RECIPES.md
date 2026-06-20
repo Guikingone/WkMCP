@@ -1,4 +1,4 @@
-# Modding recipes — WolvenKit MCP
+# Modding recipes — WkMCP
 
 Concrete, copy-paste-ready recipes for the most common Cyberpunk 2077 mod
 types. Each recipe chains **MCP tool calls** (with example
@@ -23,7 +23,7 @@ arguments) and ends with a **verification**.
   **Success is judged on `produced`/`ok`**, not on the content of the `log`.
 - Paths must be **absolute** (Windows: `C:\...`). In the examples, the game
   folder is written `<GAME>` (e.g. `C:\Program Files (x86)\Steam\steamapps\common\Cyberpunk 2077`).
-- Before any recipe, verify that the CLI is operational with **`wolvenkit_status`**.
+- Before any recipe, verify that the CLI is operational with **`wk_status`**.
 - Tools whose arguments carry default values (e.g. `pattern`,
   `verbose`) may be omitted.
 
@@ -311,7 +311,7 @@ navigate it first, then edit only the targeted entry.
 
 ## Appendix — useful cross-cutting calls
 
-- **`wolvenkit_status`**: to call first (CLI availability + cache stats).
+- **`wk_status`**: to call first (CLI availability + cache stats).
 - **`detect_conflicts`** (`gamePath` = `<GAME>`): spots two mods providing the same
   game file.
 - **`lint_mod`**: global lint of a mod folder.

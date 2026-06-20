@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>Result of a cp77tools invocation (daemon or subprocess).</summary>
 public sealed record CliResult(int ExitCode, string Stdout, string Stderr, bool TimedOut)
@@ -15,18 +15,19 @@ public sealed record CliResult(int ExitCode, string Stdout, string Stderr, bool 
 /// <summary>
 /// Runs WolvenKit commands for the MCP server.
 ///
-/// Fast path: a persistent <c>WolvenKitDaemon</c> is started once
+/// Fast path: a persistent <c>WkDaemon</c> is started once
 /// (HashService loaded just once ~6 s); subsequent requests are sent to it
 /// over stdio IPC and cost a few milliseconds.
 ///
 /// Fallback: if the daemon is unavailable, each call relaunches <c>cp77tools</c>
 /// as a subprocess (original behavior, ~6 s/call but functional).
 ///
-/// Environment variables (all optional):
-///   WOLVENKIT_DAEMON               path of WolvenKitDaemon.dll
-///   WOLVENKIT_CP77TOOLS            path of the cp77tools executable (fallback)
-///   DOTNET_ROOT / WOLVENKIT_DOTNET_ROOT   .NET runtime root
-///   WOLVENKIT_CLI_TIMEOUT_SECONDS  max delay of a command (default 300)
+/// Environment variables (all optional; the legacy WOLVENKIT_* names are still
+/// honored as a fallback so configs from before the WkMCP rename keep working):
+///   WKMCP_DAEMON                path of WkDaemon.dll
+///   WKMCP_CP77TOOLS             path of the cp77tools executable (fallback)
+///   DOTNET_ROOT / WKMCP_DOTNET_ROOT   .NET runtime root
+///   WKMCP_CLI_TIMEOUT_SECONDS   max delay of a command (default 300)
 /// </summary>
 public sealed class Cp77ToolsRunner : IDisposable
 {
@@ -77,7 +78,7 @@ public sealed class Cp77ToolsRunner : IDisposable
     // Per-verb inactivity ceilings: heavy verbs (uncook of a large archive,
     // build of a full project) legitimately exceed the default delay. The delay
     // is re-armed by the daemon's progress — it is an INACTIVITY timeout, not a
-    // total-duration one. The WOLVENKIT_CLI_TIMEOUT_SECONDS variable remains the floor.
+    // total-duration one. The WKMCP_CLI_TIMEOUT_SECONDS variable remains the floor.
     private static readonly Dictionary<string, int> LongVerbSeconds = new(StringComparer.OrdinalIgnoreCase)
     {
         ["uncook"] = 900,
@@ -136,14 +137,14 @@ public sealed class Cp77ToolsRunner : IDisposable
 
     /// <summary>Stats of the archive listing cache (hits / misses since server
     /// startup, plus the current size). Exposed via
-    /// <c>wolvenkit_status</c>.</summary>
+    /// <c>wk_status</c>.</summary>
     public (long hits, long misses, int entries) CacheStats
         => (Interlocked.Read(ref _cacheHits),
             Interlocked.Read(ref _cacheMisses),
             _archiveCache.Count);
 
     /// <summary>Snapshot of per-verb metrics (top by count). Exposed via
-    /// <c>wolvenkit_status</c> under the <c>metrics</c> key.</summary>
+    /// <c>wk_status</c> under the <c>metrics</c> key.</summary>
     public IReadOnlyList<(string verb, long calls, long totalMs, long p50, long p95)> MetricsSnapshot()
         => _metrics
             .Select(kv =>
@@ -166,7 +167,7 @@ public sealed class Cp77ToolsRunner : IDisposable
         // Belt-and-suspenders daemon cleanup: the daemon already exits when the
         // server closes its stdin (EOF), but on a graceful host shutdown this kills
         // the child process tree promptly instead of waiting on pipe teardown —
-        // avoiding a stray `dotnet WolvenKitDaemon.dll` lingering between sessions.
+        // avoiding a stray `dotnet WkDaemon.dll` lingering between sessions.
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
             try { Shared.Dispose(); } catch { /* shutting down anyway */ }
@@ -185,7 +186,7 @@ public sealed class Cp77ToolsRunner : IDisposable
             : dotnetExeName; // otherwise: from the PATH
 
         _timeout = TimeSpan.FromSeconds(
-            int.TryParse(Environment.GetEnvironmentVariable("WOLVENKIT_CLI_TIMEOUT_SECONDS"),
+            int.TryParse(EnvOrLegacy("WKMCP_CLI_TIMEOUT_SECONDS", "WOLVENKIT_CLI_TIMEOUT_SECONDS"),
                 out var s) && s > 0 ? s : 300);
     }
 
@@ -352,7 +353,7 @@ public sealed class Cp77ToolsRunner : IDisposable
             KillDaemon();
 
             if (!File.Exists(_daemonDll))
-                throw new FileNotFoundException("WolvenKitDaemon not found", _daemonDll);
+                throw new FileNotFoundException("WkDaemon not found", _daemonDll);
 
             var psi = new ProcessStartInfo
             {
@@ -436,7 +437,7 @@ public sealed class Cp77ToolsRunner : IDisposable
         });
     }
 
-    /// <summary>Purges the server's temporary folders (wolvenkit-mcp-*, wkmcp-*)
+    /// <summary>Purges the server's temporary folders (wkmcp-*, wkmcp-*)
     /// older than 24 h. The deterministic folders (read/write/inspect) are
     /// never cleaned up during a session; without this purge at startup, they
     /// accumulate indefinitely between sessions.</summary>
@@ -444,7 +445,7 @@ public sealed class Cp77ToolsRunner : IDisposable
     {
         var cutoff = DateTime.UtcNow - TimeSpan.FromHours(24);
         var temp = Path.GetTempPath();
-        foreach (var pattern in new[] { "wolvenkit-mcp-*", "wkmcp-*" })
+        foreach (var pattern in new[] { "wkmcp-*", "wkmcp-*" })
         {
             string[] roots;
             try { roots = Directory.GetDirectories(temp, pattern); }
@@ -607,7 +608,7 @@ public sealed class Cp77ToolsRunner : IDisposable
             return new CliResult(-1, "",
                 $"cp77tools not found: {_cp77tools}\n" +
                 "Install with: dotnet tool install -g WolvenKit.CLI " +
-                "(or set the WOLVENKIT_CP77TOOLS variable).", false);
+                "(or set the WKMCP_CP77TOOLS variable).", false);
         }
 
         var psi = new ProcessStartInfo
@@ -659,31 +660,39 @@ public sealed class Cp77ToolsRunner : IDisposable
 
     // ── Path resolution ────────────────────────────────────────────
 
-    /// <summary>Locates WolvenKitDaemon.dll (WOLVENKIT_DAEMON variable, otherwise sibling project).</summary>
+    /// <summary>Reads an env var by its current WKMCP_* name, falling back to the legacy
+    /// WOLVENKIT_* name (pre-rename) so existing user configs keep working.</summary>
+    internal static string? EnvOrLegacy(string current, string legacy)
+    {
+        var v = Environment.GetEnvironmentVariable(current);
+        return !string.IsNullOrWhiteSpace(v) ? v : Environment.GetEnvironmentVariable(legacy);
+    }
+
+    /// <summary>Locates WkDaemon.dll (WKMCP_DAEMON variable, otherwise sibling project).</summary>
     private static string ResolveDaemonDll()
     {
-        var explicitPath = Environment.GetEnvironmentVariable("WOLVENKIT_DAEMON");
+        var explicitPath = EnvOrLegacy("WKMCP_DAEMON", "WOLVENKIT_DAEMON");
         if (!string.IsNullOrWhiteSpace(explicitPath))
             return explicitPath;
 
-        // Default: sibling project wolvenkit-mcp/src/WolvenKitDaemon, same configuration.
+        // Default: sibling project wkmcp/src/WkDaemon, same configuration.
         try
         {
-            var net8 = new DirectoryInfo(AppContext.BaseDirectory);   // .../WolvenKitMcp/bin/<cfg>/net8.0
+            var net8 = new DirectoryInfo(AppContext.BaseDirectory);   // .../WkMcp/bin/<cfg>/net8.0
             var config = net8.Parent?.Name ?? "Debug";
             var src = net8.Parent?.Parent?.Parent?.Parent;            // .../src
             if (src is not null)
-                return Path.Combine(src.FullName, "WolvenKitDaemon", "bin", config, "net8.0",
-                    "WolvenKitDaemon.dll");
+                return Path.Combine(src.FullName, "WkDaemon", "bin", config, "net8.0",
+                    "WkDaemon.dll");
         }
         catch { /* fallback below */ }
 
-        return "WolvenKitDaemon.dll"; // not found → subprocess fallback
+        return "WkDaemon.dll"; // not found → subprocess fallback
     }
 
     private static string ResolveCp77Tools()
     {
-        var explicitPath = Environment.GetEnvironmentVariable("WOLVENKIT_CP77TOOLS");
+        var explicitPath = EnvOrLegacy("WKMCP_CP77TOOLS", "WOLVENKIT_CP77TOOLS");
         if (!string.IsNullOrWhiteSpace(explicitPath))
             return explicitPath;
 
@@ -714,7 +723,7 @@ public sealed class Cp77ToolsRunner : IDisposable
 
     private static string? ResolveDotnetRoot()
     {
-        var explicitRoot = Environment.GetEnvironmentVariable("WOLVENKIT_DOTNET_ROOT")
+        var explicitRoot = EnvOrLegacy("WKMCP_DOTNET_ROOT", "WOLVENKIT_DOTNET_ROOT")
                         ?? Environment.GetEnvironmentVariable("DOTNET_ROOT");
         if (!string.IsNullOrWhiteSpace(explicitRoot) && Directory.Exists(explicitRoot))
             return explicitRoot;

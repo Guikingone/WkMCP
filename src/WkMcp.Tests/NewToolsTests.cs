@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
-using WolvenKitMcp;
+using WkMcp;
 using Xunit;
 
-namespace WolvenKitMcp.Tests;
+namespace WkMcp.Tests;
 
 // Tests of the pure helpers of the three tools added during finalization:
 // archive_stats (HistogramByExtension), validate_redmod (ValidateRedmodInfo),

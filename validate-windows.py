@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Full Windows validation of the WolvenKit MCP server.
+Full Windows validation of the WkMCP server.
 
 Drives the MCP server (JSON-RPC 2.0 over stdio) and exercises the 21 tools and the
 3 resources on real assets of a Cyberpunk 2077 installation, then
@@ -13,8 +13,8 @@ warnings, errors, ... }); this script relies on it directly rather than guessing
 Usage:
     python validate-windows.py ["C:\\path\\to\\Cyberpunk 2077"]
 
-The game path can also be given via the WOLVENKIT_GAME variable.
-Prerequisites: `dotnet build src\\WolvenKitDaemon` and `dotnet build src\\WolvenKitMcp`.
+The game path can also be given via the WKMCP_GAME variable.
+Prerequisites: `dotnet build src\\WkDaemon` and `dotnet build src\\WkMcp`.
 """
 import json
 import os
@@ -31,12 +31,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SERVER_DLL = os.environ.get("WOLVENKIT_MCP_DLL") or os.path.join(
-    HERE, "src", "WolvenKitMcp", "bin", "Debug", "net8.0", "WolvenKitMcp.dll")
-DOTNET = os.environ.get("WOLVENKIT_DOTNET") or shutil.which("dotnet") or "dotnet"
+SERVER_DLL = os.environ.get("WKMCP_DLL") or os.path.join(
+    HERE, "src", "WkMcp", "bin", "Debug", "net8.0", "WkMcp.dll")
+DOTNET = os.environ.get("WKMCP_DOTNET") or shutil.which("dotnet") or "dotnet"
 
 GAME = (sys.argv[1] if len(sys.argv) > 1
-        else os.environ.get("WOLVENKIT_GAME", r"C:\Cyberpunk\Cyberpunk 2077")).rstrip("\\/")
+        else os.environ.get("WKMCP_GAME", r"C:\Cyberpunk\Cyberpunk 2077")).rstrip("\\/")
 CONTENT = os.path.join(GAME, "archive", "pc", "content")
 MODS = os.path.join(GAME, "archive", "pc", "mod")
 TWEAKDB = os.path.join(GAME, "r6", "cache", "tweakdb.bin")
@@ -210,14 +210,14 @@ def wd(name):
 def main():
     if not os.path.exists(SERVER_DLL):
         sys.exit(f"Server DLL not found: {SERVER_DLL}\n"
-                 "Build first: dotnet build src\\WolvenKitMcp")
+                 "Build first: dotnet build src\\WkMcp")
     if not os.path.isdir(GAME):
         sys.exit(f"Cyberpunk 2077 installation not found: {GAME}\n"
                  "Pass the path as an argument: python validate-windows.py \"<path>\"")
 
     shutil.rmtree(WORK, ignore_errors=True)
     os.makedirs(WORK, exist_ok=True)
-    print(f"=== WolvenKit MCP validation — game: {GAME} ===")
+    print(f"=== WkMCP validation — game: {GAME} ===")
     print(f"    server: {SERVER_DLL}")
     print(f"    work  : {WORK}")
 
@@ -253,11 +253,11 @@ def main():
 
 
 def run_all(srv):
-    # 1. wolvenkit_status -----------------------------------------------------
-    res, ms = srv.call("wolvenkit_status", {})
+    # 1. wk_status -----------------------------------------------------
+    res, ms = srv.call("wk_status", {})
     show(res)
     has_cache = isinstance(res.get("cache"), dict) and "hits" in res["cache"]
-    record("wolvenkit_status", "PASS" if (res["ok"] and has_cache) else "FAIL",
+    record("wk_status", "PASS" if (res["ok"] and has_cache) else "FAIL",
            f"{ms:.0f} ms (1st call = warm-up); cache={res.get('cache')}")
 
     # 2. compute_hash ---------------------------------------------------------
@@ -1073,8 +1073,8 @@ def run_all(srv):
     # 18m. clear_cache — on 'archives' then check that CacheStats are reset to zero.
     res, _ = srv.call("clear_cache", {"scope": "archives"})
     show(res)
-    # We check that wolvenkit_status returns entries=0 (the cache was drained).
-    status_res, _ = srv.call("wolvenkit_status", {})
+    # We check that wk_status returns entries=0 (the cache was drained).
+    status_res, _ = srv.call("wk_status", {})
     cache_after = status_res.get("cache", {})
     record("clear_cache (archives)",
            "PASS" if (res["ok"] and cache_after.get("entries") == 0) else "FAIL",
@@ -1086,7 +1086,7 @@ def run_all(srv):
     comp = os.path.join(oodle_dir, "input.kraken")
     deco = os.path.join(oodle_dir, "output.bin")
     with open(src, "wb") as f:
-        f.write(b"WolvenKit MCP oodle round-trip test block. " * 1500)
+        f.write(b"WkMCP oodle round-trip test block. " * 1500)
     res, _ = srv.call("oodle_compress", {"inputPath": src, "outputPath": comp})
     show(res)
     comp_ok = res["ok"] and os.path.isfile(comp) and os.path.getsize(comp) > 0
@@ -1487,19 +1487,19 @@ def run_all(srv):
         record("validate_appearance", "SKIP", "no .app found")
 
     # MCP resources -----------------------------------------------------------
-    ref = srv.resource("wolvenkit://reference")
+    ref = srv.resource("wkmcp://reference")
     record("reference resource", "PASS" if "cheat sheet" in ref else "FAIL",
            f"{len(ref)} characters")
 
     if os.path.isfile(ARCH_SMALL):
-        arc = srv.resource("wolvenkit://archive/" + ARCH_SMALL)
+        arc = srv.resource("wkmcp://archive/" + ARCH_SMALL)
         record("archive/{path} resource", "PASS" if ".streamingsector" in arc else "FAIL",
                f"archive listing ({len(arc)} characters)")
     else:
         record("archive/{path} resource", "SKIP", "test archive missing")
 
     if extracted:
-        cj = srv.resource("wolvenkit://cr2w-json/" + extracted)
+        cj = srv.resource("wkmcp://cr2w-json/" + extracted)
         good = cj.lstrip().startswith("{") or '"' in cj
         record("cr2w-json/{path} resource", "PASS" if good else "FAIL",
                f"CR2W rendered as JSON ({len(cj)} characters)")

@@ -23,13 +23,13 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DAEMON = os.path.join(HERE, "src", "WolvenKitDaemon", "bin", "Debug", "net8.0", "WolvenKitDaemon.dll")
-DOTNET = (os.environ.get("WOLVENKIT_DOTNET")
+DAEMON = os.path.join(HERE, "src", "WkDaemon", "bin", "Debug", "net8.0", "WkDaemon.dll")
+DOTNET = (os.environ.get("WKMCP_DOTNET")
           or shutil.which("dotnet")
           or "/opt/homebrew/opt/dotnet@8/libexec/dotnet")
 
 if not os.path.exists(DAEMON):
-    sys.exit(f"Daemon not found: {DAEMON}\nBuild: dotnet build src/WolvenKitDaemon")
+    sys.exit(f"Daemon not found: {DAEMON}\nBuild: dotnet build src/WkDaemon")
 
 # Fixture to exercise the pack verb. tempfile.gettempdir() is cross-platform:
 # /tmp on Unix, %TEMP% on Windows.

@@ -1,4 +1,4 @@
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>
 /// Pure path-containment helpers shared by the destructive file tools. Kept in

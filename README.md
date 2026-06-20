@@ -1,4 +1,4 @@
-# WolvenKit MCP — an MCP server for Cyberpunk 2077 modding
+# WkMCP — an MCP server for Cyberpunk 2077 modding
 
 An **MCP (Model Context Protocol)** server that exposes WolvenKit's modding CLI
 (`cp77tools`) as **128 tools** an agent (Claude) can call — so you steer Cyberpunk
@@ -6,7 +6,7 @@ An **MCP (Model Context Protocol)** server that exposes WolvenKit's modding CLI
 query and patch the TweakDB, create/pack/install mods, export meshes and textures,
 lint REDscript, diagnose a broken install, and even drive a **running** game live.
 
-**Status: stable v1.0.0 · Windows.** Built on the official `ModelContextProtocol`
+**Status: stable v2.0.0 · Windows.** Built on the official `ModelContextProtocol`
 SDK 1.4.0 and [WolvenKit](https://github.com/WolvenKit/WolvenKit) 8.18.0; validated end-to-end on Windows 11 with a real
 Cyberpunk 2077 install.
 
@@ -25,23 +25,23 @@ Cyberpunk 2077 install.
 1. **Prerequisites.** Windows 10/11, the **.NET 8 SDK** (<https://dotnet.microsoft.com/download>), the **WolvenKit CLI** (`dotnet tool install -g WolvenKit.CLI`), and Cyberpunk 2077 installed (its root folder is written `<GAME>` below).
 2. **Build** — the daemon first (its build deploys `kraken.dll` and `DirectXTexNet.dll`), then the server:
    ```powershell
-   dotnet build src\WolvenKitDaemon
-   dotnet build src\WolvenKitMcp
+   dotnet build src\WkDaemon
+   dotnet build src\WkMcp
    ```
-   The server is at `src\WolvenKitMcp\bin\Debug\net8.0\WolvenKitMcp.dll`.
+   The server is at `src\WkMcp\bin\Debug\net8.0\WkMcp.dll`.
 3. **Wire it to Claude Desktop** — edit `%APPDATA%\Claude\claude_desktop_config.json`:
    ```json
    {
      "mcpServers": {
        "wolvenkit": {
          "command": "dotnet",
-         "args": ["C:\\path\\to\\wolvenkit-mcp\\src\\WolvenKitMcp\\bin\\Debug\\net8.0\\WolvenKitMcp.dll"]
+         "args": ["C:\\path\\to\\wkmcp\\src\\WkMcp\\bin\\Debug\\net8.0\\WkMcp.dll"]
        }
      }
    }
    ```
-   Restart Claude Desktop. (Claude Code: `claude mcp add wolvenkit -s user -- dotnet "C:\path\to\...\WolvenKitMcp.dll"`.)
-4. **Verify.** Ask Claude to call **`wolvenkit_status`** — it returns the CLI version and the cache/metrics stats, confirming the server is live.
+   Restart Claude Desktop. (Claude Code: `claude mcp add wolvenkit -s user -- dotnet "C:\path\to\...\WkMcp.dll"`.)
+4. **Verify.** Ask Claude to call **`wk_status`** — it returns the CLI version and the cache/metrics stats, confirming the server is live.
 5. **Call a tool.** Try `find_in_archives` with `archivesFolder = <GAME>\archive\pc\content` and `pattern = *player*.ent`. Every tool returns the same structured shape:
    ```json
    { "ok": true, "status": "success", "summary": "…", "produced": [],
@@ -50,7 +50,7 @@ Cyberpunk 2077 install.
    Judge success on `produced` (files actually created) and `ok`, not the log text. See [docs/TOOLS.md](docs/TOOLS.md) for every tool's parameters, and [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for the full walkthrough.
 
 > Prefer a one-click install? Once a release is published, download
-> `wolvenkit-mcp.mcpb` from the [latest release](https://github.com/Guikingone/WolvenkitMCP/releases)
+> `wkmcp.mcpb` from the [latest release](https://github.com/Guikingone/WkMCP/releases)
 > and add it to Claude Desktop as a Desktop Extension (Developer Mode) — see [Installation](#installation-windows).
 
 ## Installation (Windows)
@@ -61,8 +61,8 @@ The Quickstart above is the standard path. In detail:
 2. Install the WolvenKit CLI: `dotnet tool install -g WolvenKit.CLI` (puts `cp77tools` in `~\.dotnet\tools\`).
 3. Build the **daemon then the server** — the daemon build automatically deploys the Windows native binaries (`kraken.dll` for Oodle, `DirectXTexNet.dll` for textures):
    ```powershell
-   dotnet build src\WolvenKitDaemon
-   dotnet build src\WolvenKitMcp
+   dotnet build src\WkDaemon
+   dotnet build src\WkMcp
    ```
 4. Wire it to a client (see [Wire up to a client](#wire-up-to-a-client)), or install the **Desktop Extension** bundle (`.mcpb`, built by `build-mcpb.ps1` and attached to each GitHub Release) for one-click setup in Claude Desktop.
 
@@ -77,7 +77,7 @@ No `DOTNET_ROOT` is needed on Windows. On Windows, `cp77tools` also handles text
   "mcpServers": {
     "wolvenkit": {
       "command": "dotnet",
-      "args": ["C:\\path\\to\\wolvenkit-mcp\\src\\WolvenKitMcp\\bin\\Debug\\net8.0\\WolvenKitMcp.dll"]
+      "args": ["C:\\path\\to\\wkmcp\\src\\WkMcp\\bin\\Debug\\net8.0\\WkMcp.dll"]
     }
   }
 }
@@ -88,7 +88,7 @@ Restart Claude Desktop after editing.
 **Claude Code:**
 
 ```powershell
-claude mcp add wolvenkit -s user -- dotnet "C:\path\to\wolvenkit-mcp\src\WolvenKitMcp\bin\Debug\net8.0\WolvenKitMcp.dll"
+claude mcp add wolvenkit -s user -- dotnet "C:\path\to\wkmcp\src\WkMcp\bin\Debug\net8.0\WkMcp.dll"
 ```
 
 Optional environment variables go in the `"env"` block (Desktop) or via `-e VAR=value` (`claude mcp add`) — see [Configuration](#configuration-environment-variables).
@@ -104,7 +104,7 @@ The server exposes **128 tools** (92 offline + 36 `live_*`), **8 prompts** and *
 
 **Tools by category** (full parameter reference: [docs/TOOLS.md](docs/TOOLS.md)):
 
-- *Diagnostics* — `wolvenkit_status`, `clear_cache`, `compute_hash`, `resolve_hash`, `tweakdb_resolve`, `tweakdb_query`.
+- *Diagnostics* — `wk_status`, `clear_cache`, `compute_hash`, `resolve_hash`, `tweakdb_resolve`, `tweakdb_query`.
 - *Archives* — `archive_info`, `archive_stats`, `find_in_archives`, `diff_archives`, `extract_files`, `uncook`.
 - *Conversion / export* — `cr2w_to_json`, `json_to_cr2w`, `export_files`, `export_animation`, `export_morphtarget`, `export_mlmask`, `export_entity`, `export_materials`.
 - *Read / write game files* — `read_game_file`, `write_game_file`, `inspect_mesh`, `inspect_texture`, `inspect_app`.
@@ -141,17 +141,17 @@ Readable data addressed by URI that the client can consult or attach to context.
 
 | URI | Type | Content |
 |---|---|---|
-| `wolvenkit://reference` | direct | Cheat sheet: commands, REDengine formats, modding workflow |
-| `wolvenkit://archive/{+path}` | template | Listing of the `.archive` content at the given path |
-| `wolvenkit://cr2w-json/{+path}` | template | REDengine CR2W file rendered as JSON |
-| `wolvenkit://mods/{+gamePath}` | template | Inventory of installed mods (`.archive` archives + REDmod) |
+| `wkmcp://reference` | direct | Cheat sheet: commands, REDengine formats, modding workflow |
+| `wkmcp://archive/{+path}` | template | Listing of the `.archive` content at the given path |
+| `wkmcp://cr2w-json/{+path}` | template | REDengine CR2W file rendered as JSON |
+| `wkmcp://mods/{+gamePath}` | template | Inventory of installed mods (`.archive` archives + REDmod) |
 
 ## Architecture
 
 C# / .NET 8 MCP server. Tool calls go through a **persistent WolvenKit daemon**: the expensive load of the hash database (~6 s) is paid once at daemon startup; subsequent calls cost only a few milliseconds. If the daemon is unavailable, each call falls back to a `cp77tools` subprocess (functional, but ~6 s/call).
 
 ```
-Claude ─MCP/JSON-RPC─▶ WolvenKitMcp ─IPC stdio─▶ WolvenKitDaemon ─▶ WolvenKit libs + libkraken
+Claude ─MCP/JSON-RPC─▶ WkMcp ─IPC stdio─▶ WkDaemon ─▶ WolvenKit libs + libkraken
                                     └─fallback─▶ cp77tools (subprocess) if daemon unavailable
 ```
 
@@ -163,18 +163,18 @@ All optional. Set in the `"env"` block of the Claude Desktop config, or via `-e 
 
 | Variable | Default | Role |
 |---|---|---|
-| `WOLVENKIT_DAEMON` | sibling project | Path to `WolvenKitDaemon.dll` (the fast path) |
-| `WOLVENKIT_CP77TOOLS` | `~\.dotnet\tools\cp77tools.exe` | Path to cp77tools (subprocess fallback) |
-| `WOLVENKIT_DOTNET_ROOT` / `DOTNET_ROOT` | auto-detected | .NET runtime root — rarely needs setting on Windows |
-| `WOLVENKIT_CLI_TIMEOUT_SECONDS` | `300` | Maximum delay for a command (seconds) |
-| `WOLVENKIT_MCP_TRANSPORT` | `stdio` | `stdio` (default) or `http` (Streamable HTTP — see [docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)) |
+| `WKMCP_DAEMON` | sibling project | Path to `WkDaemon.dll` (the fast path) |
+| `WKMCP_CP77TOOLS` | `~\.dotnet\tools\cp77tools.exe` | Path to cp77tools (subprocess fallback) |
+| `WKMCP_DOTNET_ROOT` / `DOTNET_ROOT` | auto-detected | .NET runtime root — rarely needs setting on Windows |
+| `WKMCP_CLI_TIMEOUT_SECONDS` | `300` | Maximum delay for a command (seconds) |
+| `WKMCP_TRANSPORT` | `stdio` | `stdio` (default) or `http` (Streamable HTTP — see [docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)) |
 
 ## License
 
 This project is **dual-licensed by component** (see [`NOTICE`](NOTICE)):
 
-- **Server source** (`src/WolvenKitMcp`, the `.py` test helpers, `build-mcpb.ps1`) — **MIT**, © 2026 Guillaume Loulier ([`LICENCE`](LICENCE)).
-- **Daemon** (`src/WolvenKitDaemon`) — **GPL-3.0**, because it links [WolvenKit](https://github.com/WolvenKit/WolvenKit)'s GPL-3.0 libraries (© WolvenKit contributors; [`src/WolvenKitDaemon/LICENSE`](src/WolvenKitDaemon/LICENSE)). It runs as a separate process, so the MIT server stays out of the copyleft.
+- **Server source** (`src/WkMcp`, the `.py` test helpers, `build-mcpb.ps1`) — **MIT**, © 2026 Guillaume Loulier ([`LICENCE`](LICENCE)).
+- **Daemon** (`src/WkDaemon`) — **GPL-3.0**, because it links [WolvenKit](https://github.com/WolvenKit/WolvenKit)'s GPL-3.0 libraries (© WolvenKit contributors; [`src/WkDaemon/LICENSE`](src/WkDaemon/LICENSE)). It runs as a separate process, so the MIT server stays out of the copyleft.
 - **CETBridge** (`live-bridge/CETBridge`) — **MIT**, © y4rd13 ([`live-bridge/CETBridge/LICENSE.upstream`](live-bridge/CETBridge/LICENSE.upstream)).
 - **The shipped `.mcpb` bundle** includes the daemon, so that portion is GPL-3.0 (matches the `license` field in `manifest.json`).
 
@@ -206,20 +206,20 @@ WolvenKit is licensed GPL-3.0; that license is itself the permission to build on
 
 ## Troubleshooting
 
-- **`wolvenkit_status` returns `ok: false`** — `cp77tools` not found: `dotnet tool install -g WolvenKit.CLI`, or set `WOLVENKIT_CP77TOOLS`.
+- **`wk_status` returns `ok: false`** — `cp77tools` not found: `dotnet tool install -g WolvenKit.CLI`, or set `WKMCP_CP77TOOLS`.
 - **First call is slow (~7 s)** — daemon warmup; one-time, then instant.
-- **Every call is slow (~6 s/call)** — the daemon isn't being used; build it or set `WOLVENKIT_DAEMON`.
+- **Every call is slow (~6 s/call)** — the daemon isn't being used; build it or set `WKMCP_DAEMON`.
 - **A tool "fails" but files were produced** — judge on `produced` and `ok`, not the `log`; rerun with `verbose: true`.
 - **A mod won't load in-game** — run `mod_doctor` (frameworks), `lint_mod` (extensions), `detect_conflicts` (overrides); confirm the archive is in `archive\pc\mod`.
-- **`dotnet build` fails with "file in use"** — the daemon DLLs are locked by a running server; stop the MCP client / kill `WolvenKitDaemon` and `dotnet`, then rebuild.
+- **`dotnet build` fails with "file in use"** — the daemon DLLs are locked by a running server; stop the MCP client / kill `WkDaemon` and `dotnet`, then rebuild.
 
 More in [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (§10 troubleshooting) and [docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md).
 
 ## Structure
 
 ```
-wolvenkit-mcp/
-├── src/WolvenKitMcp/         C# / .NET 8 MCP server (128 tools, 8 prompts, 4 resources)
+wkmcp/
+├── src/WkMcp/         C# / .NET 8 MCP server (128 tools, 8 prompts, 4 resources)
 │   ├── Program.cs            Host + stdio/http transport + DI + daemon warmup
 │   ├── Cp77ToolsRunner.cs    Drives the daemon (pipelined IPC, LRU cache, cp77tools fallback)
 │   ├── WolvenKitTools.cs     63 base MCP tools + helpers
@@ -229,15 +229,15 @@ wolvenkit-mcp/
 │   ├── RedscriptParser.cs    REDscript grammar parser (lint_script)
 │   ├── WolvenKitPrompts.cs   8 MCP prompts (recipes)
 │   └── WolvenKitResources.cs 4 MCP resources (reference generated by reflection)
-├── src/WolvenKitDaemon/      Persistent daemon — links the WolvenKit GPL-3.0 libraries
-├── src/WolvenKitMcp.Tests/   xUnit tests (incl. ConsistencyTests anti-drift guard)
+├── src/WkDaemon/      Persistent daemon — links the WolvenKit GPL-3.0 libraries
+├── src/WkMcp.Tests/   xUnit tests (incl. ConsistencyTests anti-drift guard)
 ├── live-bridge/CETBridge/    Lua mod driven by the live_* tools (MIT, upstream)
 ├── native/                   macOS-only libkraken.dylib arm64 rebuild (experimental)
 ├── docs/                     USER_GUIDE · TOOLS · MODDING_RECIPES · LIVE_BRIDGE · HTTP_TRANSPORT · ARCHITECTURE
 ├── dev/                      Internal QA logs (e.g. WINDOWS-VALIDATION.md) — not user docs
 ├── .github/                  CONTRIBUTING · SECURITY · CODE_OF_CONDUCT · issue/PR templates · workflows
 ├── manifest.json             Desktop Extension manifest (.mcpb)
-├── build-mcpb.ps1            Builds dist/wolvenkit-mcp.mcpb (one-click install)
+├── build-mcpb.ps1            Builds dist/wkmcp.mcpb (one-click install)
 ├── LICENCE                   MIT (server source)
 ├── NOTICE                    Per-component license split (MIT server + GPL-3.0 daemon)
 └── README.md

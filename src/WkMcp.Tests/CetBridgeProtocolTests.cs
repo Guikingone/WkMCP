@@ -1,9 +1,9 @@
 using System.Text;
 using System.Text.Json;
-using WolvenKitMcp;
+using WkMcp;
 using Xunit;
 
-namespace WolvenKitMcp.Tests;
+namespace WkMcp.Tests;
 
 /// <summary>Splitting of the "\r\n"-delimited JSON frames of the live bridge TCP transport.</summary>
 public class FrameSplitterTests

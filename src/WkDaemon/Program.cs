@@ -18,7 +18,7 @@ using WolvenKit.RED4.CR2W;
 using WolvenKit.RED4.CR2W.Archive;
 
 // ════════════════════════════════════════════════════════════════════════
-// WolvenKitDaemon — persistent host for the WolvenKit libraries.
+// WkDaemon — persistent host for the WolvenKit libraries.
 //
 // Loads HashService ONCE (~6 s at startup), then handles successive
 // requests over stdin/stdout without paying that cold-start.
@@ -290,7 +290,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
     if (verb is "--version" or "version")
     {
         var v = typeof(ConsoleFunctions).Assembly.GetName().Version?.ToString() ?? "unknown";
-        logger.Info($"WolvenKitDaemon — WolvenKit.Modkit {v}");
+        logger.Info($"WkDaemon — WolvenKit.Modkit {v}");
         return 0;
     }
 

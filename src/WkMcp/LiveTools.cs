@@ -5,7 +5,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>
 /// "Live" MCP tools: drive a <b>running</b> Cyberpunk 2077 game via the

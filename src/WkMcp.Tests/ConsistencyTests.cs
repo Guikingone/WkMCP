@@ -1,10 +1,10 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using ModelContextProtocol.Server;
-using WolvenKitMcp;
+using WkMcp;
 using Xunit;
 
-namespace WolvenKitMcp.Tests;
+namespace WkMcp.Tests;
 
 /// <summary>
 /// Documentation anti-regression: the prompts and the reference resource are
@@ -72,7 +72,7 @@ public class ConsistencyTests
 
     [Fact]
     public void The_reference_only_cites_existing_tools()
-        => AssertCitationsExist("wolvenkit://reference", WolvenKitResources.BuildReference());
+        => AssertCitationsExist("wkmcp://reference", WolvenKitResources.BuildReference());
 
     [Fact]
     public void The_reference_announces_the_correct_total_tools()
@@ -98,7 +98,7 @@ public class ConsistencyTests
     [Fact]
     public void Every_tool_declares_its_annotations_explicitly()
     {
-        var srcDir = Path.Combine(TestsDir(), "..", "WolvenKitMcp");
+        var srcDir = Path.Combine(TestsDir(), "..", "WkMcp");
         var missing = new List<string>();
         foreach (var file in new[] { "WolvenKitTools.cs", "ModdingTools.cs", "LiveTools.cs" })
             foreach (var line in File.ReadLines(Path.Combine(srcDir, file)))
@@ -133,7 +133,7 @@ public class ConsistencyTests
         Assert.False(attrs["uninstall_mod"].ReadOnly);
         Assert.True(attrs["live_kill_nearby"].Destructive);
         Assert.False(attrs["launch_game"].Idempotent);
-        Assert.True(attrs["wolvenkit_status"].ReadOnly);
+        Assert.True(attrs["wk_status"].ReadOnly);
     }
 
     // ── Code → README safeguard ───────────────────────────────────────────

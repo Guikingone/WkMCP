@@ -1,7 +1,7 @@
-using WolvenKitMcp;
+using WkMcp;
 using Xunit;
 
-namespace WolvenKitMcp.Tests;
+namespace WkMcp.Tests;
 
 /// <summary>
 /// Guards the path-containment helpers behind the destructive file tools

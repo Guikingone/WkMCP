@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 using ModelContextProtocol.Server;
 using YamlDotNet.Serialization;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>
 /// Higher-level MCP tools to simplify the creation, evolution and maintenance of
@@ -876,7 +876,7 @@ public static class ModdingTools
             author = author ?? "",
             version = string.IsNullOrWhiteSpace(version) ? "1.0.0" : version,
             dependencies = deps,
-            createdBy = "wolvenkit-mcp scaffold_mod",
+            createdBy = "wkmcp scaffold_mod",
         }, JsonOpts));
 
         return JsonSerializer.Serialize(new
@@ -1700,7 +1700,7 @@ public static class ModdingTools
     private static async Task<string?> ConvertCr2wToJsonText(
         Cp77ToolsRunner runner, string cr2wFile, CancellationToken ct)
     {
-        var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-conv", Guid.NewGuid().ToString("N"));
+        var tmp = Path.Combine(Path.GetTempPath(), "wkmcp-conv", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
         try
         {
@@ -2336,7 +2336,7 @@ public static class ModdingTools
             catch (JsonException ex) { return Err($"add_appearance: meshSwapsJson is not a valid JSON object: {ex.Message}"); }
         }
 
-        var dir = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-addapp", Guid.NewGuid().ToString("N"));
+        var dir = Path.Combine(Path.GetTempPath(), "wkmcp-addapp", Guid.NewGuid().ToString("N"));
         var jsonDir = Path.Combine(dir, "json");
         var outDir = Path.Combine(dir, "out");
         Directory.CreateDirectory(jsonDir);
@@ -2697,7 +2697,7 @@ public static class ModdingTools
     private static async Task<string?> ExtractAsJson(
         Cp77ToolsRunner runner, string archive, string internalPath, CancellationToken ct)
     {
-        var work = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-diff", Guid.NewGuid().ToString("N"));
+        var work = Path.Combine(Path.GetTempPath(), "wkmcp-diff", Guid.NewGuid().ToString("N"));
         var rawDir = Path.Combine(work, "raw");
         var jsonDir = Path.Combine(work, "json");
         Directory.CreateDirectory(rawDir); Directory.CreateDirectory(jsonDir);

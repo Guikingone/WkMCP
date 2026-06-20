@@ -1,4 +1,4 @@
-WolvenKit MCP — NOTICE
+WkMCP — NOTICE
 =======================
 
 This project is a multi-component distribution with a different license per
@@ -11,14 +11,14 @@ Components
 ----------
 
 1. MCP server source — MIT License
-   Files: `src/WolvenKitMcp/`, the Python validation/test helpers
+   Files: `src/WkMcp/`, the Python validation/test helpers
    (`test-*.py`, `validate-windows.py`, `tools/annotate_tools.py`),
    `build-mcpb.ps1`, and `.github/workflows/*`.
    Copyright (c) 2026 Guillaume Loulier.
    See `./LICENCE` for the full MIT text.
 
 2. WolvenKit daemon — GPL-3.0
-   Files: `src/WolvenKitDaemon/`.
+   Files: `src/WkDaemon/`.
    The daemon links the WolvenKit libraries (`WolvenKit.Modkit`,
    `WolvenKit.Core`, `WolvenKit.Common` 8.18.0), which are GPL-3.0. Linking them
    makes the daemon a GPL-3.0 work. It runs as a separate process; the
@@ -26,7 +26,7 @@ Components
    not combined with the GPL code into a single work.
    Copyright (c) 2026 Guillaume Loulier; WolvenKit library contributors
    (https://github.com/WolvenKit/WolvenKit).
-   See `./src/WolvenKitDaemon/LICENSE` for the full GPL-3.0 text.
+   See `./src/WkDaemon/LICENSE` for the full GPL-3.0 text.
 
 3. CETBridge live-bridge Lua mod — MIT License
    Files: `live-bridge/CETBridge/` (taken as-is from

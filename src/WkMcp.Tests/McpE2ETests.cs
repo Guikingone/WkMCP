@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Xunit;
 
-namespace WolvenKitMcp.Tests;
+namespace WkMcp.Tests;
 
 /// <summary>
 /// End-to-end MCP smoke test, without game or cp77tools: launches the actually
@@ -19,12 +19,12 @@ public class McpE2ETests : IDisposable
 
     public McpE2ETests()
     {
-        // .../WolvenKitMcp.Tests/bin/<cfg>/net8.0 → .../WolvenKitMcp/bin/<cfg>/net8.0
+        // .../WkMcp.Tests/bin/<cfg>/net8.0 → .../WkMcp/bin/<cfg>/net8.0
         var baseDir = new DirectoryInfo(AppContext.BaseDirectory);
         var config = baseDir.Parent!.Name;
         var src = baseDir.Parent!.Parent!.Parent!.Parent!;
-        var serverDll = Path.Combine(src.FullName, "WolvenKitMcp", "bin", config, "net8.0", "WolvenKitMcp.dll");
-        Assert.True(File.Exists(serverDll), $"Server not compiled: {serverDll} (build WolvenKitMcp first)");
+        var serverDll = Path.Combine(src.FullName, "WkMcp", "bin", config, "net8.0", "WkMcp.dll");
+        Assert.True(File.Exists(serverDll), $"Server not compiled: {serverDll} (build WkMcp first)");
 
         var psi = new ProcessStartInfo
         {
@@ -36,9 +36,9 @@ public class McpE2ETests : IDisposable
             CreateNoWindow = true,
         };
         psi.ArgumentList.Add(serverDll);
-        psi.Environment["WOLVENKIT_MCP_TRANSPORT"] = "stdio";
+        psi.Environment["WKMCP_TRANSPORT"] = "stdio";
         // No daemon: the server must start and answer tools/list without it.
-        psi.Environment["WOLVENKIT_DAEMON"] = Path.Combine(Path.GetTempPath(), "inexistant-daemon.dll");
+        psi.Environment["WKMCP_DAEMON"] = Path.Combine(Path.GetTempPath(), "inexistant-daemon.dll");
         // No TCP port shared between tests/sessions.
         psi.Environment["CET_TRANSPORT"] = "file";
 
@@ -94,7 +94,7 @@ public class McpE2ETests : IDisposable
         }, expectedId: 1);
 
         var serverInfo = init.RootElement.GetProperty("result").GetProperty("serverInfo");
-        Assert.Equal("WolvenKitMcp", serverInfo.GetProperty("name").GetString());
+        Assert.Equal("WkMcp", serverInfo.GetProperty("name").GetString());
 
         await NotifyAsync(new { jsonrpc = "2.0", method = "notifications/initialized" });
 

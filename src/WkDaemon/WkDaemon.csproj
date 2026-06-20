@@ -41,7 +41,7 @@
        ship as contentFiles, not copied reliably from a transitive dependency:
          kraken.dll         P/Invoke Oodle, required at startup (Oodle.Load())
          DirectXTexNet.dll  texture conversion xbm <-> png (uncook / import)
-       They are therefore deployed explicitly next to WolvenKitDaemon.dll. -->
+       They are therefore deployed explicitly next to WkDaemon.dll. -->
   <Target Name="DeployNativeWindows" AfterTargets="Build"
           Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <Copy SourceFiles="$(PkgWolvenKit_Core)\content\kraken.dll"
