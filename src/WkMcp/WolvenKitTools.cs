@@ -2027,11 +2027,12 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "preview_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Dry-run a .tweak against a TweakDB: shows the BEFORE → AFTER of each scalar flat " +
-                 "override it would apply (the current TweakDB value vs the value in the file), without " +
-                 "writing anything — answers 'what will this tweak actually change?'. For a new record " +
-                 "($instanceOf/$base) the BEFORE is the value inherited from the base. v1 covers scalar " +
-                 "overrides; array mutations (!append/!remove/…) and inline records are listed as `skipped`.")]
+    [Description("Dry-run a .tweak against a TweakDB without writing anything — answers 'what will this " +
+                 "tweak actually change?'. For scalar flats it shows the BEFORE → AFTER (current TweakDB " +
+                 "value vs the file's value); for array flats it resolves the mutation operators " +
+                 "(!append/!prepend/!append-once/!append-from/!remove, or a full replacement) and reports " +
+                 "the `added`/`removed` elements. For a new record ($instanceOf/$base) the BEFORE is " +
+                 "inherited from the base. Inline-record values are listed under `skipped`.")]
     public static async Task<string> PreviewTweak(
         Cp77ToolsRunner runner,
         [Description("Path to the .tweak file.")] string tweakFile,
@@ -2046,46 +2047,94 @@ public static class WolvenKitTools
         try { root = new YamlDotNet.Serialization.DeserializerBuilder().Build().Deserialize<object?>(yaml); }
         catch (Exception ex) { return Err($"preview_tweak: invalid YAML: {ex.Message}"); }
 
-        var assignments = TweakValidation.EnumerateAssignments(root);
         var changes = new List<object>();
         var skipped = new List<string>();
         const int maxRecords = 64;
-        var valueCache = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         var capped = false;
 
-        async Task<Dictionary<string, string>> ValuesOf(string record, string? baseRecord)
+        // One describe per record, parsed into both scalar values and array elements.
+        var cache = new Dictionary<string, (Dictionary<string, string> Values, Dictionary<string, List<string>> Elements)>(StringComparer.Ordinal);
+
+        async Task<(Dictionary<string, string> Values, Dictionary<string, List<string>> Elements)> Describe(string record, string? baseRecord)
         {
-            if (valueCache.TryGetValue(record, out var c)) return c;
-            if (valueCache.Count >= maxRecords) { capped = true; return new(); }
+            if (cache.TryGetValue(record, out var c)) return c;
+            if (cache.Count >= maxRecords) { capped = true; return (new(), new()); }
             var dr = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, record }, ct);
-            var map = TweakValidation.ParseDescribedValues(dr.Stdout + dr.Stderr);
-            if (map.Count == 0 && !string.IsNullOrEmpty(baseRecord))
+            var text = dr.Stdout + dr.Stderr;
+            var values = TweakValidation.ParseDescribedValues(text);
+            var elements = TweakValidation.ParseDescribedArrayElements(text);
+            if (values.Count == 0 && elements.Count == 0 && !string.IsNullOrEmpty(baseRecord))
             {
                 var br = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, baseRecord }, ct);
-                map = TweakValidation.ParseDescribedValues(br.Stdout + br.Stderr);
+                var btext = br.Stdout + br.Stderr;
+                values = TweakValidation.ParseDescribedValues(btext);
+                elements = TweakValidation.ParseDescribedArrayElements(btext);
             }
-            valueCache[record] = map;
-            return map;
+            c = (values, elements);
+            cache[record] = c;
+            return c;
         }
+
+        static List<string> Cap(List<string> xs) =>
+            xs.Count <= 50 ? xs : xs.Take(50).Append($"… (+{xs.Count - 50} more)").ToList();
 
         try
         {
-            foreach (var a in assignments)
+            // Scalar overrides.
+            foreach (var a in TweakValidation.EnumerateAssignments(root))
             {
-                if (!TweakValidation.IsScalarValue(a.Value))
+                var vk = TweakValidation.ClassifyValue(a.Value);
+                if (vk == TweakValidation.Kind.Array) continue;   // handled by the array pass below
+                if (vk == TweakValidation.Kind.Struct)
                 {
-                    skipped.Add($"{a.Record}.{a.Field}: array/inline value — not previewed in v1.");
+                    skipped.Add($"{a.Record}.{a.Field}: inline record — not previewed.");
                     continue;
                 }
-                var before = await ValuesOf(a.Record, a.BaseRecord);
+                var before = (await Describe(a.Record, a.BaseRecord)).Values;
                 var has = before.TryGetValue(a.Field, out var beforeVal);
                 changes.Add(new
                 {
-                    record = a.Record,
-                    field = a.Field,
+                    record = a.Record, field = a.Field, kind = "scalar",
                     before = has ? beforeVal : null,
                     after = TweakValidation.RenderValue(a.Value),
                     isNew = !has,
+                });
+            }
+
+            // Array mutations / replacements.
+            foreach (var aa in TweakValidation.EnumerateArrayOps(yaml))
+            {
+                var current = (await Describe(aa.Record, aa.BaseRecord)).Elements
+                    .TryGetValue(aa.Field, out var cur) ? cur : new List<string>();
+                List<string> after;
+                if (aa.Ops.Count == 0)
+                {
+                    after = new List<string>(aa.Replacement); // full replacement (no operator tags)
+                }
+                else
+                {
+                    // Pre-resolve any *-from source arrays (operand = "Record.field").
+                    var sources = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+                    foreach (var op in aa.Ops)
+                    {
+                        if (op.Kind is not (TweakValidation.ArrayOpKind.AppendFrom or TweakValidation.ArrayOpKind.PrependFrom)
+                            || sources.ContainsKey(op.Operand)) continue;
+                        var dot = op.Operand.LastIndexOf('.');
+                        sources[op.Operand] = dot > 0
+                            && (await Describe(op.Operand[..dot], null)).Elements.TryGetValue(op.Operand[(dot + 1)..], out var se)
+                            ? se : new List<string>();
+                    }
+                    after = TweakValidation.ApplyArrayOps(current, aa.Ops,
+                        o => sources.TryGetValue(o, out var v) ? v : Array.Empty<string>());
+                }
+                var added = after.Where(x => !current.Contains(x)).Distinct().ToList();
+                var removed = current.Where(x => !after.Contains(x)).Distinct().ToList();
+                changes.Add(new
+                {
+                    record = aa.Record, field = aa.Field, kind = "array",
+                    before = Cap(current), after = Cap(after),
+                    added = Cap(added), removed = Cap(removed),
+                    isNew = current.Count == 0,
                 });
             }
         }
@@ -2096,7 +2145,7 @@ public static class WolvenKitTools
         {
             ok = true,
             status = "success",
-            summary = $"preview: {changes.Count} scalar change(s)" +
+            summary = $"preview: {changes.Count} change(s)" +
                       (skipped.Count > 0 ? $", {skipped.Count} skipped" : ""),
             produced = Array.Empty<string>(),
             changes,

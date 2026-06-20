@@ -194,3 +194,77 @@ public class TweakEnumerateAssignmentsTests
         Assert.Empty(TweakValidation.EnumerateAssignments(root));
     }
 }
+
+public class TweakArrayOpsTests
+{
+    [Fact]
+    public void Parses_elem_lines_and_skips_truncation_marker()
+    {
+        const string log = """
+        [ 0: Info ] -   flat  parts : CArray`1 = [..]
+        [ 0: Info ] -   elem  parts [0] = Items.A
+        [ 0: Info ] -   elem  parts [1] = Items.B
+        [ 0: Info ] -   elem  parts [..] = … (truncated)
+        """;
+        var map = TweakValidation.ParseDescribedArrayElements(log);
+        Assert.Equal(new[] { "Items.A", "Items.B" }, map["parts"]);
+    }
+
+    [Fact]
+    public void EnumerateArrayOps_reads_operator_tags()
+    {
+        const string yaml = """
+        Items.Foo:
+          itemPartList:
+            - !append Items.X
+            - !remove Items.Y
+            - !append-once Items.Z
+        """;
+        var a = Assert.Single(TweakValidation.EnumerateArrayOps(yaml));
+        Assert.Equal("Items.Foo", a.Record);
+        Assert.Equal("itemPartList", a.Field);
+        Assert.Empty(a.Replacement);
+        Assert.Equal(3, a.Ops.Count);
+        Assert.Equal(TweakValidation.ArrayOpKind.Append, a.Ops[0].Kind);
+        Assert.Equal("Items.X", a.Ops[0].Operand);
+        Assert.Equal(TweakValidation.ArrayOpKind.Remove, a.Ops[1].Kind);
+        Assert.Equal(TweakValidation.ArrayOpKind.AppendOnce, a.Ops[2].Kind);
+    }
+
+    [Fact]
+    public void EnumerateArrayOps_treats_an_untagged_sequence_as_replacement()
+    {
+        const string yaml = """
+        Items.Foo:
+          parts:
+            - Items.A
+            - Items.B
+        """;
+        var a = Assert.Single(TweakValidation.EnumerateArrayOps(yaml));
+        Assert.Empty(a.Ops);
+        Assert.Equal(new[] { "Items.A", "Items.B" }, a.Replacement);
+    }
+
+    [Fact]
+    public void ApplyArrayOps_append_and_remove()
+    {
+        var ops = new[]
+        {
+            new TweakValidation.ArrayOp(TweakValidation.ArrayOpKind.Append, "C"),
+            new TweakValidation.ArrayOp(TweakValidation.ArrayOpKind.Remove, "A"),
+        };
+        Assert.Equal(new[] { "B", "C" }, TweakValidation.ApplyArrayOps(new[] { "A", "B" }, ops));
+    }
+
+    [Fact]
+    public void ApplyArrayOps_once_is_a_noop_on_existing_and_from_dedupes()
+    {
+        var once = new[] { new TweakValidation.ArrayOp(TweakValidation.ArrayOpKind.AppendOnce, "A") };
+        Assert.Equal(new[] { "A", "B" }, TweakValidation.ApplyArrayOps(new[] { "A", "B" }, once));
+
+        var from = new[] { new TweakValidation.ArrayOp(TweakValidation.ArrayOpKind.AppendFrom, "Other.list") };
+        var result = TweakValidation.ApplyArrayOps(new[] { "A" }, from,
+            _ => new[] { "A", "C" });        // "A" already present → deduped
+        Assert.Equal(new[] { "A", "C" }, result);
+    }
+}

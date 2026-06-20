@@ -347,7 +347,7 @@ Validates a `.tweak` against a TweakDB on two axes: **existence** — each key m
 | `tweakdbBin` | string | yes | Reference `tweakdb.bin`. |
 
 ### `preview_tweak`
-Dry-run a `.tweak` against a TweakDB: shows the **BEFORE → AFTER** of each scalar flat override it would apply (current TweakDB value vs the value in the file), without writing anything — answers "what will this tweak actually change?". For a new record (`$instanceOf`/`$base`) the BEFORE is the value inherited from the base. v1 covers scalar overrides; array mutations (`!append`/`!remove`/…) and inline records are listed in `skipped`.
+Dry-run a `.tweak` against a TweakDB without writing anything — answers "what will this tweak actually change?". For **scalar** flats it shows the **BEFORE → AFTER** (current TweakDB value vs the file's value); for **array** flats it resolves the mutation operators (`!append`/`!prepend`/`!append-once`/`!append-from`/`!remove`, or a full replacement when there are no operator tags) and reports the `added`/`removed` elements. For a new record (`$instanceOf`/`$base`) the BEFORE is inherited from the base. Inline-record values are listed under `skipped`.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|

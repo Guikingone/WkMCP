@@ -1,5 +1,8 @@
 using System.Collections;
+using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
+using YamlDotNet.RepresentationModel;
 
 namespace WkMcp;
 
@@ -130,6 +133,143 @@ internal static class TweakValidation
 
     /// <summary>Renders a scalar tweak value as it appears in the file (the "after").</summary>
     internal static string RenderValue(object? node) => node?.ToString()?.Trim() ?? "(null)";
+
+    // ── array mutation operators (T2 full) ──────────────────────────────────
+
+    internal enum ArrayOpKind { Append, Prepend, AppendOnce, PrependOnce, Remove, AppendFrom, PrependFrom }
+    internal readonly record struct ArrayOp(ArrayOpKind Kind, string Operand);
+
+    /// <summary>An array flat the tweak mutates or replaces. <see cref="Ops"/> is non-empty
+    /// for a mutation; otherwise <see cref="Replacement"/> holds the literal new list.</summary>
+    internal readonly record struct ArrayAssignment(
+        string Record, string Field, IReadOnlyList<ArrayOp> Ops,
+        IReadOnlyList<string> Replacement, string? BaseRecord);
+
+    private static readonly Regex ElemLine =
+        new(@"\belem\s+(?<field>\S+)\s+\[(?<idx>\d+|\.\.)\]\s*=\s*(?<value>.*)$",
+            RegexOptions.Compiled | RegexOptions.Multiline);
+
+    /// <summary>Parses the `elem field [i] = value` lines of a describe run into a
+    /// field → current-elements map (the "before" side of an array preview).</summary>
+    internal static Dictionary<string, List<string>> ParseDescribedArrayElements(string? describeOutput)
+    {
+        var map = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        if (string.IsNullOrEmpty(describeOutput)) return map;
+        foreach (Match m in ElemLine.Matches(describeOutput))
+        {
+            if (m.Groups["idx"].Value == "..") continue; // truncation marker
+            var field = m.Groups["field"].Value;
+            if (!map.TryGetValue(field, out var list)) { list = new(); map[field] = list; }
+            list.Add(m.Groups["value"].Value.Trim());
+        }
+        return map;
+    }
+
+    private static bool TryOpKind(string tag, out ArrayOpKind kind)
+    {
+        kind = tag switch
+        {
+            "!append" => ArrayOpKind.Append,
+            "!prepend" => ArrayOpKind.Prepend,
+            "!append-once" => ArrayOpKind.AppendOnce,
+            "!prepend-once" => ArrayOpKind.PrependOnce,
+            "!remove" => ArrayOpKind.Remove,
+            "!append-from" => ArrayOpKind.AppendFrom,
+            "!prepend-from" => ArrayOpKind.PrependFrom,
+            _ => (ArrayOpKind)(-1),
+        };
+        return (int)kind >= 0;
+    }
+
+    private static string ItemOperand(YamlNode item) => item switch
+    {
+        YamlScalarNode s => s.Value ?? "",
+        YamlMappingNode => "(inline record)",
+        YamlSequenceNode => "(nested array)",
+        _ => item.ToString() ?? "",
+    };
+
+    /// <summary>Parses array-flat assignments from a .tweak, reading each sequence item's
+    /// YAML tag (`!append`, `!remove`, `!append-from`, …) via the representation model
+    /// (which, unlike <c>Deserialize&lt;object&gt;</c>, preserves tags). A sequence with no
+    /// op tags is a full replacement.</summary>
+    internal static List<ArrayAssignment> EnumerateArrayOps(string yamlText)
+    {
+        var result = new List<ArrayAssignment>();
+        var stream = new YamlStream();
+        try { stream.Load(new StringReader(yamlText)); }
+        catch { return result; }
+        if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode top)
+            return result;
+
+        foreach (var (k, v) in top.Children)
+        {
+            var recordId = (k as YamlScalarNode)?.Value?.Trim();
+            if (string.IsNullOrEmpty(recordId) || recordId.StartsWith("$") || recordId.StartsWith("#")) continue;
+            if (v is not YamlMappingNode body) continue;
+
+            string? baseRec = null;
+            foreach (var (fk, fv) in body.Children)
+            {
+                var field = (fk as YamlScalarNode)?.Value?.Trim();
+                if (string.IsNullOrEmpty(field)) continue;
+                if (field is "$base" or "$instanceOf") { baseRec = (fv as YamlScalarNode)?.Value?.Trim(); continue; }
+                if (field.StartsWith("$")) continue;
+                if (fv is not YamlSequenceNode seq) continue;
+
+                var ops = new List<ArrayOp>();
+                var replacement = new List<string>();
+                var anyTag = false;
+                foreach (var item in seq.Children)
+                {
+                    var tag = item.Tag.IsEmpty ? null : item.Tag.Value;
+                    if (tag is not null && tag.StartsWith("!") && TryOpKind(tag, out var kind))
+                    {
+                        anyTag = true;
+                        ops.Add(new ArrayOp(kind, ItemOperand(item)));
+                    }
+                    else
+                    {
+                        replacement.Add(ItemOperand(item));
+                    }
+                }
+                result.Add(new ArrayAssignment(recordId!, field!, ops,
+                    anyTag ? Array.Empty<string>() : replacement, baseRec));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Applies array mutation operators to the current element list (pure). Append/
+    /// prepend add; *-once dedupe; remove drops all matches; *-from pulls (deduped) from the
+    /// list returned by <paramref name="resolveFrom"/>.</summary>
+    internal static List<string> ApplyArrayOps(
+        IReadOnlyList<string> current, IReadOnlyList<ArrayOp> ops,
+        Func<string, IReadOnlyList<string>>? resolveFrom = null)
+    {
+        var list = new List<string>(current);
+        foreach (var op in ops)
+        {
+            switch (op.Kind)
+            {
+                case ArrayOpKind.Append: list.Add(op.Operand); break;
+                case ArrayOpKind.Prepend: list.Insert(0, op.Operand); break;
+                case ArrayOpKind.AppendOnce: if (!list.Contains(op.Operand)) list.Add(op.Operand); break;
+                case ArrayOpKind.PrependOnce: if (!list.Contains(op.Operand)) list.Insert(0, op.Operand); break;
+                case ArrayOpKind.Remove: list.RemoveAll(x => x == op.Operand); break;
+                case ArrayOpKind.AppendFrom:
+                    foreach (var e in resolveFrom?.Invoke(op.Operand) ?? Array.Empty<string>())
+                        if (!list.Contains(e)) list.Add(e);
+                    break;
+                case ArrayOpKind.PrependFrom:
+                    var src = (resolveFrom?.Invoke(op.Operand) ?? Array.Empty<string>())
+                        .Where(e => !list.Contains(e)).ToList();
+                    list.InsertRange(0, src);
+                    break;
+            }
+        }
+        return list;
+    }
 
     // ── compatibility ───────────────────────────────────────────────────────
 

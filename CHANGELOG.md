@@ -4,11 +4,13 @@ Dates are those of the development sessions.
 
 ## Unreleased — preview_tweak (dry-run a tweak, T2)
 
-New read-only tool **`preview_tweak`** that shows the **before → after** of each scalar
-flat a `.tweak` would override (current TweakDB value vs the file's value), without writing
-anything. For a new record (`$base`/`$type`/`$instanceOf`) the "before" is the value inherited
-from the base. v1 scope is scalar overrides; array mutations and inline records are reported as
-`skipped`. Reuses the `TweakValidation` core + `tweakdb-describe` (no daemon change).
+New read-only tool **`preview_tweak`** that shows what a `.tweak` would actually change, without
+writing anything. **Scalar** flats report before → after; **array** flats resolve the mutation
+operators (`!append`/`!prepend`/`!append-once`/`!append-from`/`!remove`, or a full replacement)
+and report the `added`/`removed` elements. For a new record (`$base`/`$type`/`$instanceOf`) the
+"before" is inherited from the base; inline records are `skipped`. The apply logic is a pure,
+unit-tested core (`TweakValidation`, representation-model tag parsing); the daemon's
+`tweakdb-describe` gains a small per-element emission so the diff can be computed array-aware.
 
 ## Unreleased — TweakXL validation, deeper (no new tools)
 
