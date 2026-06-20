@@ -115,7 +115,7 @@ The server exposes **157 tools** (121 offline + 36 `live_*`), **10 prompts** and
 - *Conversion / export* — `cr2w_to_json`, `json_to_cr2w`, `export_files`, `export_animation`, `export_morphtarget`, `export_mlmask`, `export_entity`, `export_materials`.
 - *Read / write game files* — `read_game_file`, `write_game_file`, `inspect_mesh`, `inspect_texture`, `inspect_app`.
 - *TweakDB* — `describe_tweak_record`, `clone_tweak_record` (faithful `$base` clone of an existing record + commented value inventory), `read_tweak`, `write_tweak`, `validate_tweak`, `preview_tweak`, `install_tweak`, `dump_records`, `generate_tweak_template`.
-- *REDscript* — `read_script`, `lint_script`, `generate_redscript_template`.
+- *REDscript* — `read_script`, `lint_script`, `script_api_index`, `type_check_scripts`, `generate_redscript_template`.
 - *Audio / compression* — `wwise_export`, `extract_audio`, `import_audio`, `loc_resolve`, `oodle_compress`, `oodle_decompress`.
 - *Localization* — `extract_localization`, `build_localization`.
 - *Mod creation / packing* — `pack_archive`, `import_raw`, `build_project`, `create_mod_project`, `generate_modproj`, `lint_mod`, `mod_summary`.
@@ -203,7 +203,11 @@ WolvenKit is licensed GPL-3.0; that license is itself the permission to build on
 ## Documentation
 
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — modder's guide: install, wire up to Claude, step-by-step workflows (read a file, edit a tweak, create/pack/install a mod, check dependencies, package).
+<<<<<<< HEAD
 - **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 157 tools + 10 prompts + 4 resources (parameters included).
+=======
+- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 130 tools + 8 prompts + 4 resources (parameters included).
+>>>>>>> ab93588 (REDscript: script_api_index — symbol lookup (R1, 129 -> 130 tools))
 - **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — copy-paste recipes by mod type (tweak, redscript, ArchiveXL, REDmod, localization, texture, analysis).
 - **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — the 35 `live_*` tools to drive a running game (CETBridge / Cyber Engine Tweaks). Optional, separate prerequisites.
 - **[docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)** — remote access over HTTP/Streamable (instead of stdio); secure by default.
@@ -230,7 +234,11 @@ More in [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (§10 troubleshooting) and [doc
 
 ```
 wkmcp/
+<<<<<<< HEAD
 ├── src/WkMcp/         C# / .NET 8 MCP server (157 tools, 10 prompts, 4 resources)
+=======
+├── src/WkMcp/         C# / .NET 8 MCP server (130 tools, 8 prompts, 4 resources)
+>>>>>>> ab93588 (REDscript: script_api_index — symbol lookup (R1, 129 -> 130 tools))
 │   ├── Program.cs            Host + stdio/http transport + DI + daemon warmup
 │   ├── Cp77ToolsRunner.cs    Drives the daemon (pipelined IPC, LRU cache, cp77tools fallback)
 │   ├── WolvenKitTools.cs     63 base MCP tools + helpers

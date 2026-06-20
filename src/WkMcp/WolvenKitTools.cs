@@ -2591,6 +2591,78 @@ public static class WolvenKitTools
         }, JsonOpts);
     }
 
+    [McpServerTool(Name = "script_api_index", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Indexes the REDscript symbols (classes, methods, fields, enums, free " +
+                 "functions) across a folder of .reds sources and looks one up by name — " +
+                 "returning the exact SIGNATURE and file:line you need to @wrapMethod / " +
+                 "@replaceMethod a game method, or to find which class declares a field. " +
+                 "Point it at a decompiled game-scripts dump, a mod's r6/scripts, or any " +
+                 ".reds tree. For an @wrapMethod hook the enclosing class is the annotation " +
+                 "target (e.g. @wrapMethod(PlayerPuppet)). Pure syntactic index — no scc, " +
+                 "no type resolution (the base-game API only exists in this index if you " +
+                 "point it at a decompiled dump).")]
+    public static async Task<string> ScriptApiIndex(
+        [Description("Folder containing .reds files (searched recursively).")] string scriptsFolder,
+        [Description("Name filter (case-insensitive substring). Empty = list all (capped).")] string query = "",
+        [Description("Kind filter: class | struct | enum | func | field | method (func with a class) | global (free func). Empty = any.")] string kind = "",
+        [Description("Enclosing/target class filter, e.g. PlayerPuppet. Empty = any.")] string ofClass = "",
+        [Description("Max results (default 100).")] int maxResults = 100,
+        CancellationToken ct = default)
+    {
+        if (!Directory.Exists(scriptsFolder))
+            return Err($"Scripts folder not found: {scriptsFolder}");
+
+        var symbols = new List<ScriptApi.ScriptSymbol>();
+        var warnings = new List<string>();
+        const int FileCap = 20_000;
+        int fileCount = 0;
+        try
+        {
+            foreach (var f in Directory.EnumerateFiles(scriptsFolder, "*.reds", SearchOption.AllDirectories))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (fileCount >= FileCap) { warnings.Add($"Stopped after {FileCap} files — narrow the folder."); break; }
+                fileCount++;
+                string text;
+                try { text = await File.ReadAllTextAsync(f, ct); }
+                catch (Exception ex) { warnings.Add($"skip {Path.GetFileName(f)}: {ex.Message}"); continue; }
+                symbols.AddRange(ScriptApi.SymbolsOf(Path.GetRelativePath(scriptsFolder, f), text));
+            }
+        }
+        catch (OperationCanceledException) { return Cancelled("script_api_index"); }
+
+        var matches = ScriptApi.Query(symbols, query, kind, ofClass, maxResults);
+        var byKind = symbols.GroupBy(s => s.Kind)
+                            .OrderBy(g => g.Key, StringComparer.Ordinal)
+                            .ToDictionary(g => g.Key, g => g.Count());
+
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            status = "success",
+            summary = $"Indexed {symbols.Count} symbol(s) across {fileCount} file(s) — " +
+                      $"{matches.Count} match(es)" + (matches.Count >= maxResults && maxResults > 0 ? " (capped)" : ""),
+            produced = Array.Empty<string>(),
+            warnings,
+            errors = Array.Empty<string>(),
+            scriptsFolder,
+            filesIndexed = fileCount,
+            totalSymbols = symbols.Count,
+            byKind,
+            results = matches.Select(m => new
+            {
+                kind = m.Kind,
+                name = m.Name,
+                ofClass = m.Parent,
+                signature = m.Signature,
+                annotations = m.Annotations,
+                location = $"{m.File}:{m.Line}",
+            }),
+            limitation = "Syntactic index over the .reds you point at — no type resolution; " +
+                         "the base-game API is only present if the folder is a decompiled dump.",
+        }, JsonOpts);
+    }
+
     // ── REDmod packaging (post-1.6) ──────────────────────────────────────
 
     [McpServerTool(Name = "create_redmod_project", ReadOnly = false, Destructive = false, Idempotent = false)]

@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WkMCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **93 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **129 tools** in total.
+> **Counts.** The server exposes **94 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **130 tools** in total.
 
 ## Contents
 
@@ -423,6 +423,17 @@ Syntactic analysis via a real parser (tokenizer + recursive descent): syntax err
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `scriptFile` | string | yes | Script file. |
+
+### `script_api_index`
+Indexes the REDscript symbols (classes, methods, fields, enums, free functions) across a folder of `.reds` sources and looks one up by name — returning the exact **signature** and `file:line` needed to `@wrapMethod`/`@replaceMethod` a game method or find which class declares a field. For an `@wrapMethod(PlayerPuppet)` hook the enclosing class is the annotation target. Point it at a decompiled game-scripts dump, a mod's `r6/scripts`, or any `.reds` tree. Pure syntactic index — no scc, no type resolution.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `scriptsFolder` | string | yes | Folder of `.reds` files (searched recursively). |
+| `query` | string | no | Name filter (case-insensitive substring). Empty = list all (capped). |
+| `kind` | string | no | `class` \| `struct` \| `enum` \| `func` \| `field` \| `method` (func with a class) \| `global` (free func). |
+| `ofClass` | string | no | Enclosing/target class filter, e.g. `PlayerPuppet`. |
+| `maxResults` | int | no | Max results (default 100). |
 
 ---
 

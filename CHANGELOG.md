@@ -12,6 +12,23 @@ and report the `added`/`removed` elements. For a new record (`$base`/`$type`/`$i
 unit-tested core (`TweakValidation`, representation-model tag parsing); the daemon's
 `tweakdb-describe` gains a small per-element emission so the diff can be computed array-aware.
 
+## Unreleased — script_api_index (REDscript symbol lookup, R1)
+
+New read-only tool **`script_api_index`**: a "ctags for `.reds`". Indexes the declarations
+across a folder of REDscript sources (a decompiled game-scripts dump, a mod's `r6/scripts`,
+any `.reds` tree) and looks one up by name, returning the exact **signature** and `file:line`
+you need to `@wrapMethod`/`@replaceMethod` a game method or find which class declares a field.
+Filters by `kind` (incl. synthetic `method`/`global`) and enclosing/target `ofClass`; for an
+`@wrapMethod(PlayerPuppet)` hook the enclosing class is the annotation target.
+
+- The existing `RedscriptParser` was **enriched additively** (no lexer change, so the
+  zero-false-positive lint calibration is untouched): declarations now carry the
+  enclosing class / `extends` / `@`-target, the rendered signature (params + return),
+  and the annotation names — sliced from the source via a `Line/Col → offset` map. The
+  index/query logic is a pure, unit-tested core (`ScriptApi`).
+- Pure syntactic index — no scc, no type resolution. The base-game API is only present
+  if the folder is a decompiled dump.
+
 ## Unreleased — TweakXL validation, deeper (no new tools)
 
 - **`validate_tweak` is now type-aware (T1).** On top of the existing key-existence
