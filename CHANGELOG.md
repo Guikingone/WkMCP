@@ -2,6 +2,14 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — preview_tweak (dry-run a tweak, T2)
+
+New read-only tool **`preview_tweak`** that shows the **before → after** of each scalar
+flat a `.tweak` would override (current TweakDB value vs the file's value), without writing
+anything. For a new record (`$base`/`$type`/`$instanceOf`) the "before" is the value inherited
+from the base. v1 scope is scalar overrides; array mutations and inline records are reported as
+`skipped`. Reuses the `TweakValidation` core + `tweakdb-describe` (no daemon change).
+
 ## Unreleased — TweakXL validation, deeper (no new tools)
 
 - **`validate_tweak` is now type-aware (T1).** On top of the existing key-existence

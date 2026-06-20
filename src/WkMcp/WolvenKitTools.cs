@@ -2026,6 +2026,86 @@ public static class WolvenKitTools
             File.Exists(outputTweakFile) ? new List<string> { outputTweakFile } : new List<string>());
     }
 
+    [McpServerTool(Name = "preview_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Dry-run a .tweak against a TweakDB: shows the BEFORE → AFTER of each scalar flat " +
+                 "override it would apply (the current TweakDB value vs the value in the file), without " +
+                 "writing anything — answers 'what will this tweak actually change?'. For a new record " +
+                 "($instanceOf/$base) the BEFORE is the value inherited from the base. v1 covers scalar " +
+                 "overrides; array mutations (!append/!remove/…) and inline records are listed as `skipped`.")]
+    public static async Task<string> PreviewTweak(
+        Cp77ToolsRunner runner,
+        [Description("Path to the .tweak file.")] string tweakFile,
+        [Description("Path to the reference tweakdb.bin (typically <game>/r6/cache/tweakdb.bin).")] string tweakdbBin,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(tweakFile)) return Err($".tweak file not found: {tweakFile}");
+        if (!File.Exists(tweakdbBin)) return Err($"tweakdb.bin not found: {tweakdbBin}");
+
+        var yaml = await File.ReadAllTextAsync(tweakFile, ct);
+        object? root;
+        try { root = new YamlDotNet.Serialization.DeserializerBuilder().Build().Deserialize<object?>(yaml); }
+        catch (Exception ex) { return Err($"preview_tweak: invalid YAML: {ex.Message}"); }
+
+        var assignments = TweakValidation.EnumerateAssignments(root);
+        var changes = new List<object>();
+        var skipped = new List<string>();
+        const int maxRecords = 64;
+        var valueCache = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        var capped = false;
+
+        async Task<Dictionary<string, string>> ValuesOf(string record, string? baseRecord)
+        {
+            if (valueCache.TryGetValue(record, out var c)) return c;
+            if (valueCache.Count >= maxRecords) { capped = true; return new(); }
+            var dr = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, record }, ct);
+            var map = TweakValidation.ParseDescribedValues(dr.Stdout + dr.Stderr);
+            if (map.Count == 0 && !string.IsNullOrEmpty(baseRecord))
+            {
+                var br = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, baseRecord }, ct);
+                map = TweakValidation.ParseDescribedValues(br.Stdout + br.Stderr);
+            }
+            valueCache[record] = map;
+            return map;
+        }
+
+        try
+        {
+            foreach (var a in assignments)
+            {
+                if (!TweakValidation.IsScalarValue(a.Value))
+                {
+                    skipped.Add($"{a.Record}.{a.Field}: array/inline value — not previewed in v1.");
+                    continue;
+                }
+                var before = await ValuesOf(a.Record, a.BaseRecord);
+                var has = before.TryGetValue(a.Field, out var beforeVal);
+                changes.Add(new
+                {
+                    record = a.Record,
+                    field = a.Field,
+                    before = has ? beforeVal : null,
+                    after = TweakValidation.RenderValue(a.Value),
+                    isNew = !has,
+                });
+            }
+        }
+        catch (OperationCanceledException) { return Cancelled("preview_tweak"); }
+
+        if (capped) skipped.Add($"(limited to the first {maxRecords} records.)");
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            status = "success",
+            summary = $"preview: {changes.Count} scalar change(s)" +
+                      (skipped.Count > 0 ? $", {skipped.Count} skipped" : ""),
+            produced = Array.Empty<string>(),
+            changes,
+            skipped,
+            warnings = Array.Empty<string>(),
+            errors = Array.Empty<string>(),
+        }, JsonOpts);
+    }
+
     [McpServerTool(Name = "generate_redscript_template", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Generates a .reds (RED4Script) file ready to edit, from a catalog " +
                  "of common patterns: add_method (@addMethod), wrap_method (@wrapMethod), " +

@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WkMCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **92 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **128 tools** in total.
+> **Counts.** The server exposes **93 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **129 tools** in total.
 
 ## Contents
 
@@ -344,6 +344,14 @@ Validates a `.tweak` against a TweakDB on two axes: **existence** — each key m
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `tweakFile` | string | yes | `.tweak` file to validate. |
+| `tweakdbBin` | string | yes | Reference `tweakdb.bin`. |
+
+### `preview_tweak`
+Dry-run a `.tweak` against a TweakDB: shows the **BEFORE → AFTER** of each scalar flat override it would apply (current TweakDB value vs the value in the file), without writing anything — answers "what will this tweak actually change?". For a new record (`$instanceOf`/`$base`) the BEFORE is the value inherited from the base. v1 covers scalar overrides; array mutations (`!append`/`!remove`/…) and inline records are listed in `skipped`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `tweakFile` | string | yes | `.tweak` file to preview. |
 | `tweakdbBin` | string | yes | Reference `tweakdb.bin`. |
 
 ### `install_tweak`

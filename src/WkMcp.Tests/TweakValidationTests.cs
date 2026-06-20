@@ -114,6 +114,41 @@ public class TweakDescribeParseTests
         Assert.Equal(K.Array, map["parts"]);
         Assert.Equal(3, map.Count);
     }
+
+    [Fact]
+    public void Parses_current_values_for_the_preview_before_side()
+    {
+        const string log = """
+        [ 0: Info ] -   flat  damage : CFloat = 30
+        [ 0: Info ] -   flat  displayName : CName = n"Old"
+        """;
+        var vals = TweakValidation.ParseDescribedValues(log);
+        Assert.Equal("30", vals["damage"]);
+        Assert.Equal("n\"Old\"", vals["displayName"]);
+    }
+}
+
+public class TweakPreviewHelpersTests
+{
+    [Theory]
+    [InlineData("50", true)]
+    [InlineData("n\"X\"", true)]
+    public void Scalar_strings_are_scalar(string v, bool scalar)
+        => Assert.Equal(scalar, TweakValidation.IsScalarValue(v));
+
+    [Fact]
+    public void Arrays_and_mappings_are_not_scalar()
+    {
+        Assert.False(TweakValidation.IsScalarValue(new List<object> { "a" }));
+        Assert.False(TweakValidation.IsScalarValue(new Dictionary<object, object> { ["x"] = "1" }));
+    }
+
+    [Fact]
+    public void RenderValue_trims_and_handles_null()
+    {
+        Assert.Equal("50", TweakValidation.RenderValue("  50 "));
+        Assert.Equal("(null)", TweakValidation.RenderValue(null));
+    }
 }
 
 public class TweakEnumerateAssignmentsTests

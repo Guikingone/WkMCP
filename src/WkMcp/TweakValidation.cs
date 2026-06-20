@@ -108,6 +108,29 @@ internal static class TweakValidation
         return map;
     }
 
+    private static readonly Regex FlatValueLine =
+        new(@"\bflat\s+(?<field>\S+)\s*:\s*\S+\s*=\s*(?<value>.*)$",
+            RegexOptions.Compiled | RegexOptions.Multiline);
+
+    /// <summary>Parses the same describe lines into a field → current-value map
+    /// (the "before" side of a preview).</summary>
+    internal static Dictionary<string, string> ParseDescribedValues(string? describeOutput)
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (string.IsNullOrEmpty(describeOutput)) return map;
+        foreach (Match m in FlatValueLine.Matches(describeOutput))
+            map[m.Groups["field"].Value] = m.Groups["value"].Value.Trim();
+        return map;
+    }
+
+    /// <summary>True for a scalar tweak value (i.e. not a sequence/array or a
+    /// mapping/inline-record); used to scope the v1 scalar preview.</summary>
+    internal static bool IsScalarValue(object? node)
+        => ClassifyValue(node) is not (Kind.Array or Kind.Struct);
+
+    /// <summary>Renders a scalar tweak value as it appears in the file (the "after").</summary>
+    internal static string RenderValue(object? node) => node?.ToString()?.Trim() ?? "(null)";
+
     // ── compatibility ───────────────────────────────────────────────────────
 
     /// <summary>True if a value of <paramref name="value"/> kind may legitimately be

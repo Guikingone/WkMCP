@@ -1,7 +1,7 @@
 # WkMCP — an MCP server for Cyberpunk 2077 modding
 
 An **MCP (Model Context Protocol)** server that exposes WolvenKit's modding CLI
-(`cp77tools`) as **152 tools** an agent (Claude) can call — so you steer Cyberpunk
+(`cp77tools`) as **157 tools** an agent (Claude) can call — so you steer Cyberpunk
 2077 modding from a chat window without writing code: read and edit game files,
 query and patch the TweakDB, create/pack/install mods, export meshes and textures,
 lint REDscript, diagnose a broken install, and even drive a **running** game live.
@@ -106,7 +106,7 @@ Optional environment variables go in the `"env"` block (Desktop) or via `-e VAR=
 
 ## Tools, prompts, resources
 
-The server exposes **152 tools** (116 offline + 36 `live_*`), **10 prompts** and **4 resources**.
+The server exposes **157 tools** (121 offline + 36 `live_*`), **10 prompts** and **4 resources**.
 
 **Tools by category** (full parameter reference: [docs/TOOLS.md](docs/TOOLS.md)):
 
@@ -114,7 +114,7 @@ The server exposes **152 tools** (116 offline + 36 `live_*`), **10 prompts** and
 - *Archives* — `archive_info`, `archive_stats`, `find_in_archives`, `diff_archives`, `extract_files`, `uncook`.
 - *Conversion / export* — `cr2w_to_json`, `json_to_cr2w`, `export_files`, `export_animation`, `export_morphtarget`, `export_mlmask`, `export_entity`, `export_materials`.
 - *Read / write game files* — `read_game_file`, `write_game_file`, `inspect_mesh`, `inspect_texture`, `inspect_app`.
-- *TweakDB* — `describe_tweak_record`, `clone_tweak_record` (faithful `$base` clone of an existing record + commented value inventory), `read_tweak`, `write_tweak`, `validate_tweak`, `install_tweak`, `dump_records`, `generate_tweak_template`.
+- *TweakDB* — `describe_tweak_record`, `clone_tweak_record` (faithful `$base` clone of an existing record + commented value inventory), `read_tweak`, `write_tweak`, `validate_tweak`, `preview_tweak`, `install_tweak`, `dump_records`, `generate_tweak_template`.
 - *REDscript* — `read_script`, `lint_script`, `generate_redscript_template`.
 - *Audio / compression* — `wwise_export`, `extract_audio`, `import_audio`, `loc_resolve`, `oodle_compress`, `oodle_decompress`.
 - *Localization* — `extract_localization`, `build_localization`.
@@ -203,7 +203,7 @@ WolvenKit is licensed GPL-3.0; that license is itself the permission to build on
 ## Documentation
 
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — modder's guide: install, wire up to Claude, step-by-step workflows (read a file, edit a tweak, create/pack/install a mod, check dependencies, package).
-- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 152 tools + 10 prompts + 4 resources (parameters included).
+- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 157 tools + 10 prompts + 4 resources (parameters included).
 - **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — copy-paste recipes by mod type (tweak, redscript, ArchiveXL, REDmod, localization, texture, analysis).
 - **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — the 35 `live_*` tools to drive a running game (CETBridge / Cyber Engine Tweaks). Optional, separate prerequisites.
 - **[docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)** — remote access over HTTP/Streamable (instead of stdio); secure by default.
@@ -230,7 +230,7 @@ More in [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (§10 troubleshooting) and [doc
 
 ```
 wkmcp/
-├── src/WkMcp/         C# / .NET 8 MCP server (152 tools, 10 prompts, 4 resources)
+├── src/WkMcp/         C# / .NET 8 MCP server (157 tools, 10 prompts, 4 resources)
 │   ├── Program.cs            Host + stdio/http transport + DI + daemon warmup
 │   ├── Cp77ToolsRunner.cs    Drives the daemon (pipelined IPC, LRU cache, cp77tools fallback)
 │   ├── WolvenKitTools.cs     63 base MCP tools + helpers
