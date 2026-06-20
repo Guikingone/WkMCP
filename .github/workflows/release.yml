@@ -72,12 +72,33 @@ jobs:
             Out-File -Encoding ascii dist/wkmcp.mcpb.sha256
           Get-Content dist/wkmcp.mcpb.sha256
 
+      # Nexus auto-quarantines any .exe/.dll, so the binary .mcpb above goes to
+      # GitHub only. This is the Nexus-friendly, no-binary companion (README +
+      # CETBridge Lua mod) the maintainer uploads to the Nexus mod page.
+      - name: Build Nexus package
+        run: pwsh ./build-nexus-package.ps1
+
+      - name: Verify the Nexus package is binary-free
+        shell: pwsh
+        run: |
+          $dest = "obj/nexus-verify"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::ExtractToDirectory((Resolve-Path "dist/wkmcp-nexus.zip"), $dest)
+          $bad = Get-ChildItem $dest -Recurse -File |
+            Where-Object { @('.dll','.exe','.so','.dylib','.pdb','.bin','.a','.node') -contains $_.Extension.ToLower() }
+          if ($bad) { throw "Nexus package contains binaries: $(( $bad | ForEach-Object Name ) -join ', ')" }
+          $h = Get-FileHash dist/wkmcp-nexus.zip -Algorithm SHA256
+          "$($h.Hash.ToLower())  wkmcp-nexus.zip" | Out-File -Encoding ascii dist/wkmcp-nexus.zip.sha256
+          Write-Host "Nexus package is binary-free."
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
             dist/wkmcp.mcpb
             dist/wkmcp.mcpb.sha256
+            dist/wkmcp-nexus.zip
+            dist/wkmcp-nexus.zip.sha256
           generate_release_notes: true
           draft: false
           prerelease: false

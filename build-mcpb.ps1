@@ -60,6 +60,20 @@ if (Test-Path $liveSrc) {
     Write-Warning "live-bridge/CETBridge not found — bundle without the live mod."
 }
 
+# Slim the bundle: this is a Windows-x64-only tool, but the .NET build output
+# carries native runtimes for every RID (linux-*, osx-*, maccatalyst-*, win-x86,
+# win-arm64) plus .pdb debug symbols. None are loaded on win-x64 — dropping them
+# removes ~28 MB of dead weight and trips fewer antivirus heuristics.
+foreach ($stageDir in @($serverStage, $daemonStage)) {
+    $rt = Join-Path $stageDir "runtimes"
+    if (Test-Path $rt) {
+        Get-ChildItem $rt -Directory |
+            Where-Object { $_.Name -ne "win-x64" -and $_.Name -ne "win" } |
+            Remove-Item -Recurse -Force
+    }
+}
+Get-ChildItem $stage -Recurse -Filter *.pdb | Remove-Item -Force
+
 $dist = Join-Path $root $OutputDir
 New-Item -ItemType Directory -Path $dist -Force | Out-Null
 $mcpb = Join-Path $dist "wkmcp.mcpb"

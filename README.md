@@ -52,6 +52,11 @@ Cyberpunk 2077 install.
 > Prefer a one-click install? Once a release is published, download
 > `wkmcp.mcpb` from the [latest release](https://github.com/Guikingone/WkMCP/releases)
 > and add it to Claude Desktop as a Desktop Extension (Developer Mode) — see [Installation](#installation-windows).
+>
+> **Where to get it:** the binary bundle (`wkmcp.mcpb`) ships on **GitHub Releases**.
+> The [Nexus Mods page](https://www.nexusmods.com/cyberpunk2077/mods/30526) hosts a
+> no-binary companion (`wkmcp-nexus.zip` = this README + the optional CETBridge Lua
+> mod), because Nexus does not host executables — the `.mcpb` is downloaded from GitHub.
 
 ## Installation (Windows)
 
