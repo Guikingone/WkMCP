@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WolvenKit MCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **91 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **127 tools** in total.
+> **Counts.** The server exposes **92 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **128 tools** in total.
 
 ## Contents
 
@@ -287,6 +287,17 @@ Structural summary of a `.app` file: number of appearances, and for each the num
 |---|---|---|---|
 | `appFile` | string | yes | Extracted `.app` file. |
 | `maxAppearances` | int | no (default `100`) | Max number of detailed appearances returned; `appearanceCount` always gives the real total. |
+
+### `add_appearance`
+Adds a new appearance to a `.app` file by **cloning** an existing one — the only robust way (authoring a valid `appearanceAppearanceDefinition` from scratch is error-prone). Renumbers the cloned CR2W `HandleId`s to fresh unique values so the copy is an independent definition (not an alias of the source), optionally swaps mesh `DepotPath`s, then round-trips the CR2W via JSON and **self-verifies** that the new appearance survives deserialization before writing. Output is reinjectable via `pack_archive` / `write_game_file`. Use `inspect_app` first to list existing appearance names.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `appFile` | string | yes | Extracted `.app` file. |
+| `newName` | string | yes | Name of the new appearance (must be unique in the `.app`). |
+| `fromAppearance` | string | no (default: first) | Existing appearance to clone. |
+| `meshSwapsJson` | string | no | JSON object of mesh `DepotPath` swaps applied in the clone, e.g. `{"base\\a\\old.mesh":"base\\a\\new.mesh"}`. Keys match case-insensitively. |
+| `outputFile` | string | no (default: in place) | Output `.app` path. |
 
 ---
 

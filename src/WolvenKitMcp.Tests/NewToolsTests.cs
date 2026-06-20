@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 using WolvenKitMcp;
 using Xunit;
 
@@ -255,5 +256,133 @@ public class InspectAppTests
         var s = ModdingTools.SummarizeApp("{ \"Data\": {} }");
         Assert.Equal(0, s.AppearanceCount);
         Assert.Empty(s.Appearances);
+    }
+}
+
+public class AddAppearanceTests
+{
+    // .app with real CHandle wrapping (HandleId + Data), one appearance ("base") whose single
+    // mesh component is itself a handle — so cloning must renumber BOTH handles.
+    private static JsonNode Sample() => JsonNode.Parse("""
+    { "Data": { "RootChunk": {
+        "$type": "appearanceAppearanceResource",
+        "appearances": [
+          { "HandleId": "0", "Data": { "$type": "appearanceAppearanceDefinition",
+              "name": { "$value": "base" },
+              "components": [
+                { "HandleId": "1", "Data": { "$type": "entMeshComponent",
+                    "mesh": { "DepotPath": { "$value": "base\\a\\body.mesh" } },
+                    "meshAppearance": { "$value": "skin" } } }
+              ] } }
+        ]
+    } } }
+    """)!;
+
+    private static List<int> AllHandleIds(JsonNode? n)
+    {
+        var ids = new List<int>();
+        void W(JsonNode? x)
+        {
+            if (x is JsonObject o)
+            {
+                if (o["HandleId"] is JsonValue hv && int.TryParse(hv.ToString(), out var id)) ids.Add(id);
+                foreach (var kv in o) W(kv.Value);
+            }
+            else if (x is JsonArray a) { foreach (var it in a) W(it); }
+        }
+        W(n);
+        return ids;
+    }
+
+    [Fact]
+    public void Clones_first_appearance_by_default_and_appends_it()
+    {
+        var root = Sample();
+        var (ok, err, from, swaps, warnings, names) =
+            ModdingTools.AddAppearanceToApp(root, "variant", null, null);
+
+        Assert.True(ok);
+        Assert.Null(err);
+        Assert.Equal("base", from);
+        Assert.Equal(0, swaps);
+        Assert.Empty(warnings);
+        Assert.Equal(new[] { "base", "variant" }, names);
+
+        // the array really grew
+        var apps = (JsonArray)root["Data"]!["RootChunk"]!["appearances"]!;
+        Assert.Equal(2, apps.Count);
+    }
+
+    [Fact]
+    public void Cloned_handle_ids_are_renumbered_to_fresh_unique_values()
+    {
+        var root = Sample();
+        ModdingTools.AddAppearanceToApp(root, "variant", null, null);
+
+        var ids = AllHandleIds(root);
+        // 4 handles total: source app(0)+comp(1) and clone app+comp with fresh ids.
+        Assert.Equal(4, ids.Count);
+        Assert.Equal(ids.Count, ids.Distinct().Count());      // no collision
+        Assert.Contains(2, ids);                              // max was 1 → clone gets 2 and 3
+        Assert.Contains(3, ids);
+        // source handles untouched
+        Assert.Contains(0, ids);
+        Assert.Contains(1, ids);
+    }
+
+    [Fact]
+    public void Rejects_a_duplicate_name()
+    {
+        var (ok, err, _, _, _, _) = ModdingTools.AddAppearanceToApp(Sample(), "base", null, null);
+        Assert.False(ok);
+        Assert.Contains("already exists", err);
+    }
+
+    [Fact]
+    public void Rejects_an_unknown_source_appearance()
+    {
+        var (ok, err, _, _, _, _) = ModdingTools.AddAppearanceToApp(Sample(), "variant", "ghost", null);
+        Assert.False(ok);
+        Assert.Contains("not found", err);
+        Assert.Contains("base", err);          // lists what is available
+    }
+
+    [Fact]
+    public void Applies_mesh_swaps_in_the_clone_only_and_warns_on_unmatched()
+    {
+        var root = Sample();
+        var swaps = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            [@"base\a\BODY.mesh"] = @"base\a\new.mesh",   // case-insensitive match
+            [@"base\a\absent.mesh"] = @"base\a\nope.mesh", // no match → warning
+        };
+        var (ok, _, _, count, warnings, _) = ModdingTools.AddAppearanceToApp(root, "variant", null, swaps);
+
+        Assert.True(ok);
+        Assert.Equal(1, count);
+        Assert.Contains(warnings, w => w.Contains("absent.mesh"));
+
+        var apps = (JsonArray)root["Data"]!["RootChunk"]!["appearances"]!;
+        // source mesh unchanged, clone mesh swapped
+        var srcMesh = apps[0]!["Data"]!["components"]![0]!["Data"]!["mesh"]!["DepotPath"]!["$value"]!.GetValue<string>();
+        var newMesh = apps[1]!["Data"]!["components"]![0]!["Data"]!["mesh"]!["DepotPath"]!["$value"]!.GetValue<string>();
+        Assert.Equal(@"base\a\body.mesh", srcMesh);
+        Assert.Equal(@"base\a\new.mesh", newMesh);
+    }
+
+    [Fact]
+    public void Reports_a_clean_error_when_there_is_no_appearances_array()
+    {
+        var (ok, err, _, _, _, _) =
+            ModdingTools.AddAppearanceToApp(JsonNode.Parse("""{ "Data": { "RootChunk": {} } }"""), "x", null, null);
+        Assert.False(ok);
+        Assert.Contains("appearances", err);
+    }
+
+    [Fact]
+    public void MaxHandleId_finds_the_largest_or_minus_one()
+    {
+        Assert.Equal(1, ModdingTools.MaxHandleId(Sample()));
+        Assert.Equal(-1, ModdingTools.MaxHandleId(JsonNode.Parse("""{ "a": 1 }""")));
     }
 }

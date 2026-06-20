@@ -5,7 +5,7 @@ Dates are those of the development sessions.
 ## Unreleased — post-1.0.1 audit hardening
 
 A multi-axis audit (security, daemon performance, live bridge, code quality,
-features) drove the following. **123 → 127 tools** (91 offline + 36 live).
+features) drove the following. **123 → 128 tools** (92 offline + 36 live).
 
 ### Security & correctness
 - **Path traversal fixed** in `write_game_file` and `toggle_mods` via a new, unit-tested
@@ -30,6 +30,9 @@ features) drove the following. **123 → 127 tools** (91 offline + 36 live).
 - **`live_unobserve`** — cancels a `live_observe` subscription (fixes an observer leak).
 - **`set_texture_format`** — sets the group/compression/rawFormat of an extracted `.xbm`
   (the #1 silent retexture failure); CR2W round-trip via JSON.
+- **`add_appearance`** — adds an appearance to a `.app` by cloning an existing one, with
+  fresh-renumbered CR2W `HandleId`s (no aliasing), optional mesh-path swaps, and a
+  round-trip self-verification that the new appearance survives deserialization.
 - **`generate_tweak_template` → `new_item`** — typed item scaffolds
   (weapon/clothing/cyberware/consumable/recipe).
 
