@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using WkMcp;
@@ -8,7 +9,126 @@ namespace WkMcp.Tests;
 
 // Tests of the pure helpers of the three tools added during finalization:
 // archive_stats (HistogramByExtension), validate_redmod (ValidateRedmodInfo),
-// inspect_app (SummarizeApp / ParseAppearanceNames).
+// inspect_app (SummarizeApp / ParseAppearanceNames), set_mesh_material
+// (SetComponentMeshAppearance) and scaffold_appearance_mod (file emission).
+
+public class SetMeshMaterialTests
+{
+    // A minimal .app JSON in the shape the CR2W↔JSON pipeline produces:
+    //   appearances[].Data.{ name:{$value}, components:[ {Data:{ mesh:{DepotPath:{$value}}, meshAppearance:{$value} }} ] }
+    private static JsonNode Fixture() => JsonNode.Parse("""
+        {
+          "Data": { "RootChunk": { "appearances": [
+            { "Data": { "name": { "$value": "default" }, "components": [
+              { "Data": { "$type": "entSkinnedMeshComponent",
+                          "mesh": { "DepotPath": { "$value": "base\\body.mesh" } },
+                          "meshAppearance": { "$value": "old_body" } } },
+              { "Data": { "$type": "entSkinnedMeshComponent",
+                          "mesh": { "DepotPath": { "$value": "base\\head.mesh" } },
+                          "meshAppearance": { "$value": "old_head" } } }
+            ] } },
+            { "Data": { "name": { "$value": "naked" }, "components": [] } }
+          ] } }
+        }
+        """)!;
+
+    private static IEnumerable<string?> MeshAppearancesOf(JsonNode root, string appearance)
+        => root["Data"]!["RootChunk"]!["appearances"]!.AsArray()
+            .First(a => (string?)a!["Data"]!["name"]!["$value"] == appearance)!["Data"]!["components"]!.AsArray()
+            .Select(c => (string?)c!["Data"]!["meshAppearance"]?["$value"]);
+
+    [Fact]
+    public void Sets_mesh_appearance_on_every_component_by_default()
+    {
+        var root = Fixture();
+        var (ok, err, changed, _) = ModdingTools.SetComponentMeshAppearance(root, "default", null, "new_mat", null);
+        Assert.True(ok, err);
+        Assert.Equal(2, changed);
+        Assert.All(MeshAppearancesOf(root, "default"), m => Assert.Equal("new_mat", m));
+    }
+
+    [Fact]
+    public void Mesh_filter_restricts_to_the_matching_component_only()
+    {
+        var root = Fixture();
+        var (_, _, changed, _) = ModdingTools.SetComponentMeshAppearance(root, "default", "head", "new_head", null);
+        Assert.Equal(1, changed);
+        var ma = MeshAppearancesOf(root, "default").ToList();
+        Assert.Contains("new_head", ma);   // head component updated
+        Assert.Contains("old_body", ma);   // body component untouched
+    }
+
+    [Fact]
+    public void New_mesh_swaps_the_depot_path_too()
+    {
+        var root = Fixture();
+        ModdingTools.SetComponentMeshAppearance(root, "default", "body", "new_body", "mod\\custom_body.mesh");
+        var comp = root["Data"]!["RootChunk"]!["appearances"]!.AsArray()
+            .First(a => (string?)a!["Data"]!["name"]!["$value"] == "default")!["Data"]!["components"]!.AsArray()
+            .First(c => (string?)c!["Data"]!["mesh"]!["DepotPath"]!["$value"] == "mod\\custom_body.mesh");
+        Assert.Equal("new_body", (string?)comp!["Data"]!["meshAppearance"]!["$value"]);
+    }
+
+    [Fact]
+    public void Unknown_appearance_fails_and_lists_available_names()
+    {
+        var (ok, err, _, _) = ModdingTools.SetComponentMeshAppearance(Fixture(), "nope", null, "x", null);
+        Assert.False(ok);
+        Assert.Contains("default", err);
+        Assert.Contains("naked", err);
+    }
+
+    [Fact]
+    public void No_matching_component_is_a_warning_not_an_error()
+    {
+        var (ok, _, changed, warnings) = ModdingTools.SetComponentMeshAppearance(Fixture(), "naked", null, "x", null);
+        Assert.True(ok);
+        Assert.Equal(0, changed);
+        Assert.NotEmpty(warnings);
+    }
+
+    [Fact]
+    public void Is_idempotent()
+    {
+        var a = Fixture();
+        ModdingTools.SetComponentMeshAppearance(a, "default", null, "new_mat", null);
+        var once = a.ToJsonString();
+        ModdingTools.SetComponentMeshAppearance(a, "default", null, "new_mat", null);
+        Assert.Equal(once, a.ToJsonString());
+    }
+}
+
+public class ScaffoldAppearanceModTests
+{
+    [Fact]
+    public void Emits_xl_and_readme_with_the_target_and_mod_name()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "wkmcp-scaffold-test-" + System.Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var json = ModdingTools.ScaffoldAppearanceMod(tmp, "MyAppMod", "base\\characters\\outfit.app");
+            Assert.True((bool?)JsonNode.Parse(json)!["ok"]);
+
+            var xl = Path.Combine(tmp, "MyAppMod", "MyAppMod.xl");
+            var readme = Path.Combine(tmp, "MyAppMod", "README.md");
+            Assert.True(File.Exists(xl));
+            Assert.True(File.Exists(readme));
+
+            var xlText = File.ReadAllText(xl);
+            Assert.Contains("resource:", xlText);
+            Assert.Contains("patch:", xlText);
+            Assert.Contains("base\\characters\\outfit.app", xlText);
+            Assert.Contains("MyAppMod\\appearances\\custom.app", xlText);
+            Assert.True(Directory.Exists(Path.Combine(tmp, "MyAppMod", "source", "archive", "MyAppMod", "appearances")));
+        }
+        finally { try { Directory.Delete(tmp, true); } catch { /* best-effort */ } }
+    }
+
+    [Fact]
+    public void Rejects_an_invalid_mod_name()
+        => Assert.Contains("Invalid mod name", ModdingTools.ScaffoldAppearanceMod(Path.GetTempPath(), "bad/name"));
+}
 
 public class TweakTemplateTests
 {

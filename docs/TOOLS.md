@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WkMCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **95 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **131 tools** in total.
+> **Counts.** The server exposes **121 offline tools**, **10 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **157 tools** in total.
 
 ## Contents
 
@@ -33,7 +33,7 @@ Each tool returns a structured JSON object, typically:
 
 ## Live in-game (CETBridge bridge)
 
-35 `live_*` tools drive a **running** game (Lua execution, state
+36 `live_*` tools drive a **running** game (Lua execution, state
 reading/writing, spawn, teleportation, weather, in-memory TweakDB, observing events).
 Documented separately: see **[LIVE_BRIDGE.md](LIVE_BRIDGE.md)**. Prerequisites: game running + Cyber
 Engine Tweaks (+ RedSocket for the TCP transport). The tools below are, themselves, **offline**.
@@ -299,6 +299,27 @@ Adds a new appearance to a `.app` file by **cloning** an existing one — the on
 | `fromAppearance` | string | no (default: first) | Existing appearance to clone. |
 | `meshSwapsJson` | string | no | JSON object of mesh `DepotPath` swaps applied in the clone, e.g. `{"base\\a\\old.mesh":"base\\a\\new.mesh"}`. Keys match case-insensitively. |
 | `outputFile` | string | no (default: in place) | Output `.app` path. |
+
+### `set_mesh_material`
+Sets a mesh component's `meshAppearance` — the CName that selects **which** material/appearance set inside the referenced `.mesh` is used — for a named appearance in a `.app` (the core of a recolor/retexture), and optionally swaps the component's `mesh` DepotPath. Round-trips the CR2W via JSON and **self-verifies** the edit survives before writing. Edits the `.app`-level **selector**, not the `.mesh` `materialEntries` themselves. Idempotent.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `appFile` | string | yes | Extracted `.app` file. |
+| `appearance` | string | yes | Name of the appearance to edit. |
+| `meshAppearance` | string | yes | New `meshAppearance` CName to set on the matching component(s). |
+| `meshFilter` | string | no | Only update components whose current mesh path contains this (substring, case-insensitive). Empty = all mesh components. |
+| `newMesh` | string | no | Also swap the matching component's `mesh` DepotPath to this value. |
+| `outputFile` | string | no (default: in place) | Output `.app` path. |
+
+### `scaffold_appearance_mod`
+Generates a ready-to-fill ArchiveXL appearance-swap mod skeleton under `<outputFolder>/<modName>/`: a commented `<modName>.xl` resource patch wiring a base `.app` to the mod's custom `.app`, the `source/archive` folder layout, and a README documenting the loop (`find_in_archives` → `extract_files` → `add_appearance` → `set_mesh_material` → `pack_archive` → `install_mod`). The appearance-mod equivalent of `scaffold_archivexl`/`scaffold_mod`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `outputFolder` | string | yes | Parent destination folder (the mod folder is created inside it). |
+| `modName` | string | yes | Mod name (used as the project folder and `<name>.xl`). |
+| `targetApp` | string | no | Base `.app` depot path to pre-fill in the patch. Empty = a placeholder path. |
 
 ---
 

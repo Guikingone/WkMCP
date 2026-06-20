@@ -2,6 +2,23 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — Appearance authoring (set_mesh_material + scaffold_appearance_mod)
+
+Closes the offline appearance-authoring loop (`add_appearance` already wrote `.app` files).
+Adds **2 tools** (partials of `ModdingTools`).
+
+- **`set_mesh_material`** — sets a mesh component's `meshAppearance` (the CName that selects
+  which material/appearance set inside the referenced `.mesh` is used) for a named appearance
+  in a `.app`, and optionally swaps the component's `mesh` DepotPath. This is the core of a
+  recolor/retexture — the one `.app` edit `add_appearance` couldn't do (it swaps the mesh path
+  but never the material selector). Reuses the proven CR2W↔JSON round-trip + self-verify
+  discipline; the mutation logic is a pure, unit-tested core (`SetComponentMeshAppearance`).
+  Idempotent. Edits the `.app`-level selector, not the `.mesh` `materialEntries` themselves.
+- **`scaffold_appearance_mod`** — emits a ready-to-fill ArchiveXL appearance-swap mod skeleton
+  (`<modName>.xl` resource patch + `source/archive` layout + a README walking the
+  find→extract→add_appearance→set_mesh_material→pack→install loop). The appearance-mod
+  equivalent of `scaffold_archivexl`.
+
 ## Unreleased — type_check_scripts (REDscript semantic type-check via scc, R2)
 
 New read-only tool **`type_check_scripts`**: runs the game's bundled `scc` compiler over a

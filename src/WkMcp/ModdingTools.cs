@@ -657,6 +657,73 @@ public static partial class ModdingTools
         }, JsonOpts);
     }
 
+    [McpServerTool(Name = "scaffold_appearance_mod", ReadOnly = false, Destructive = false, Idempotent = false)]
+    [Description("Generates a ready-to-fill ArchiveXL appearance-swap mod skeleton under " +
+                 "<outputFolder>/<modName>/: a commented <modName>.xl resource patch wiring a base " +
+                 ".app to the mod's custom .app, the source/archive folder layout, and a README " +
+                 "documenting the loop (find_in_archives → extract_files → add_appearance → " +
+                 "set_mesh_material → pack_archive → install_mod). The appearance-mod equivalent of " +
+                 "scaffold_archivexl/scaffold_mod.")]
+    public static string ScaffoldAppearanceMod(
+        [Description("Parent destination folder (the mod folder is created inside it).")] string outputFolder,
+        [Description("Mod name (used as the project folder and <name>.xl).")] string modName,
+        [Description("Optional base .app depot path to pre-fill in the patch " +
+                     "(e.g. base\\characters\\...\\outfit.app). Empty = a placeholder path.")] string? targetApp = null)
+    {
+        if (!Directory.Exists(outputFolder))
+            return Err($"Destination folder not found: {outputFolder}");
+        if (string.IsNullOrWhiteSpace(modName)
+            || modName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            return Err("Invalid mod name.");
+
+        var root = Path.Combine(outputFolder, modName);
+        var appearancesDir = Path.Combine(root, "source", "archive", modName, "appearances");
+        Directory.CreateDirectory(appearancesDir);
+
+        var target = string.IsNullOrWhiteSpace(targetApp)
+            ? "base\\path\\to\\target.app"
+            : targetApp.Replace('/', '\\');
+
+        var xl =
+            "# ArchiveXL — appearance-swap mod\n" +
+            "# Maps a base .app to the appearances added in your custom .app.\n" +
+            "resource:\n" +
+            "  patch:\n" +
+            $"    {target}:\n" +
+            $"      - {modName}\\appearances\\custom.app\n" +
+            "\n" +
+            "# Optional — register a custom item that uses your appearance (uncomment + add a CSV):\n" +
+            "# factories:\n" +
+            $"#   - {modName}\\factory.csv\n";
+        var xlPath = Path.Combine(root, modName + ".xl");
+        File.WriteAllText(xlPath, xl, new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(appearancesDir, ".gitkeep"), "", new UTF8Encoding(false));
+
+        var readme =
+            $"# {modName} — appearance mod\n\n" +
+            "Workflow:\n" +
+            "1. `find_in_archives` the base `.app` you want to extend, then `extract_files` it.\n" +
+            $"2. `add_appearance` a new appearance into a copy at `source/archive/{modName}/appearances/custom.app`.\n" +
+            "3. `set_mesh_material` to point its components at your material variant (and/or swap `newMesh`).\n" +
+            $"4. Edit `{modName}.xl` so the patch maps the real base `.app` path to `custom.app`.\n" +
+            "5. `pack_archive` the `source/archive` folder, then `install_mod`.\n";
+        var readmePath = Path.Combine(root, "README.md");
+        File.WriteAllText(readmePath, readme, new UTF8Encoding(false));
+
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            status = "success",
+            summary = $"Appearance-mod scaffold generated: {modName}",
+            produced = new[] { xlPath, readmePath, appearancesDir },
+            modName,
+            xlPath,
+            root,
+            warnings = Array.Empty<string>(),
+            errors = Array.Empty<string>(),
+        }, JsonOpts);
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     // find_references
     // ════════════════════════════════════════════════════════════════════════
@@ -2431,6 +2498,156 @@ public static partial class ModdingTools
         }
         catch (JsonException ex) { return Err($"add_appearance: could not parse/edit the .app JSON: {ex.Message}"); }
         finally { try { Directory.Delete(dir, true); } catch { /* best-effort temp cleanup */ } }
+    }
+
+    [McpServerTool(Name = "set_mesh_material", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [Description("Sets a mesh component's meshAppearance — the CName that selects WHICH " +
+                 "material/appearance set inside the referenced .mesh is used — for a named " +
+                 "appearance in a .app (the core of a recolor/retexture), and optionally swaps the " +
+                 "component's mesh DepotPath. Round-trips the CR2W via JSON and SELF-VERIFIES the " +
+                 "edit survives before writing. Edits the .app-level SELECTOR, not the .mesh " +
+                 "materialEntries themselves. Use inspect_app / validate_appearance first to see " +
+                 "appearance names and current meshAppearances.")]
+    public static async Task<string> SetMeshMaterial(
+        Cp77ToolsRunner runner,
+        [Description("Path to an extracted .app file.")] string appFile,
+        [Description("Name of the appearance to edit.")] string appearance,
+        [Description("New meshAppearance CName to set on the matching component(s).")] string meshAppearance,
+        [Description("Optional: only update components whose current mesh path contains this " +
+                     "(substring, case-insensitive). Empty = all mesh components of the appearance.")] string? meshFilter = null,
+        [Description("Optional: also swap the matching component's mesh DepotPath to this value.")] string? newMesh = null,
+        [Description("Optional output .app path (default: overwrite appFile in place).")] string? outputFile = null,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(appFile)) return Err($".app file not found: {appFile}");
+        if (string.IsNullOrWhiteSpace(appearance)) return Err("set_mesh_material: appearance is required.");
+        if (string.IsNullOrWhiteSpace(meshAppearance)) return Err("set_mesh_material: meshAppearance is required.");
+
+        var dir = Path.Combine(Path.GetTempPath(), "wkmcp-setmat", Guid.NewGuid().ToString("N"));
+        var jsonDir = Path.Combine(dir, "json");
+        var outDir = Path.Combine(dir, "out");
+        Directory.CreateDirectory(jsonDir);
+        Directory.CreateDirectory(outDir);
+        try
+        {
+            // 1. CR2W → JSON
+            await runner.RunAsync(new[] { "convert", "serialize", appFile, "--outpath", jsonDir }, ct);
+            var jsonFile = Directory.EnumerateFiles(jsonDir, "*.json", SearchOption.AllDirectories).FirstOrDefault();
+            if (jsonFile is null) return Err("set_mesh_material: serialization produced no JSON.");
+
+            // 2. set the meshAppearance (+ optional mesh swap) on the matching component(s)
+            var node = JsonNode.Parse(await File.ReadAllTextAsync(jsonFile, ct));
+            var (ok, err, changed, warnings) = SetComponentMeshAppearance(
+                node, appearance,
+                string.IsNullOrWhiteSpace(meshFilter) ? null : meshFilter,
+                meshAppearance,
+                string.IsNullOrWhiteSpace(newMesh) ? null : newMesh);
+            if (!ok) return Err($"set_mesh_material: {err}");
+            await File.WriteAllTextAsync(jsonFile, node!.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), ct);
+
+            // 3. JSON → CR2W
+            await runner.RunAsync(new[] { "convert", "deserialize", jsonFile, "--outpath", outDir }, ct);
+            var produced = Directory.EnumerateFiles(outDir, "*.app", SearchOption.AllDirectories).FirstOrDefault()
+                           ?? Directory.EnumerateFiles(outDir, "*", SearchOption.AllDirectories).FirstOrDefault();
+            if (produced is null) return Err("set_mesh_material: deserialization produced no .app.");
+
+            // 4. self-verify: the new meshAppearance must survive the round-trip
+            var verifyJson = await ConvertCr2wToJsonText(runner, produced, ct);
+            if (verifyJson is null)
+                return Err("set_mesh_material: could not re-read the produced .app to verify it.");
+            if (changed > 0)
+            {
+                var got = ParseAppMeshRefs(verifyJson).Any(r =>
+                    string.Equals(r.AppAppearance, appearance, StringComparison.Ordinal) &&
+                    string.Equals(r.MeshAppearance, meshAppearance, StringComparison.Ordinal));
+                if (!got)
+                    return Err($"set_mesh_material: the new meshAppearance '{meshAppearance}' did not survive " +
+                               "deserialization — file NOT written.");
+            }
+
+            var dest = outputFile ?? appFile;
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(dest))!);
+            File.Copy(produced, dest, overwrite: true);
+
+            return JsonSerializer.Serialize(new
+            {
+                ok = true,
+                status = changed > 0 ? "success" : "no-op",
+                summary = changed > 0
+                    ? $"Set meshAppearance '{meshAppearance}' on {changed} component(s) of '{appearance}'" +
+                      (string.IsNullOrWhiteSpace(newMesh) ? "" : " (+mesh swap)") + $" → {Path.GetFileName(dest)}"
+                    : $"No matching mesh component in '{appearance}' — nothing changed.",
+                produced = new[] { dest },
+                appearance,
+                meshAppearance,
+                componentsChanged = changed,
+                warnings,
+                errors = Array.Empty<string>(),
+            }, JsonOpts);
+        }
+        catch (JsonException ex) { return Err($"set_mesh_material: could not parse/edit the .app JSON: {ex.Message}"); }
+        finally { try { Directory.Delete(dir, true); } catch { /* best-effort temp cleanup */ } }
+    }
+
+    /// <summary>Pure core of set_mesh_material: for the named appearance, sets the
+    /// meshAppearance CName (and optionally swaps the mesh DepotPath) on every mesh component
+    /// that matches <paramref name="meshFilter"/> (null = all). Mutates <paramref name="root"/>
+    /// in place; idempotent. Pure + testable.</summary>
+    internal static (bool Ok, string? Error, int Changed, List<string> Warnings)
+        SetComponentMeshAppearance(JsonNode? root, string appearanceName, string? meshFilter,
+                                   string newMeshAppearance, string? newMesh)
+    {
+        var warnings = new List<string>();
+        if (string.IsNullOrWhiteSpace(appearanceName))
+            return (false, "appearance is required.", 0, warnings);
+        if (string.IsNullOrWhiteSpace(newMeshAppearance))
+            return (false, "meshAppearance is required.", 0, warnings);
+
+        var rc = root?["Data"]?["RootChunk"] ?? root;
+        if (rc?["appearances"] is not JsonArray apps)
+            return (false, "no 'appearances' array found in the .app JSON.", 0, warnings);
+
+        static JsonObject? Def(JsonNode? ae) => (ae as JsonObject)?["Data"] as JsonObject ?? ae as JsonObject;
+        static string? NameOf(JsonNode? ae) => Def(ae)?["name"] switch
+        {
+            JsonObject no => (no["$value"] as JsonValue)?.GetValue<string>(),
+            JsonValue sv => sv.GetValue<string>(),
+            _ => null,
+        };
+
+        var names = apps.Select(NameOf).Where(n => n is not null).Select(n => n!).ToList();
+        var target = apps.FirstOrDefault(a => string.Equals(NameOf(a), appearanceName, StringComparison.Ordinal));
+        if (target is null)
+            return (false, $"appearance '{appearanceName}' not found. Available: {string.Join(", ", names)}", 0, warnings);
+
+        if (Def(target)?["components"] is not JsonArray comps)
+            return (false, $"appearance '{appearanceName}' has no 'components' array.", 0, warnings);
+
+        var changed = 0;
+        foreach (var c in comps)
+        {
+            var cdef = Def(c);
+            if (cdef is null) continue;
+            // mesh component? requires mesh.DepotPath.$value
+            if (cdef["mesh"] is not JsonObject mesh || mesh["DepotPath"] is not JsonObject dp
+                || dp["$value"] is not JsonValue pv)
+                continue;
+            var curMesh = pv.GetValue<string>() ?? "";
+            if (!string.IsNullOrEmpty(meshFilter)
+                && curMesh.IndexOf(meshFilter, StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+
+            if (cdef["meshAppearance"] is JsonObject ma) ma["$value"] = newMeshAppearance;
+            else cdef["meshAppearance"] = new JsonObject { ["$value"] = newMeshAppearance };
+            if (!string.IsNullOrEmpty(newMesh)) dp["$value"] = newMesh;
+            changed++;
+        }
+
+        if (changed == 0)
+            warnings.Add(meshFilter is null
+                ? $"appearance '{appearanceName}' has no mesh component to update."
+                : $"no mesh component in '{appearanceName}' matched the filter '{meshFilter}'.");
+        return (true, null, changed, warnings);
     }
 
     internal sealed record AppAppearanceSummary(string Name, int MeshComponents, IReadOnlyList<string> Meshes);
