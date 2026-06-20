@@ -1876,10 +1876,12 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "validate_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Checks a .tweak file against a TweakDB: each key in the file must " +
-                 "exist in TweakDB (record or flat), unless it declares $base or $type " +
-                 "(new/derived record). Returns the list of unknown keys — useful " +
-                 "before install_tweak.")]
+    [Description("Validates a .tweak against a TweakDB on two axes: (1) existence — each key " +
+                 "must exist in TweakDB (record or flat) unless it declares $base or $type (new/" +
+                 "derived record); (2) types — each overridden flat's value must be " +
+                 "type-compatible with the flat (a string into a numeric flat, an array/scalar " +
+                 "mismatch, … — the #1 silently-ignored TweakXL error). Returns unknown keys " +
+                 "(errors) and type mismatches (warnings, in `typeFindings`). Use before install_tweak.")]
     public static async Task<string> ValidateTweak(
         Cp77ToolsRunner runner,
         [Description("Path to the .tweak file to validate.")] string tweakFile,
@@ -1891,9 +1893,86 @@ public static class WolvenKitTools
         if (!File.Exists(tweakdbBin))
             return Err($"tweakdb.bin not found: {tweakdbBin}");
 
+        // 1. Existence pass (daemon): keys must exist or declare $base / $type.
         var r = await runner.RunAsync(
             new[] { "tweak", "validate", tweakFile, tweakdbBin }, ct);
-        return Structured($".tweak validation: {tweakFile} against {tweakdbBin}", r);
+        var log = (r.Stdout + r.Stderr).Trim();
+        var existenceWarnings = LogLines(log, "Warning");   // unknown-key warnings
+        var errors = LogLines(log, "Error");
+
+        // 2. Typed pass (MCP-side): each overridden flat must be type-compatible.
+        List<string> typeFindings;
+        try { typeFindings = await TypedTweakFindingsAsync(runner, tweakFile, tweakdbBin, ct); }
+        catch (OperationCanceledException) { return Cancelled("validate_tweak"); }
+        catch { typeFindings = new List<string>(); } // the bonus pass must never break validation
+
+        // Existence is authoritative for ok (exit 1 = unknown keys); type issues are warnings.
+        var existenceFailed = r.ExitCode != 0 || errors.Count > 0;
+        var allWarnings = existenceWarnings.Concat(typeFindings).ToList();
+        var status = existenceFailed ? "error" : allWarnings.Count > 0 ? "partial" : "success";
+        return JsonSerializer.Serialize(new
+        {
+            ok = !existenceFailed,
+            status,
+            summary = $".tweak validation: {Path.GetFileName(tweakFile)} — " +
+                      $"{existenceWarnings.Count} unknown key(s), {typeFindings.Count} type issue(s)",
+            produced = Array.Empty<string>(),
+            warnings = allWarnings,
+            errors,
+            typeFindings,
+            exitCode = r.ExitCode,
+            log = Truncate(log, 12_000),
+        }, JsonOpts);
+    }
+
+    /// <summary>MCP-side typed pass of validate_tweak: parses the .tweak, and for each
+    /// `record.field: value` override describes the record (or its $base when the record
+    /// is new) to learn the flat's type, then flags high-confidence type mismatches. The
+    /// pure logic lives in <see cref="TweakValidation"/>; this only orchestrates the
+    /// (cached, capped) describe calls against the already-warm TweakDB.</summary>
+    private static async Task<List<string>> TypedTweakFindingsAsync(
+        Cp77ToolsRunner runner, string tweakFile, string tweakdbBin, CancellationToken ct)
+    {
+        var findings = new List<string>();
+        var yaml = await File.ReadAllTextAsync(tweakFile, ct);
+        object? root;
+        try { root = new YamlDotNet.Serialization.DeserializerBuilder().Build().Deserialize<object?>(yaml); }
+        catch { return findings; } // invalid YAML is already reported by the existence pass
+
+        var assignments = TweakValidation.EnumerateAssignments(root);
+        if (assignments.Count == 0) return findings;
+
+        const int maxRecords = 64;
+        var flatCache = new Dictionary<string, Dictionary<string, TweakValidation.Kind>>(StringComparer.Ordinal);
+        var capped = false;
+
+        async Task<Dictionary<string, TweakValidation.Kind>> FlatsOf(string record, string? baseRecord)
+        {
+            if (flatCache.TryGetValue(record, out var cached)) return cached;
+            if (flatCache.Count >= maxRecords) { capped = true; return new(); }
+            var dr = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, record }, ct);
+            var map = TweakValidation.ParseDescribedFlats(dr.Stdout + dr.Stderr);
+            if (map.Count == 0 && !string.IsNullOrEmpty(baseRecord))
+            {
+                var br = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, baseRecord }, ct);
+                map = TweakValidation.ParseDescribedFlats(br.Stdout + br.Stderr);
+            }
+            flatCache[record] = map;
+            return map;
+        }
+
+        foreach (var a in assignments)
+        {
+            var flats = await FlatsOf(a.Record, a.BaseRecord);
+            var flatKind = flats.TryGetValue(a.Field, out var fk) ? fk : TweakValidation.Kind.Unknown;
+            var valueKind = TweakValidation.ClassifyValue(a.Value);
+            if (!TweakValidation.AreCompatible(valueKind, flatKind))
+                findings.Add($"{a.Record}.{a.Field}: value looks like {TweakValidation.Label(valueKind)} " +
+                             $"but the flat is {TweakValidation.Label(flatKind)} — TweakXL will likely ignore this override.");
+        }
+        if (capped)
+            findings.Add($"(type check limited to the first {maxRecords} records — the rest were not type-checked.)");
+        return findings;
     }
 
     [McpServerTool(Name = "clone_tweak_record", ReadOnly = false, Destructive = false, Idempotent = true)]

@@ -2,6 +2,20 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — TweakXL validation, deeper (no new tools)
+
+- **`validate_tweak` is now type-aware (T1).** On top of the existing key-existence
+  check it verifies that each overridden flat's value is type-compatible with the
+  flat — a string into a numeric flat, an array/scalar mismatch, etc. — the #1
+  silently-ignored TweakXL error. Mismatches come back as warnings in a new
+  `typeFindings` field. The flat types are read from the already-warm TweakDB via
+  `tweakdb-describe`; all classification logic is a pure, unit-tested core
+  (`TweakValidation`), deliberately lenient to keep near-zero false positives.
+- **`lint_tweak` now knows the TweakXL operators & directives (T3).** Flags unknown
+  array-mutation operators — the real ones are hyphenated (`!append-once`, not
+  `!appendOnce`; `!merge` does not exist) — with a suggestion, and unknown
+  `$directives` (valid: `$type`, `$base`, `$instanceOf`, `$instances`).
+
 ## Unreleased — Fix: TweakXL `$instanceOf` → `$base` (correctness)
 
 Acting on the finding from the previous entry: `$instanceOf` is **not a real TweakXL

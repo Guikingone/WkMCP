@@ -339,7 +339,7 @@ Reconverts a JSON (from `read_tweak`) into a `.tweak` file (YAML TweakXL).
 | `outputTweakFile` | string | yes | `.tweak` file to produce. |
 
 ### `validate_tweak`
-Verifies a `.tweak` against a TweakDB: each key must exist (record/flat) unless it declares `$base` or `$type` (new/derived record). Returns the unknown keys.
+Validates a `.tweak` against a TweakDB on two axes: **existence** — each key must exist (record/flat) unless it declares `$base` or `$type` (new/derived record) — and **types** — each overridden flat's value must be type-compatible with the flat (a string into a numeric flat, an array/scalar mismatch, … the #1 silently-ignored TweakXL error). Returns unknown keys (as errors) and type mismatches (as warnings, also in `typeFindings`).
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -851,7 +851,7 @@ Validates the reference chain of an ArchiveXL item mod: `.yaml`(entityName)↔`.
 ## 20. Advanced creation / maintenance
 
 ### `lint_tweak`
-Semantic lint of a TweakXL file (`.tweak` / `.yaml`): tabs forbidden (silent load failure), indentation not a multiple of 2, duplicate record names, and an auto-generated `inlineN` record used as `$base` (breaks on every game update). Complements `validate_tweak` (which checks the keys vs `tweakdb.bin`). Read-only.
+Semantic lint of a TweakXL file (`.tweak` / `.yaml`): tabs forbidden (silent load failure), indentation not a multiple of 2, duplicate record names, an auto-generated `inlineN` record used as `$base` (breaks on every game update), unknown array-mutation operators (the real ones are hyphenated — `!append-once`, not `!appendOnce`; `!merge` does not exist), and unknown `$directives`. Complements `validate_tweak` (keys + value types vs `tweakdb.bin`). Read-only.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|

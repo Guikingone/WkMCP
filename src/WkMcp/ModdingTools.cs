@@ -1800,9 +1800,10 @@ public static partial class ModdingTools
     [McpServerTool(Name = "lint_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Semantic lint of a TweakXL file (.tweak/.yaml): TABS forbidden (silent " +
                  "load failure), indentation not a multiple of 2, duplicate record " +
-                 "names in the file, and use of an auto-generated `inlineN` record as `$base` " +
-                 "(breaks on every game update). Complements validate_tweak (which checks the keys " +
-                 "vs tweakdb.bin).")]
+                 "names in the file, use of an auto-generated `inlineN` record as `$base` " +
+                 "(breaks on every game update), unknown array-mutation operators (the real " +
+                 "ones are hyphenated — `!append-once`, not `!appendOnce`), and unknown " +
+                 "`$directives`. Complements validate_tweak (keys + value types vs tweakdb.bin).")]
     public static string LintTweak(
         [Description("Path of the .tweak / .yaml file to lint.")] string tweakFile)
     {
@@ -1823,6 +1824,23 @@ public static partial class ModdingTools
             warnings,
             errors,
         }, JsonOpts);
+    }
+
+    // The real TweakXL array-mutation operators (hyphenated) and record directives.
+    private static readonly HashSet<string> ValidTweakOperators = new(StringComparer.Ordinal)
+    { "append", "append-once", "append-from", "prepend", "prepend-once", "prepend-from", "remove" };
+    private static readonly HashSet<string> ValidTweakDirectives = new(StringComparer.Ordinal)
+    { "$type", "$base", "$instanceOf", "$instances" };
+
+    /// <summary>Suggests the correct hyphenated operator for a typo (e.g. appendOnce → append-once),
+    /// matching on the hyphen/case-insensitive form; null when there is no close match.</summary>
+    private static string? SuggestTweakOperator(string op)
+    {
+        static string Norm(string s) => s.Replace("-", "").ToLowerInvariant();
+        var n = Norm(op);
+        foreach (var valid in ValidTweakOperators)
+            if (Norm(valid) == n) return valid;
+        return null;
     }
 
     /// <summary>Textual lint of a TweakXL (testable). Returns (errors, warnings).</summary>
@@ -1855,6 +1873,27 @@ public static partial class ModdingTools
             var bm = System.Text.RegularExpressions.Regex.Match(line, @"\$base\s*:\s*\S*inline\d+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (bm.Success)
                 warnings.Add($"L{i + 1}: `$base` points to an auto-generated `inlineN` record — the indices shift on every update and will break the mod. Reference the named record.");
+
+            var trimmed = line.TrimStart();
+            // Array-mutation operators: the real ones are hyphenated (!append-once),
+            // so a camelCase typo (!appendOnce) or an invented op (!merge) is silently ignored.
+            if (!trimmed.StartsWith("#"))
+            {
+                foreach (System.Text.RegularExpressions.Match om in
+                         System.Text.RegularExpressions.Regex.Matches(line, @"(?:^|[\s\-:])!([A-Za-z][\w-]*)"))
+                {
+                    var op = om.Groups[1].Value;
+                    if (ValidTweakOperators.Contains(op)) continue;
+                    var hint = SuggestTweakOperator(op);
+                    warnings.Add($"L{i + 1}: unknown TweakXL operator `!{op}`" +
+                        (hint is not null ? $" — did you mean `!{hint}`?"
+                            : " — valid: !append, !append-once, !append-from, !prepend, !prepend-once, !prepend-from, !remove."));
+                }
+            }
+            // Unknown $directive (valid: $type, $base, $instanceOf, $instances).
+            var dm = System.Text.RegularExpressions.Regex.Match(line, @"^\s*(\$[A-Za-z][A-Za-z0-9_]*)\s*:");
+            if (dm.Success && !ValidTweakDirectives.Contains(dm.Groups[1].Value))
+                warnings.Add($"L{i + 1}: unknown directive `{dm.Groups[1].Value}` — valid: $type, $base, $instanceOf, $instances.");
         }
         foreach (var kv in topKeys.Where(kv => kv.Value > 1))
             warnings.Add($"Record \"{kv.Key}\" defined {kv.Value} times in the file — the last one silently overrides.");
