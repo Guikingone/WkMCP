@@ -5,12 +5,13 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>
 /// MCP tools for modding Cyberpunk 2077 — inspection, conversion and
@@ -48,7 +49,7 @@ public static class WolvenKitTools
 
     // ── Diagnostic ────────────────────────────────────────────────────────
 
-    [McpServerTool(Name = "wolvenkit_status", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [McpServerTool(Name = "wk_status", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Checks that the WolvenKit CLI (cp77tools) is available and functional " +
                  "on this machine, and returns its version + LRU cache stats for archive " +
                  "listings (hits/misses since server startup). Call this first " +
@@ -121,6 +122,110 @@ public static class WolvenKitTools
             r, produced);
     }
 
+    [McpServerTool(Name = "find_record_by_name", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Reverse lookup: find TweakDB record IDs by their HUMAN-FACING name. " +
+                 "tweakdb_query only matches the identifier (e.g. Items.Preset_Lexington); this " +
+                 "searches the localized displayName/description TEXT instead (e.g. \"Overwatch\" → " +
+                 "its record IDs). Returns {recordId: {field: value}} for matches. Backed by the " +
+                 "extract_localization data path (re-scans the tweakdb each call).")]
+    public static async Task<string> FindRecordByName(
+        Cp77ToolsRunner runner,
+        [Description("Path to the tweakdb.bin (typically <game>/r6/cache/tweakdb.bin).")] string tweakdbPath,
+        [Description("Text to search for in the localized name/description (substring, case-insensitive).")] string name,
+        [Description("Optional: restrict to record IDs containing this substring (e.g. \"Items.\", \"Vehicle.\").")] string? recordType = null,
+        [Description("Max matches to return (default 50).")] int maxResults = 50,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(tweakdbPath)) return Err($"tweakdb.bin file not found: {tweakdbPath}");
+        if (string.IsNullOrWhiteSpace(name)) return Err("find_record_by_name: 'name' is required.");
+        if (maxResults <= 0) maxResults = 50;
+
+        var dir = Path.Combine(Path.GetTempPath(), "wkmcp-find", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var tmp = Path.Combine(dir, "loc.json");
+        try
+        {
+            var args = new List<string> { "tweakdb-extract-localization", tweakdbPath, tmp };
+            if (!string.IsNullOrWhiteSpace(recordType)) args.Add(recordType); // daemon-side prefilter on recordId
+            var r = await runner.RunAsync(args, ct);
+            if (!File.Exists(tmp))
+                return Structured("find_record_by_name: extraction produced no data", r, new List<string>());
+
+            using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(tmp, ct));
+            var matches = new Dictionary<string, Dictionary<string, string>>();
+            foreach (var rec in doc.RootElement.EnumerateObject())
+            {
+                if (rec.Value.ValueKind != JsonValueKind.Object) continue;
+                var hit = new Dictionary<string, string>();
+                foreach (var f in rec.Value.EnumerateObject())
+                {
+                    var val = f.Value.ValueKind == JsonValueKind.String ? f.Value.GetString() ?? "" : f.Value.ToString();
+                    if (val.Contains(name, StringComparison.OrdinalIgnoreCase)) hit[f.Name] = val;
+                }
+                if (hit.Count > 0) matches[rec.Name] = hit;
+                if (matches.Count >= maxResults) break;
+            }
+            var truncated = matches.Count >= maxResults;
+            return JsonSerializer.Serialize(new
+            {
+                ok = true,
+                status = "success",
+                summary = $"{matches.Count} record(s) matching \"{name}\"" +
+                          (recordType is null ? "" : $" in {recordType}") + (truncated ? " (truncated)" : ""),
+                query = name,
+                recordType,
+                truncated,
+                matches,
+            }, JsonOpts);
+        }
+        catch (JsonException ex) { return Err($"Could not parse extracted localization JSON: {ex.Message}"); }
+        finally { try { Directory.Delete(dir, true); } catch { /* best-effort temp cleanup */ } }
+    }
+
+    [McpServerTool(Name = "diff_against_installed", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Compares a BUILT mod .archive against the copy currently installed in " +
+                 "<game>/archive/pc/mod (matched by filename): files only-in-build vs only-in-installed. " +
+                 "Answers \"is my working build in sync with what's installed?\" — the missing " +
+                 "iteration-loop glue (migration_check / diff_mod_vs_base compare mod-vs-base-game " +
+                 "instead). Compares the file SET (paths), not per-file content.")]
+    public static async Task<string> DiffAgainstInstalled(
+        Cp77ToolsRunner runner,
+        [Description("Path to the built mod .archive (your working output).")] string modArchive,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(modArchive)) return Err($"Mod archive not found: {modArchive}");
+        var installed = Path.Combine(gamePath, "archive", "pc", "mod", Path.GetFileName(modArchive));
+        if (!File.Exists(installed))
+            return JsonSerializer.Serialize(new
+            {
+                ok = true,
+                status = "not_installed",
+                summary = $"No installed copy named {Path.GetFileName(modArchive)} in archive/pc/mod — not installed yet.",
+                installed = (string?)null,
+            }, JsonOpts);
+
+        var (a, _, _) = await runner.GetArchiveListingAsync(modArchive, ct);
+        var (b, _, _) = await runner.GetArchiveListingAsync(installed, ct);
+        var setA = new HashSet<string>(a, StringComparer.OrdinalIgnoreCase);
+        var setB = new HashSet<string>(b, StringComparer.OrdinalIgnoreCase);
+        var onlyInBuild = a.Where(x => !setB.Contains(x)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        var onlyInInstalled = b.Where(x => !setA.Contains(x)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        var inSync = onlyInBuild.Count == 0 && onlyInInstalled.Count == 0;
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            status = inSync ? "in_sync" : "out_of_sync",
+            summary = inSync
+                ? "Build matches the installed copy (same file set)."
+                : $"{onlyInBuild.Count} file(s) only in build, {onlyInInstalled.Count} only in installed.",
+            installed,
+            inSync,
+            addedInBuild = onlyInBuild,
+            missingFromBuild = onlyInInstalled,
+        }, JsonOpts);
+    }
+
     [McpServerTool(Name = "build_localization", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Builds a .tweak file (TweakXL) that overrides displayName / " +
                  "localizedDescription / etc. from a translations JSON file in the format " +
@@ -152,7 +257,7 @@ public static class WolvenKitTools
 
         var sb = new StringBuilder();
         sb.Append("# Localization mod — lang ").AppendLine(lang);
-        sb.AppendLine("# Generated by build_localization (WolvenKit MCP)");
+        sb.AppendLine("# Generated by build_localization (WkMCP)");
         sb.AppendLine();
 
         int recordCount = 0, fieldCount = 0;
@@ -495,23 +600,27 @@ public static class WolvenKitTools
         var cacheHits = 0;
         var errors = new List<string>();
 
-        foreach (var archive in archives)
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            var (entries, fromCache, raw) = await runner.GetArchiveListingAsync(archive, ct);
-            if (fromCache) cacheHits++;
-            if (entries.Count == 0 && raw.ExitCode != 0)
+            foreach (var archive in archives)
             {
-                errors.Add($"{Path.GetFileName(archive)}: empty listing (exit={raw.ExitCode})");
-                continue;
-            }
-            foreach (var e in entries)
-            {
-                var match = rx is not null ? rx.IsMatch(e) : MatchesGlob(e, pattern!);
-                if (match)
-                    matches.Add($"{e}  ({Path.GetFileName(archive)})");
+                ct.ThrowIfCancellationRequested();
+                var (entries, fromCache, raw) = await runner.GetArchiveListingAsync(archive, ct);
+                if (fromCache) cacheHits++;
+                if (entries.Count == 0 && raw.ExitCode != 0)
+                {
+                    errors.Add($"{Path.GetFileName(archive)}: empty listing (exit={raw.ExitCode})");
+                    continue;
+                }
+                foreach (var e in entries)
+                {
+                    var match = rx is not null ? rx.IsMatch(e) : MatchesGlob(e, pattern!);
+                    if (match)
+                        matches.Add($"{e}  ({Path.GetFileName(archive)})");
+                }
             }
         }
+        catch (OperationCanceledException) { return Cancelled("find_in_archives"); }
 
         // Bounded response: a broad pattern over base content can produce
         // tens of thousands of entries — enough to saturate the agent context.
@@ -703,6 +812,129 @@ public static class WolvenKitTools
                 new[] { "convert", "deserialize", path, "--outpath", outputPath }, ct));
     }
 
+    [McpServerTool(Name = "set_texture_format", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [Description("Sets the texture group / compression / raw format of an extracted .xbm — the #1 " +
+                 "silent retexture failure (wrong group/compression on reimport loses alpha, breaks " +
+                 "normal maps, or drops mipmaps). Round-trips the CR2W via JSON. Provide at least one of " +
+                 "group/compression/rawFormat. Common values — group: TEXG_Generic_Color / " +
+                 "TEXG_Generic_Normal / TEXG_Generic_UIColor; compression: TCM_QualityColor / TCM_Normalmap / " +
+                 "TCM_DXTAlpha / TCM_None; rawFormat: TRF_TrueColor / TRF_HDRFloat. Use inspect_texture to read current values.")]
+    public static async Task<string> SetTextureFormat(
+        Cp77ToolsRunner runner,
+        [Description("Path to an extracted .xbm file.")] string xbmFile,
+        [Description("Texture group CName (TEXG_…). Drives engine-side decoding/streaming.")] string? group = null,
+        [Description("Compression enum (TCM_…).")] string? compression = null,
+        [Description("Raw format enum (TRF_…).")] string? rawFormat = null,
+        [Description("Optional output .xbm path (default: overwrite xbmFile in place).")] string? outputFile = null,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(xbmFile)) return Err($".xbm file not found: {xbmFile}");
+        if (group is null && compression is null && rawFormat is null)
+            return Err("set_texture_format: provide at least one of group / compression / rawFormat.");
+
+        var dir = Path.Combine(Path.GetTempPath(), "wkmcp-texfmt", Guid.NewGuid().ToString("N"));
+        var jsonDir = Path.Combine(dir, "json");
+        var outDir = Path.Combine(dir, "out");
+        Directory.CreateDirectory(jsonDir);
+        Directory.CreateDirectory(outDir);
+        try
+        {
+            // 1. CR2W → JSON
+            var ser = await runner.RunAsync(new[] { "convert", "serialize", xbmFile, "--outpath", jsonDir }, ct);
+            var jsonFile = Directory.EnumerateFiles(jsonDir, "*.json", SearchOption.AllDirectories).FirstOrDefault();
+            if (jsonFile is null) return Structured("set_texture_format: serialization produced no JSON", ser, new List<string>());
+
+            // 2. mutate the setup fields
+            var node = JsonNode.Parse(await File.ReadAllTextAsync(jsonFile, ct));
+            var (changed, warnings, applyErr) = ApplyTextureFormat(node, group, compression, rawFormat);
+            if (applyErr is not null) return Err(applyErr);
+            await File.WriteAllTextAsync(jsonFile, node!.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), ct);
+
+            // 3. JSON → CR2W
+            var de = await runner.RunAsync(new[] { "convert", "deserialize", jsonFile, "--outpath", outDir }, ct);
+            var produced = Directory.EnumerateFiles(outDir, "*.xbm", SearchOption.AllDirectories).FirstOrDefault()
+                           ?? Directory.EnumerateFiles(outDir, "*", SearchOption.AllDirectories).FirstOrDefault();
+            if (produced is null) return Structured("set_texture_format: deserialization produced no CR2W", de, new List<string>());
+
+            var dest = outputFile ?? xbmFile;
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(dest))!);
+            File.Copy(produced, dest, overwrite: true);
+
+            return JsonSerializer.Serialize(new
+            {
+                ok = true,
+                status = changed > 0 ? "success" : "no_change",
+                summary = changed > 0
+                    ? $"Set {changed} texture field(s) on {Path.GetFileName(dest)}" +
+                      (group is null ? "" : $" group={group}") + (compression is null ? "" : $" compression={compression}") +
+                      (rawFormat is null ? "" : $" rawFormat={rawFormat}")
+                    : "No matching texture field found — file unchanged.",
+                produced = new[] { dest },
+                changed,
+                applied = new { group, compression, rawFormat },
+                warnings,
+                errors = Array.Empty<string>(),
+            }, JsonOpts);
+        }
+        catch (JsonException ex) { return Err($"Could not parse/edit the texture JSON: {ex.Message}"); }
+        finally { try { Directory.Delete(dir, true); } catch { /* best-effort temp cleanup */ } }
+    }
+
+    /// <summary>Pure mutation core of set_texture_format: validates the enum prefixes and sets
+    /// textureGroup / compression / rawFormat wherever they occur in the CR2W JSON (handling both
+    /// the bare-string and {$value}/{Value} node shapes). Returns (#changed, warnings, error).</summary>
+    internal static (int Changed, List<string> Warnings, string? Error) ApplyTextureFormat(
+        JsonNode? root, string? group, string? compression, string? rawFormat)
+    {
+        var warnings = new List<string>();
+        if (group is not null && !group.StartsWith("TEXG_", StringComparison.OrdinalIgnoreCase))
+            return (0, warnings, $"group '{group}' should start with TEXG_ (e.g. TEXG_Generic_Color).");
+        if (compression is not null && !compression.StartsWith("TCM_", StringComparison.OrdinalIgnoreCase))
+            return (0, warnings, $"compression '{compression}' should start with TCM_ (e.g. TCM_QualityColor).");
+        if (rawFormat is not null && !rawFormat.StartsWith("TRF_", StringComparison.OrdinalIgnoreCase))
+            return (0, warnings, $"rawFormat '{rawFormat}' should start with TRF_ (e.g. TRF_TrueColor).");
+
+        var targets = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (group is not null) targets["textureGroup"] = group;
+        if (compression is not null) targets["compression"] = compression;
+        if (rawFormat is not null) targets["rawFormat"] = rawFormat;
+
+        var changed = 0;
+        void Walk(JsonNode? n)
+        {
+            if (n is JsonObject o)
+            {
+                foreach (var kv in o.ToList())
+                {
+                    if (targets.TryGetValue(kv.Key, out var newVal) && SetScalarOrValue(o, kv.Key, newVal))
+                        changed++;
+                    Walk(kv.Value);
+                }
+            }
+            else if (n is JsonArray a)
+            {
+                foreach (var item in a) Walk(item);
+            }
+        }
+        Walk(root);
+        if (changed == 0)
+            warnings.Add("No textureGroup/compression/rawFormat field found in the JSON — nothing changed.");
+        return (changed, warnings, null);
+    }
+
+    /// <summary>Sets a field that may be a bare string or a CName/enum object ({$value} or {Value}).</summary>
+    private static bool SetScalarOrValue(JsonObject parent, string key, string newVal)
+    {
+        if (parent[key] is JsonObject obj)
+        {
+            if (obj.ContainsKey("$value")) { obj["$value"] = newVal; return true; }
+            if (obj.ContainsKey("Value")) { obj["Value"] = newVal; return true; }
+            return false; // unknown object shape — don't clobber it
+        }
+        parent[key] = newVal; // scalar / null
+        return true;
+    }
+
     [McpServerTool(Name = "export_files", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Exports already-extracted REDengine files to raw formats " +
                  "(mesh → glTF, texture → image, etc.).")]
@@ -806,7 +1038,7 @@ public static class WolvenKitTools
             return Err($"File .ent not found: {entFile}");
 
         // Discover the appearances to validate/choose and give clear errors.
-        var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-entappr", Guid.NewGuid().ToString("N"));
+        var tmp = Path.Combine(Path.GetTempPath(), "wkmcp-entappr", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
         List<string> available;
         try
@@ -905,8 +1137,13 @@ public static class WolvenKitTools
         // DETERMINISTIC work folder per (archive, file): re-reading the same
         // file rewrites it to the same place instead of accumulating a GUID folder per
         // call (leak). jsonFile remains readable after the call as documented.
-        var work = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-read",
+        var work = Path.Combine(Path.GetTempPath(), "wkmcp-read",
                                 StableHash(archivePath + "|" + gameFilePath));
+        // Wipe any prior extraction first: the folder is reused per (archive,file),
+        // so a stale *.json from an earlier call (e.g. the archive changed, or this
+        // extraction yields nothing) must not be picked up by FirstOrDefault below.
+        try { if (Directory.Exists(work)) Directory.Delete(work, recursive: true); }
+        catch { /* best-effort; recreation below still proceeds */ }
         var rawDir = Path.Combine(work, "raw");
         var jsonDir = Path.Combine(work, "json");
         Directory.CreateDirectory(rawDir);
@@ -973,7 +1210,14 @@ public static class WolvenKitTools
         if (!File.Exists(jsonFile))
             return Err($"JSON file not found: {jsonFile}");
 
-        var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-write",
+        // Containment guard: gameFilePath is agent-controlled and documented as an
+        // "internal path". A rooted or ..\-laden value would otherwise let
+        // Path.Combine write outside the mod folder (arbitrary overwrite).
+        if (!PathSafety.TryResolveInside(modArchiveFolder, gameFilePath, out var dest))
+            return Err($"Refused: gameFilePath '{gameFilePath}' escapes the mod folder " +
+                       $"'{modArchiveFolder}' (must be a relative path inside it).");
+
+        var tmp = Path.Combine(Path.GetTempPath(), "wkmcp-write",
                                Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
         var conv = await runner.RunAsync(
@@ -989,7 +1233,6 @@ public static class WolvenKitTools
                 new List<string>());
         }
 
-        var dest = Path.Combine(modArchiveFolder, gameFilePath);
         Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
         File.Copy(cr2w, dest, overwrite: true);
         try { Directory.Delete(tmp, recursive: true); } catch { /* best-effort cleanup */ }
@@ -1031,32 +1274,37 @@ public static class WolvenKitTools
         var errorCodes = new ConcurrentBag<int>();
         var done = 0;
 
-        await Parallel.ForEachAsync(wems,
-            new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Math.Min(4, Environment.ProcessorCount),
-                CancellationToken = ct,
-            },
-            async (wem, token) =>
-            {
-                var ogg = Path.Combine(outputPath,
-                    Path.GetFileNameWithoutExtension(wem) + ".ogg");
-                var r = await runner.RunAsync(new[] { "wwise", wem, ogg, "--wem" }, token);
-                logs.Add(
-                    $"{Path.GetFileName(wem)} → {Path.GetFileName(ogg)}\n" +
-                    (r.Stdout + r.Stderr).Trim());
-                if (r.ExitCode != 0) errorCodes.Add(r.ExitCode);
-                var n = Interlocked.Increment(ref done);
-                progress?.Report(new ProgressNotificationValue
+        try
+        {
+            await Parallel.ForEachAsync(wems,
+                new ParallelOptions
                 {
-                    Progress = n,
-                    Total = wems.Length,
-                    Message = Path.GetFileName(wem),
+                    MaxDegreeOfParallelism = Math.Min(4, Environment.ProcessorCount),
+                    CancellationToken = ct,
+                },
+                async (wem, token) =>
+                {
+                    var ogg = Path.Combine(outputPath,
+                        Path.GetFileNameWithoutExtension(wem) + ".ogg");
+                    var r = await runner.RunAsync(new[] { "wwise", wem, ogg, "--wem" }, token);
+                    logs.Add(
+                        $"{Path.GetFileName(wem)} → {Path.GetFileName(ogg)}\n" +
+                        (r.Stdout + r.Stderr).Trim());
+                    if (r.ExitCode != 0) errorCodes.Add(r.ExitCode);
+                    var n = Interlocked.Increment(ref done);
+                    progress?.Report(new ProgressNotificationValue
+                    {
+                        Progress = n,
+                        Total = wems.Length,
+                        Message = Path.GetFileName(wem),
+                    });
                 });
-            });
+        }
+        catch (OperationCanceledException) { return Cancelled("wwise_export"); }
 
         var aggregate = new CliResult(
-            errorCodes.IsEmpty ? 0 : errorCodes.First(),
+            // Deterministic aggregate exit code (ConcurrentBag has no defined order).
+            errorCodes.IsEmpty ? 0 : errorCodes.Max(),
             string.Join("\n", logs), "", false);
         return Structured(
             $"Wwise WEM → OGG conversion: {wems.Length} file(s) → {outputPath} (parallel)",
@@ -1440,7 +1688,7 @@ public static class WolvenKitTools
         if (!File.Exists(meshFile))
             return Err($".mesh file not found: {meshFile}");
 
-        var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-inspect",
+        var tmp = Path.Combine(Path.GetTempPath(), "wkmcp-inspect",
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
         try
@@ -1465,8 +1713,8 @@ public static class WolvenKitTools
                           $"{stats.LodCount} LOD(s), {stats.SubMeshCount} sub-mesh, " +
                           $"{stats.MaterialCount} material(s), {stats.BoneCount} bone(s)",
                 produced = Array.Empty<string>(),
-                warnings = LogLines(r.Stdout, "Warning"),
-                errors = LogLines(r.Stdout, "Error"),
+                warnings = LogLines(r.Stdout + r.Stderr, "Warning"),
+                errors = LogLines(r.Stdout + r.Stderr, "Error"),
                 meshFile,
                 lodCount = stats.LodCount,
                 subMeshCount = stats.SubMeshCount,
@@ -1498,7 +1746,7 @@ public static class WolvenKitTools
         if (!File.Exists(xbmFile))
             return Err($".xbm file not found: {xbmFile}");
 
-        var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-inspect",
+        var tmp = Path.Combine(Path.GetTempPath(), "wkmcp-inspect",
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
         try
@@ -1522,8 +1770,8 @@ public static class WolvenKitTools
                 summary = $"Texture inspected: {Path.GetFileName(xbmFile)} — " +
                           $"{props.Width}x{props.Height} {props.Format}",
                 produced = Array.Empty<string>(),
-                warnings = LogLines(r.Stdout, "Warning"),
-                errors = LogLines(r.Stdout, "Error"),
+                warnings = LogLines(r.Stdout + r.Stderr, "Warning"),
+                errors = LogLines(r.Stdout + r.Stderr, "Error"),
                 xbmFile,
                 width = props.Width,
                 height = props.Height,
@@ -1577,7 +1825,7 @@ public static class WolvenKitTools
         if (!File.Exists(tweakFile))
             return Err($".tweak file not found: {tweakFile}");
 
-        var jsonFile = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-tweak",
+        var jsonFile = Path.Combine(Path.GetTempPath(), "wkmcp-tweak",
             Guid.NewGuid().ToString("N") + ".json");
         Directory.CreateDirectory(Path.GetDirectoryName(jsonFile)!);
 
@@ -1796,9 +2044,11 @@ public static class WolvenKitTools
                  "catalog of common patterns. Avoids knowing the TweakXL syntax by hand. " +
                  "Supported patterns: override_field (modifies a field of an existing record), " +
                  "new_record (creates a new record via $instanceOf), boost_stat (modifies a " +
-                 "numeric stat with a new value).")]
+                 "numeric stat with a new value), new_item (typed clone of an existing item — " +
+                 "params newId, baseId, itemType=weapon|clothing|cyberware|consumable|recipe — " +
+                 "emits safe item flats + a checklist of the type-specific flats to fill).")]
     public static string GenerateTweakTemplate(
-        [Description("Pattern: override_field | new_record | boost_stat.")] string pattern,
+        [Description("Pattern: override_field | new_record | boost_stat | new_item.")] string pattern,
         [Description("Template parameters as JSON (keys depending on the pattern, see description).")] string parametersJson,
         [Description("Path to the .tweak file to produce.")] string outputFile)
     {
@@ -1890,9 +2140,54 @@ public static class WolvenKitTools
                 description = $"Boost stat: {id}.{stat} = {value}";
                 break;
             }
+            case "new_item":
+            {
+                var newId = Str("newId");
+                var baseId = Str("baseId");
+                var itemType = (Str("itemType") ?? "weapon").ToLowerInvariant();
+                if (string.IsNullOrEmpty(newId))
+                    return Err("new_item: 'newId' required (e.g. MyMod.MyWeapon).");
+                if (string.IsNullOrEmpty(baseId))
+                    return Err("new_item: 'baseId' required — the existing record to clone " +
+                               "(use tweakdb_query / describe_tweak_record to find a canonical base).");
+
+                // Type-specific checklist of the flats authors usually set. Emitted as
+                // comments (not active keys) so the YAML always loads — run
+                // describe_tweak_record on baseId for the exact flat names + current values.
+                var (typeNote, checklist) = itemType switch
+                {
+                    "weapon"     => ("ranged/melee weapon",
+                        new[] { "statModifiers (damage, etc. — list of gameStatModifier handles)",
+                                "attachmentSlots", "evolution", "damageType", "entityName / appearanceName (ArchiveXL)" }),
+                    "clothing"   => ("garment / clothing item",
+                        new[] { "appearanceName", "entityName (ArchiveXL)", "garmentOffsets",
+                                "areaType (head/face/torso/legs/feet)", "placementSlots" }),
+                    "cyberware"  => ("cyberware implant",
+                        new[] { "UI.icon", "humanityCost", "cyberwareType", "slotPartListID",
+                                "statModifiers", "evolution" }),
+                    "consumable" => ("consumable",
+                        new[] { "objectActionsCallbackName", "statModifiers / effectors", "stackSize", "UI.icon" }),
+                    "recipe"     => ("crafting recipe",
+                        new[] { "craftingResult (item produced)", "craftingMaterials", "isPlayerCraftable", "UI.icon" }),
+                    _ => ("generic item",
+                        new[] { "displayName", "localizedDescription", "quality", "UI.icon" }),
+                };
+
+                var sb = new StringBuilder();
+                sb.Append(newId).AppendLine(":");
+                sb.Append("  $instanceOf: ").AppendLine(baseId);
+                sb.AppendLine("  displayName: LocKey#0          # replace with your LocKey or a localization secondaryKey");
+                sb.AppendLine("  localizedDescription: LocKey#0");
+                sb.AppendLine("  quality: Quality.Legendary     # Common/Uncommon/Rare/Epic/Legendary");
+                sb.AppendLine($"  # --- {typeNote}: flats you typically also set (see describe_tweak_record {baseId}) ---");
+                foreach (var c in checklist) sb.Append("  #   ").AppendLine(c);
+                yaml = sb.ToString();
+                description = $"New {itemType}: {newId} <- $instanceOf {baseId}";
+                break;
+            }
             default:
                 return Err($"Unknown pattern: {pattern} " +
-                           "(override_field, new_record, boost_stat).");
+                           "(override_field, new_record, boost_stat, new_item).");
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputFile) ?? ".");
@@ -2252,7 +2547,7 @@ public static class WolvenKitTools
         }
     }
 
-    [McpServerTool(Name = "restore_mods", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [McpServerTool(Name = "restore_mods", ReadOnly = false, Destructive = true, Idempotent = false)]
     [Description("Restores a mods backup produced by backup_mods. `merge` mode (default): " +
                  "extracts over the existing without deleting. `replace` mode: first empties " +
                  "the target folders (archive/pc/mod, mods, r6/tweaks) then extracts — " +
@@ -2377,6 +2672,7 @@ public static class WolvenKitTools
 
         // 2. Conflicts with installed mods (shared internal paths).
         if (!string.IsNullOrWhiteSpace(gamePath) && Directory.Exists(gamePath))
+        try
         {
             var modsDir = Path.Combine(gamePath, "archive", "pc", "mod");
             if (Directory.Exists(modsDir))
@@ -2414,6 +2710,7 @@ public static class WolvenKitTools
                 warnings.Add($"Mod folder absent: {modsDir} (conflict detection disabled)");
             }
         }
+        catch (OperationCanceledException) { return Cancelled("lint_mod"); }
 
         var ok = errors.Count == 0;
         var status = errors.Count > 0 ? "error"
@@ -2625,7 +2922,7 @@ public static class WolvenKitTools
             $"Dump records {recordType} → {outputFile} (format {format})", r, produced);
     }
 
-    [McpServerTool(Name = "launch_game", ReadOnly = false, Destructive = false, Idempotent = false)]
+    [McpServerTool(Name = "launch_game", ReadOnly = false, Destructive = true, Idempotent = false)]
     [Description("⚠ Launches Cyberpunk 2077: runs <game>/bin/x64/Cyberpunk2077.exe (visible " +
                  "action that is hard to cancel — the game really starts). If " +
                  "deployRedmod=true (default), runs redMod.exe deploy first. " +
@@ -3408,7 +3705,10 @@ public static class WolvenKitTools
     {
         if (value is null) return "null";
         if (value is bool b) return b ? "true" : "false";
-        if (value is long or int or double or float) return value.ToString()!;
+        // Invariant culture: on a fr-FR machine value.ToString() would emit "1,5"
+        // for 1.5, producing invalid YAML.
+        if (value is IFormattable f && value is long or int or double or float)
+            return f.ToString(null, System.Globalization.CultureInfo.InvariantCulture);
         var s = value.ToString() ?? "";
         // Parsable numbers → written bare.
         if (long.TryParse(s, out _) || double.TryParse(s,
@@ -3514,6 +3814,21 @@ public static class WolvenKitTools
         };
         return JsonSerializer.Serialize(result, JsonOpts);
     }
+
+    /// <summary>JSON result for a cancelled/timed-out call — same shape as Err so
+    /// the agent never sees a raw OperationCanceledException leak out of a tool.</summary>
+    private static string Cancelled(string op)
+        => JsonSerializer.Serialize(new
+        {
+            ok = false,
+            status = "cancelled",
+            summary = $"{op} was cancelled or timed out before completion.",
+            produced = Array.Empty<string>(),
+            warnings = Array.Empty<string>(),
+            errors = new[] { "cancelled" },
+            exitCode = -1,
+            log = "",
+        }, JsonOpts);
 
     /// <summary>JSON failure result — for argument validation errors.</summary>
     private static string Err(string summary)

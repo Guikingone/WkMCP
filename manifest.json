@@ -1,10 +1,10 @@
 {
   "manifest_version": "0.1",
-  "name": "wolvenkit-mcp",
-  "display_name": "WolvenKit MCP",
-  "version": "1.0.1",
+  "name": "wkmcp",
+  "display_name": "WkMCP",
+  "version": "2.0.0",
   "description": "MCP server for Cyberpunk 2077 modding — exposes the WolvenKit toolkit (.archive archives, CR2W/JSON, TweakDB, REDmod, .reds scripts, audio, mesh/texture/animation) as tools usable by an agent.",
-  "long_description": "C#/.NET 8 MCP server backed by a persistent WolvenKit daemon (pipelined IPC) with cp77tools fallback. 123 tools: archive read/write, CR2W↔JSON conversion, structured TweakDB editing, .archive and REDmod packaging, .cpmodproj project generation, mesh/texture/animation/morphtarget/mlmask export, opus audio extraction, REDscript (dedicated parser) and TweakXL linting, mod diagnostics (mod_doctor, diagnose_logs, analyze_conflicts, validate_item_mod), backup/restore, in-game iteration loop (launch + tail logs) and live in-game bridge via the CETBridge mod (35 live_* tools: player state, inventory, teleport, live TweakDB, quest facts, event observation). Windows only (native cp77tools).",
+  "long_description": "C#/.NET 8 MCP server backed by a persistent WolvenKit daemon (pipelined IPC) with cp77tools fallback. 128 tools: archive read/write, CR2W↔JSON conversion, structured TweakDB editing, .archive and REDmod packaging, .cpmodproj project generation, mesh/texture/animation/morphtarget/mlmask export, opus audio extraction, REDscript (dedicated parser) and TweakXL linting, mod diagnostics (mod_doctor, diagnose_logs, analyze_conflicts, validate_item_mod), backup/restore, in-game iteration loop (launch + tail logs) and live in-game bridge via the CETBridge mod (36 live_* tools: player state, inventory, teleport, live TweakDB, quest facts, event observation). Windows only (native cp77tools).",
   "author": {
     "name": "Guillaume Loulier",
     "url": "https://github.com/Guikingone"
@@ -12,21 +12,21 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Guikingone/WolvenkitMCP"
+    "url": "https://github.com/Guikingone/WkMCP"
   },
-  "homepage": "https://github.com/Guikingone/WolvenkitMCP",
-  "support": "https://github.com/Guikingone/WolvenkitMCP/issues",
+  "homepage": "https://github.com/Guikingone/WkMCP",
+  "support": "https://github.com/Guikingone/WkMCP/issues",
   "server": {
     "type": "binary",
-    "entry_point": "server/WolvenKitMcp.dll",
+    "entry_point": "server/WkMcp.dll",
     "mcp_config": {
       "command": "dotnet",
       "args": [
-        "${__dirname}/server/WolvenKitMcp.dll"
+        "${__dirname}/server/WkMcp.dll"
       ],
       "env": {
-        "WOLVENKIT_DAEMON": "${__dirname}/daemon/WolvenKitDaemon.dll",
-        "WOLVENKIT_CLI_TIMEOUT_SECONDS": "${user_config.cli_timeout_seconds}",
+        "WKMCP_DAEMON": "${__dirname}/daemon/WkDaemon.dll",
+        "WKMCP_CLI_TIMEOUT_SECONDS": "${user_config.cli_timeout_seconds}",
         "CET_TCP_PORT": "${user_config.cet_tcp_port}",
         "CET_BRIDGE_TIMEOUT_MS": "${user_config.cet_bridge_timeout_ms}"
       }
@@ -41,7 +41,7 @@
     "cli_timeout_seconds": {
       "type": "number",
       "title": "Max delay per command (s)",
-      "description": "Value of WOLVENKIT_CLI_TIMEOUT_SECONDS (default 300). Long verbs (uncook, build) have their own higher cap.",
+      "description": "Value of WKMCP_CLI_TIMEOUT_SECONDS (default 300). Long verbs (uncook, build) have their own higher cap.",
       "required": false,
       "default": 300
     },

@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="WolvenKitMcp.Tests" />
+    <InternalsVisibleTo Include="WkMcp.Tests" />
   </ItemGroup>
 
 </Project>

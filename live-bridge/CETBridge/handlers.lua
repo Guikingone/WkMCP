@@ -2,6 +2,11 @@ local serializer = require("serializer")
 
 local handlers = {}
 
+-- Per-stat record of the last modifier we applied via set_stat, so a repeat call
+-- replaces it instead of stacking another additive modifier. Survives for the
+-- session; stale references after a reload are removed under pcall (harmless).
+handlers._statModifiers = {}
+
 function handlers.player_info()
     local player = Game.GetPlayer()
     if not player then
@@ -325,6 +330,19 @@ function handlers.get_observations(args)
     }
 end
 
+function handlers.unobserve_events(args)
+    if not args or not args.subscriptionId then
+        return nil, "subscriptionId is required"
+    end
+    local existed = subscriptions[args.subscriptionId] ~= nil
+    -- Drop the subscription. The ObserveAfter callback early-returns once its
+    -- subscription is gone ("if not sub then return end"), so its buffer stops
+    -- growing and it becomes an inert no-op. CET cannot unregister the observer
+    -- itself, but this stops the per-session memory growth that had no off switch.
+    subscriptions[args.subscriptionId] = nil
+    return { subscriptionId = args.subscriptionId, removed = existed }
+end
+
 function handlers.batch_execute(args)
     if not args or not args.commands then
         return nil, "commands array is required"
@@ -633,15 +651,24 @@ function handlers.set_stat(args)
 
         local statsSystem = Game.GetStatsSystem()
         local playerID = player:GetEntityID()
-        local modGroup = statsSystem:GetModifierGroupForObject(playerID)
 
-        -- Remove existing modifiers and add a flat modifier
+        -- Idempotent SET, not STACK: remove the modifier we previously added for
+        -- this stat (if any) before adding the new one, otherwise repeated calls
+        -- pile additive modifiers on top of each other and the stat can never be
+        -- lowered. (Was the long-standing bug the "Remove existing" comment lied about.)
+        local prev = handlers._statModifiers[args.stat]
+        if prev then
+            pcall(function() statsSystem:RemoveModifier(playerID, prev) end)
+            handlers._statModifiers[args.stat] = nil
+        end
+
         local modifier = gameStatModifierData.new()
         modifier.modifierType = gameStatModifierType.Additive
         modifier.statType = statType
         modifier.value = args.value
 
         statsSystem:AddModifier(playerID, modifier)
+        handlers._statModifiers[args.stat] = modifier
     end)
 
     if not ok then
@@ -710,17 +737,10 @@ function handlers.spawn_vehicle(args)
     end
 
     local ok, err = pcall(function()
-        local distance = args.distance or 5
-        local pos = player:GetWorldPosition()
-        local forward = player:GetWorldForward()
-
-        local spawnPos = Vector4.new(
-            pos.x + forward.x * distance,
-            pos.y + forward.y * distance,
-            pos.z,
-            1.0
-        )
-
+        -- SpawnPlayerVehicle is a SUMMON call: it has no position overload, so the
+        -- game decides placement (drives/teleports the vehicle to a spot near the
+        -- player). We do NOT fake a position here — the previous code computed one
+        -- and threw it away, which made the result misleading.
         Game.GetVehicleSystem():SpawnPlayerVehicle(
             TweakDBID.new(args.vehicleId)
         )
@@ -730,7 +750,7 @@ function handlers.spawn_vehicle(args)
         return nil, "Failed to spawn vehicle: " .. tostring(err)
     end
 
-    return {vehicleId = args.vehicleId, success = true}
+    return {vehicleId = args.vehicleId, summoned = true, note = "Game places the vehicle near the player; exact position is not controllable via this API."}
 end
 
 function handlers.get_nearby_entities(args)

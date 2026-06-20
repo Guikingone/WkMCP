@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 // ════════════════════════════════════════════════════════════════════════
 // REDscript parser (.reds) — tokenizer + recursive-descent analysis.

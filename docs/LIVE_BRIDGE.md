@@ -1,6 +1,6 @@
 # Live in-game bridge (CETBridge)
 
-WolvenKit MCP's 88 "classic" tools are **offline**: they operate on
+WkMCP's 88 "classic" tools are **offline**: they operate on
 files and archives, with the game shut down. The **`live_*`** tools do the opposite: they drive
 a **running** Cyberpunk 2077 — executing Lua, reading/writing game state,
 spawning, teleportation, weather, the in-memory TweakDB, observing events.
@@ -15,7 +15,7 @@ mod**. The MCP server talks to a small Lua mod (**CETBridge**, loaded by Cyber E
 Tweaks) which runs the commands in the engine and returns the result.
 
 ```
-Claude ─MCP/JSON-RPC─▶ WolvenKitMcp ──TCP 127.0.0.1:27010──▶ CETBridge mod (Lua/CET) ─▶ game
+Claude ─MCP/JSON-RPC─▶ WkMcp ──TCP 127.0.0.1:27010──▶ CETBridge mod (Lua/CET) ─▶ game
                           (CetBridge.cs)  └─file fallback──▶  (command.json / response.json)
 ```
 
@@ -132,6 +132,7 @@ parameters only.
 | `live_set_quest_fact` `D` `I` | `factName` (string) — fact name. `value` (int) — typically 0 (not done) or 1 (done). | Sets a quest fact (can break quest progression or unlock content). |
 | `live_observe` | `className` (string) — game class (e.g. `PlayerPuppet`). `eventName` (string) — event/method (e.g. `OnDamageReceived`). `maxBuffer` (int, default 50) — buffer size before overwriting the oldest. | Subscribes to a game event via CET's Observe/ObserveAfter. |
 | `live_observations` `RO` `I` | `subscriptionId` (string) — the ID returned by `live_observe`, **or** the `Class/Event` label (e.g. `PlayerPuppet/OnDamageReceived`). | Reads (and clears) the observed-event buffer. The label registry lives in the server and is lost on its restart. |
+| `live_unobserve` `I` | `subscriptionId` (string) — ID or `Class/Event` label. | Cancels a subscription and frees its in-game buffer. Without it, observers accumulate for the whole game session (CET can't fully unregister the observer, but the callback becomes an inert no-op). |
 
 Everything goes through the same three protocol verbs (`exec` / `eval` / `query`):
 the tools above are ergonomic shortcuts on top of named Lua handlers. Anything
@@ -139,11 +140,27 @@ else is doable via `live_execute_lua` / `live_eval`.
 
 ## Security & limits
 
+> ⚠️ **Threat model — local code execution.** The bridge runs **arbitrary Lua inside
+> the game process** (`live_execute_lua` / `live_eval`), and via CET that Lua can touch
+> the filesystem and OS. The TCP listener is bound to **127.0.0.1 with no authentication**,
+> so **any local process or user session on the machine** can connect to port 27010 and
+> drive the game — or, by binding 27010 first, impersonate the bridge to the mod
+> (first-bind-wins). This is acceptable for a **single-user development machine** but is a
+> real exposure on shared/multi-user hosts. There is no public-network exposure (loopback
+> only). An opt-in shared-secret handshake (`CET_BRIDGE_TOKEN`) is planned to close the
+> local-process vector; until then, do not run the bridge on a host you do not trust.
+
+- **Mutating `live_*` calls report submission, not confirmation.** Tools like
+  `live_set_stat`, `live_set_time`, `live_set_weather`, `live_add_item` return success once
+  the command was accepted by the game API — they do **not** re-read state to prove the
+  effect landed. To verify, follow up with the matching read tool (`live_player_info`,
+  `live_inventory`, `live_game_state`, …). Note also: a TCP **timeout** abandons the request
+  on the server side, but the Lua handler may still run it — a destructive call that reports
+  "timeout" may nonetheless have taken effect.
 - **Executing Lua in the live game is powerful and risky**: an infinite loop can
   **freeze** the game. On the Lua side, each execution is protected by `pcall`; on the server side a
   **timeout** (5 s) protects the agent — **not** the game.
-- The TCP listener is restricted to **127.0.0.1** (no public network, no auth — a local
-  development tool).
+- The TCP listener is restricted to **127.0.0.1** (no public network — see threat model above).
 - `live_tweakdb_set` writes persist **until the game restarts**.
 - **Not testable in CI**: only the protocol layer is (see `CetBridgeProtocolTests`). The
   end-to-end path requires the game running — see `test-live-bridge.py`.

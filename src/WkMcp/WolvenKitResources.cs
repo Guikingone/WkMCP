@@ -3,7 +3,7 @@ using System.Reflection;
 using System.Text;
 using ModelContextProtocol.Server;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>
 /// MCP resources for WolvenKit — readable data exposed by URI, complementing the
@@ -14,7 +14,7 @@ namespace WolvenKitMcp;
 [McpServerResourceType]
 public static class WolvenKitResources
 {
-    [McpServerResource(UriTemplate = "wolvenkit://reference",
+    [McpServerResource(UriTemplate = "wkmcp://reference",
                        Name = "WolvenKit reference",
                        MimeType = "text/markdown")]
     [Description("Cheat sheet: available MCP tools (list generated from the code), " +
@@ -23,11 +23,11 @@ public static class WolvenKitResources
 
     private static string? _reference;
 
-    [McpServerResource(UriTemplate = "wolvenkit://archive/{+path}",
+    [McpServerResource(UriTemplate = "wkmcp://archive/{+path}",
                        Name = "Archive contents",
                        MimeType = "text/plain")]
     [Description("Lists the contents of a Cyberpunk 2077 .archive file, identified " +
-                 "by its absolute path after wolvenkit://archive/.")]
+                 "by its absolute path after wkmcp://archive/.")]
     public static async Task<string> ArchiveContents(string path)
     {
         if (!File.Exists(path))
@@ -39,11 +39,11 @@ public static class WolvenKitResources
         return output.Length > 0 ? output : "(no output)";
     }
 
-    [McpServerResource(UriTemplate = "wolvenkit://cr2w-json/{+path}",
+    [McpServerResource(UriTemplate = "wkmcp://cr2w-json/{+path}",
                        Name = "REDengine file as JSON",
                        MimeType = "application/json")]
     [Description("Renders an already-extracted REDengine CR2W file (.mesh, .ent, .app...) as " +
-                 "JSON, identified by its absolute path after wolvenkit://cr2w-json/.")]
+                 "JSON, identified by its absolute path after wkmcp://cr2w-json/.")]
     public static async Task<string> Cr2wJson(string path)
     {
         if (!File.Exists(path))
@@ -70,11 +70,11 @@ public static class WolvenKitResources
         }
     }
 
-    [McpServerResource(UriTemplate = "wolvenkit://mods/{+gamePath}",
+    [McpServerResource(UriTemplate = "wkmcp://mods/{+gamePath}",
                        Name = "Installed mods",
                        MimeType = "text/markdown")]
     [Description("Inventory of the installed mods of a Cyberpunk 2077 installation, identified " +
-                 "by its root (absolute path) after wolvenkit://mods/ : .archive archives, " +
+                 "by its root (absolute path) after wkmcp://mods/ : .archive archives, " +
                  "REDmods, .tweak files (TweakXL) and REDscript scripts. Free context " +
                  "before a diagnostic (mod_doctor, analyze_conflicts).")]
     public static string InstalledMods(string gamePath)

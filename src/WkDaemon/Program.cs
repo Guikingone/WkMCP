@@ -18,7 +18,7 @@ using WolvenKit.RED4.CR2W;
 using WolvenKit.RED4.CR2W.Archive;
 
 // ════════════════════════════════════════════════════════════════════════
-// WolvenKitDaemon — persistent host for the WolvenKit libraries.
+// WkDaemon — persistent host for the WolvenKit libraries.
 //
 // Loads HashService ONCE (~6 s at startup), then handles successive
 // requests over stdin/stdout without paying that cold-start.
@@ -220,6 +220,51 @@ while ((line = Console.In.ReadLine()) != null)
         continue;
     }
 
+    // Lock-free read-only fast paths: pure pool lookups on warm, read-only
+    // singletons (HashService / TweakDB name pool). They never touch the
+    // ArchiveManager or the shared logger buffer, so routing them AROUND execLock
+    // keeps cheap resolves responsive even while a long uncook holds the lock.
+    // Output is byte-identical to the logger path ("[ 0: Level ] - msg").
+    if (req.argv is ["resolve-hash", _, ..] or ["tweakdb-resolve", _, ..])
+    {
+        var fast = req; // capture for the closure
+        _ = Task.Run(async () =>
+        {
+            string Line(string level, string s) => $"[ 0: {level} ] - {s}";
+            var sb = new StringBuilder();
+            try
+            {
+                if (fast.argv[0] == "resolve-hash")
+                {
+                    var hashes = provider.GetRequiredService<IHashService>();
+                    foreach (var arg in fast.argv[1..])
+                        sb.AppendLine(ulong.TryParse(arg, out var h)
+                            ? Line("Information", hashes.Get(h) is { } p ? $"{h} = {p}" : $"{h} = (unknown hash)")
+                            : Line("Error", $"invalid hash (unsigned integer expected): {arg}"));
+                }
+                else
+                {
+                    var tdb = provider.GetRequiredService<ITweakDBService>();
+                    foreach (var arg in fast.argv[1..])
+                        sb.AppendLine(ulong.TryParse(arg, out var h)
+                            ? Line("Information", tdb.GetString(h) is { } n ? $"{h} = {n}" : $"{h} = (unknown)")
+                            : Line("Error", $"invalid hash (unsigned integer expected): {arg}"));
+                }
+            }
+            catch (Exception ex) { sb.AppendLine(Line("Error", "Daemon error: " + ex.Message)); }
+
+            await writeLock.WaitAsync();
+            try
+            {
+                await channel.WriteLineAsync(
+                    JsonSerializer.Serialize(new DaemonResponse(fast.id, 0, sb.ToString().Trim()), json));
+                await channel.FlushAsync();
+            }
+            finally { writeLock.Release(); }
+        });
+        continue;
+    }
+
     pending.Add(Task.Run(() => HandleRequest(req)));
 
     // Prevents the pending list from growing indefinitely: we drain what has completed.
@@ -245,7 +290,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
     if (verb is "--version" or "version")
     {
         var v = typeof(ConsoleFunctions).Assembly.GetName().Version?.ToString() ?? "unknown";
-        logger.Info($"WolvenKitDaemon — WolvenKit.Modkit {v}");
+        logger.Info($"WkDaemon — WolvenKit.Modkit {v}");
         return 0;
     }
 
@@ -263,8 +308,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
 
         using var locScope = provider.CreateScope();
         var sp = locScope.ServiceProvider;
-        var am = sp.GetRequiredService<IArchiveManager>();
-        am.LoadGameArchives(exe);
+        var am = LoadGameArchivesCached(provider, exe);
         var parser = sp.GetRequiredService<Red4ParserService>();
         var loc = new LocKeyService(parser, am) { Language = lang };
         if (!loc.LoadCurrentLanguage())
@@ -307,9 +351,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         if (wavs.Count == 0) { logger.Error($"no .wav in {wavDir} (names must be opus hashes, e.g. 123456.wav)"); return -1; }
         Directory.CreateDirectory(outDir);
 
-        using var opusScope = provider.CreateScope();
-        var am = opusScope.ServiceProvider.GetRequiredService<IArchiveManager>();
-        am.LoadGameArchives(exe);
+        var am = LoadGameArchivesCached(provider, exe);
         var ok = OpusTools.ImportWavs(am, wavs, new DirectoryInfo(wavDir), new DirectoryInfo(outDir));
         logger.Info($"opus-import: {wavs.Count} wav → {outDir} ({(ok ? "OK" : "failure")})");
         return ok ? 0 : 1;
@@ -1152,6 +1194,34 @@ static void EnsureTweakDbIndex()
     DaemonState.IndexedTweakDbPath = DaemonState.LoadedTweakDbPath;
 }
 
+// Returns a game ArchiveManager, reusing the cached one when the install is
+// unchanged (key = exe path + content-dir mtime). LoadGameArchives re-enumerates
+// hundreds of base archives, so caching it removes the worst repeated scan on the
+// --game export path. Safe because execLock serializes the verbs that use it.
+static IArchiveManager LoadGameArchivesCached(IServiceProvider provider, FileInfo exe)
+{
+    string? key = null;
+    try
+    {
+        var contentDir = Path.Combine(exe.Directory!.Parent!.Parent!.FullName, "archive", "pc", "content");
+        if (Directory.Exists(contentDir))
+            key = exe.FullName + "|" + Directory.GetLastWriteTimeUtc(contentDir).Ticks;
+    }
+    catch { /* unusual layout — fall through to an uncached fresh load */ }
+
+    if (key is not null && DaemonState.GameArchivesKey == key && DaemonState.GameArchives is not null)
+        return DaemonState.GameArchives;
+
+    DaemonState.GameArchivesScope?.Dispose();
+    var scope = provider.CreateScope();
+    var am = scope.ServiceProvider.GetRequiredService<IArchiveManager>();
+    am.LoadGameArchives(exe);
+    DaemonState.GameArchivesScope = scope;
+    DaemonState.GameArchives = am;
+    DaemonState.GameArchivesKey = key; // null key ⇒ next call reloads (uncached)
+    return am;
+}
+
 static EUncookExtension? ParseUext(string? s)
     => Enum.TryParse<EUncookExtension>(s, ignoreCase: true, out var e) ? e : null;
 
@@ -1179,6 +1249,14 @@ static class DaemonState
     public static string? IndexedTweakDbPath;
     public static Dictionary<string, WolvenKit.RED4.Types.TweakDBID>? RecordsByName;
     public static Dictionary<string, List<WolvenKit.RED4.Types.TweakDBID>>? FlatsByRecord;
+
+    // Cached game ArchiveManager (P3): LoadGameArchives re-scans archive/pc/content
+    // (hundreds of base archives) on every --game export. Cached keyed by exe +
+    // content-dir mtime. execLock serializes execution so one shared instance is
+    // safe; the lock-free read-only fast paths never touch it.
+    public static string? GameArchivesKey;
+    public static IServiceScope? GameArchivesScope;
+    public static IArchiveManager? GameArchives;
 
     // Boolean flags (no value) — immutable, shared across requests.
     public static readonly HashSet<string> BoolFlags = new()
@@ -1261,6 +1339,15 @@ sealed class CapturingTextWriter : TextWriter
     public override void Write(char value) => _sink.AppendRaw(value.ToString());
     public override void Write(string? value) { if (value is not null) _sink.AppendRaw(value); }
     public override void WriteLine(string? value) => _sink.AppendRaw((value ?? "") + Environment.NewLine);
+
+    // Batched overrides: without these, TextWriter's base implementation routes
+    // buffer/span writes through Write(char) one character at a time — a string
+    // allocation and a lock per character. A large archive listing went through
+    // this path; one AppendRaw per chunk instead removes the alloc/lock storm.
+    public override void Write(char[] buffer, int index, int count)
+        => _sink.AppendRaw(new string(buffer, index, count));
+    public override void Write(ReadOnlySpan<char> buffer)
+        => _sink.AppendRaw(new string(buffer));
 }
 
 #pragma warning disable CS0067 // events never raised — minimal relay

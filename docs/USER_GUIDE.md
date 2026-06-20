@@ -1,6 +1,6 @@
-# User guide — WolvenKit MCP for Cyberpunk 2077 modding
+# User guide — WkMCP for Cyberpunk 2077 modding
 
-This guide is aimed at **modders**: it explains how to install the WolvenKit MCP
+This guide is aimed at **modders**: it explains how to install the WkMCP
 server, connect it to Claude, then chain complete end-to-end workflows
 (read a game file, edit an item, create and install a mod,
 check the health of the installation, package for distribution).
@@ -52,17 +52,17 @@ The order matters: compile **the daemon first** (its build automatically deploys
 `kraken.dll` and `DirectXTexNet.dll`), **then the server**.
 
 ```powershell
-dotnet build src\WolvenKitDaemon
-dotnet build src\WolvenKitMcp
+dotnet build src\WkDaemon
+dotnet build src\WkMcp
 ```
 
 At the end, the server is located at:
-`src\WolvenKitMcp\bin\Debug\net8.0\WolvenKitMcp.dll`
+`src\WkMcp\bin\Debug\net8.0\WkMcp.dll`
 
 ### 2.2 How it works (in brief)
 
 ```
-Claude ─MCP/JSON-RPC─▶ WolvenKitMcp ─IPC stdio─▶ WolvenKitDaemon ─▶ WolvenKit libs + kraken
+Claude ─MCP/JSON-RPC─▶ WkMcp ─IPC stdio─▶ WkDaemon ─▶ WolvenKit libs + kraken
                                     └─fallback─▶ cp77tools (subprocess) if daemon unavailable
 ```
 
@@ -85,7 +85,7 @@ Edit `%APPDATA%\Claude\claude_desktop_config.json`:
   "mcpServers": {
     "wolvenkit": {
       "command": "dotnet",
-      "args": ["C:\\path\\to\\wolvenkit-mcp\\src\\WolvenKitMcp\\bin\\Debug\\net8.0\\WolvenKitMcp.dll"]
+      "args": ["C:\\path\\to\\wkmcp\\src\\WkMcp\\bin\\Debug\\net8.0\\WkMcp.dll"]
     }
   }
 }
@@ -96,14 +96,14 @@ Replace the path with yours, then **restart Claude Desktop**.
 ### 3.2 Claude Code
 
 ```powershell
-claude mcp add wolvenkit -s user -- dotnet "C:\path\to\wolvenkit-mcp\src\WolvenKitMcp\bin\Debug\net8.0\WolvenKitMcp.dll"
+claude mcp add wolvenkit -s user -- dotnet "C:\path\to\wkmcp\src\WkMcp\bin\Debug\net8.0\WkMcp.dll"
 ```
 
 No `DOTNET_ROOT` variable is needed on Windows.
 
 ### 3.3 Verify the connection
 
-Ask Claude to call **`wolvenkit_status`**. You should get
+Ask Claude to call **`wk_status`**. You should get
 `ok: true`, the path of `cp77tools` and its version, as well as the cache stats.
 This is the first diagnostic reflex if something is off.
 
@@ -116,10 +116,10 @@ or via `-e VAR=value` with `claude mcp add`.
 
 | Variable | Default | Role |
 |---|---|---|
-| `WOLVENKIT_DAEMON` | sibling project (local build) | Path of `WolvenKitDaemon.dll` (the fast path). |
-| `WOLVENKIT_CP77TOOLS` | `~\.dotnet\tools\cp77tools.exe` | Path of `cp77tools` (subprocess fallback). |
-| `DOTNET_ROOT` / `WOLVENKIT_DOTNET_ROOT` | auto-detected | .NET runtime root — rarely to be set on Windows. |
-| `WOLVENKIT_CLI_TIMEOUT_SECONDS` | `300` | Maximum delay of a command (in seconds). |
+| `WKMCP_DAEMON` | sibling project (local build) | Path of `WkDaemon.dll` (the fast path). |
+| `WKMCP_CP77TOOLS` | `~\.dotnet\tools\cp77tools.exe` | Path of `cp77tools` (subprocess fallback). |
+| `DOTNET_ROOT` / `WKMCP_DOTNET_ROOT` | auto-detected | .NET runtime root — rarely to be set on Windows. |
+| `WKMCP_CLI_TIMEOUT_SECONDS` | `300` | Maximum delay of a command (in seconds). |
 
 Claude Desktop example with an extended timeout:
 
@@ -128,8 +128,8 @@ Claude Desktop example with an extended timeout:
   "mcpServers": {
     "wolvenkit": {
       "command": "dotnet",
-      "args": ["C:\\...\\WolvenKitMcp.dll"],
-      "env": { "WOLVENKIT_CLI_TIMEOUT_SECONDS": "600" }
+      "args": ["C:\\...\\WkMcp.dll"],
+      "env": { "WKMCP_CLI_TIMEOUT_SECONDS": "600" }
     }
   }
 }
@@ -355,9 +355,9 @@ game layout.
 - **MCP prompts (ready-to-use recipes)**: `read_game_file_workflow`,
   `edit_tweakdb_item`, `pack_and_install_mod`, `recolor_texture`, `inspect_mesh`.
   Ask Claude to invoke the corresponding prompt to start a workflow.
-- **MCP resources**: `wolvenkit://reference` (commands/formats cheat sheet),
-  `wolvenkit://archive/{path}` (archive listing),
-  `wolvenkit://cr2w-json/{path}` (CR2W rendered as JSON).
+- **MCP resources**: `wkmcp://reference` (commands/formats cheat sheet),
+  `wkmcp://archive/{path}` (archive listing),
+  `wkmcp://cr2w-json/{path}` (CR2W rendered as JSON).
 - **REDscript scripts**: **`read_script`** (structure of a `.reds`),
   **`lint_script`** (real grammar parser, line:column errors),
   **`generate_redscript_template`** (annotation scaffolds).
@@ -369,12 +369,12 @@ game layout.
 
 ### Quick troubleshooting
 
-- **`wolvenkit_status` returns `ok: false`** → `cp77tools` not found:
-  `dotnet tool install -g WolvenKit.CLI`, or point `WOLVENKIT_CP77TOOLS`.
+- **`wk_status` returns `ok: false`** → `cp77tools` not found:
+  `dotnet tool install -g WolvenKit.CLI`, or point `WKMCP_CP77TOOLS`.
 - **First call slow (~7 s)** → daemon warmup, normal and one-time.
 - **Every call is slow (~6 s/call)** → the daemon (fast path) is not being used.
-  Build it (`dotnet build src\WolvenKitDaemon`) so the server finds the sibling
-  DLL, or set `WOLVENKIT_DAEMON` to its path. `wolvenkit_status` shows which path is used.
+  Build it (`dotnet build src\WkDaemon`) so the server finds the sibling
+  DLL, or set `WKMCP_DAEMON` to its path. `wk_status` shows which path is used.
 - **A tool seems to fail** → look first at `produced` (files actually
   created) and `errors`, not just `log`; rerun with `verbose: true` on the
   tools that offer it (`extract_files`, `uncook`, `pack_archive`, `import_raw`…).
@@ -382,7 +382,7 @@ game layout.
   **extracted** files, not archives. Extract first with `extract_files` / `uncook`,
   or use `read_game_file`, which chains extraction for you.
 - **`resolve_hash` / `tweakdb_*` error out** → these rely on the daemon; if it is
-  unavailable they degrade. Re-run `wolvenkit_status` and rebuild the daemon.
+  unavailable they degrade. Re-run `wk_status` and rebuild the daemon.
 - **`export_entity` says "can not be exported"** → WolvenKit refuses headless export
   of certain entity types. Use `list_entity_appearances` to inspect, and `uncook`
   the referenced `.mesh` to view it instead.
@@ -391,4 +391,4 @@ game layout.
   mod providing the same file?), and confirm the archive is in `archive\pc\mod`.
 - **`dotnet build` fails with "file in use"** → the daemon DLLs are locked by a
   running server. Stop the MCP client (Claude Desktop restarts the server) and kill
-  `WolvenKitDaemon` / `dotnet`, then rebuild.
+  `WkDaemon` / `dotnet`, then rebuild.

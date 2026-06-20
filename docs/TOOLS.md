@@ -1,8 +1,8 @@
-# Tool reference — WolvenKit MCP
+# Tool reference — WkMCP
 
-Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WolvenKit MCP server for Cyberpunk 2077 modding.
+Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WkMCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **88 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **35 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **123 tools** in total.
+> **Counts.** The server exposes **92 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **128 tools** in total.
 
 ## Contents
 
@@ -41,7 +41,7 @@ Engine Tweaks (+ RedSocket for the TCP transport). The tools below are, themselv
 
 ## 1. Diagnostics
 
-### `wolvenkit_status`
+### `wk_status`
 Verifies that the WolvenKit CLI (cp77tools) is available and functional, and returns its version + stats of the archive listings LRU cache (hits/misses) and per-verb metrics. To call first to diagnose the installation.
 
 _No parameters._
@@ -84,6 +84,18 @@ Queries the TweakDB: loads a `tweakdb.bin` and lists the records and flats whose
 
 ---
 
+### `find_record_by_name`
+Reverse lookup: finds TweakDB record IDs by their **human-facing** name. Where `tweakdb_query` matches the identifier, this searches the localized displayName/description **text** (e.g. "Overwatch" → its record IDs). Returns `{recordId: {field: value}}`. Re-scans the tweakdb each call (backed by the `extract_localization` path).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `tweakdbPath` | string | yes | Path of a `tweakdb.bin` file. |
+| `name` | string | yes | Text to search in the localized name/description (substring, case-insensitive). |
+| `recordType` | string | no | Restrict to record IDs containing this substring (e.g. `Items.`, `Vehicle.`). |
+| `maxResults` | int | no (default 50) | Max matches returned. |
+
+---
+
 ## 2. Archive reading / inspection
 
 ### `archive_info`
@@ -121,6 +133,16 @@ Compares two `.archive` files and lists the added files (present in B only) and 
 |---|---|---|---|
 | `archiveA` | string | yes | First archive (reference). |
 | `archiveB` | string | yes | Second archive (to compare). |
+
+---
+
+### `diff_against_installed`
+Compares a built mod `.archive` against the copy currently installed in `<game>/archive/pc/mod` (matched by filename): files only-in-build vs only-in-installed. Answers "is my working build in sync with what's installed?". Compares the file set (paths), not per-file content.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `modArchive` | string | yes | Path to the built mod `.archive`. |
+| `gamePath` | string | yes | Root folder of the Cyberpunk 2077 installation. |
 
 ---
 
@@ -170,6 +192,17 @@ Reconverts JSON files (produced by `cr2w_to_json`) into binary CR2W files.
 |---|---|---|---|
 | `path` | string | yes | JSON file or folder containing them. |
 | `outputPath` | string | yes | Destination folder for the CR2W. |
+
+### `set_texture_format`
+Sets the texture group / compression / raw format of an extracted `.xbm` — the #1 silent retexture failure (wrong group/compression on reimport loses alpha, breaks normal maps, drops mipmaps). Round-trips the CR2W via JSON. Provide at least one of group/compression/rawFormat; read current values with `inspect_texture`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `xbmFile` | string | yes | Extracted `.xbm` file. |
+| `group` | string? | no | Texture group CName (`TEXG_…`, e.g. `TEXG_Generic_Color` / `TEXG_Generic_Normal`). |
+| `compression` | string? | no | Compression enum (`TCM_…`, e.g. `TCM_QualityColor` / `TCM_Normalmap` / `TCM_DXTAlpha`). |
+| `rawFormat` | string? | no | Raw format enum (`TRF_…`, e.g. `TRF_TrueColor`). |
+| `outputFile` | string? | no | Output `.xbm` (default: overwrite `xbmFile`). |
 
 ### `export_files`
 Exports extracted REDengine files to raw formats (mesh → glTF, texture → image...).
@@ -255,6 +288,17 @@ Structural summary of a `.app` file: number of appearances, and for each the num
 | `appFile` | string | yes | Extracted `.app` file. |
 | `maxAppearances` | int | no (default `100`) | Max number of detailed appearances returned; `appearanceCount` always gives the real total. |
 
+### `add_appearance`
+Adds a new appearance to a `.app` file by **cloning** an existing one — the only robust way (authoring a valid `appearanceAppearanceDefinition` from scratch is error-prone). Renumbers the cloned CR2W `HandleId`s to fresh unique values so the copy is an independent definition (not an alias of the source), optionally swaps mesh `DepotPath`s, then round-trips the CR2W via JSON and **self-verifies** that the new appearance survives deserialization before writing. Output is reinjectable via `pack_archive` / `write_game_file`. Use `inspect_app` first to list existing appearance names.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `appFile` | string | yes | Extracted `.app` file. |
+| `newName` | string | yes | Name of the new appearance (must be unique in the `.app`). |
+| `fromAppearance` | string | no (default: first) | Existing appearance to clone. |
+| `meshSwapsJson` | string | no | JSON object of mesh `DepotPath` swaps applied in the clone, e.g. `{"base\\a\\old.mesh":"base\\a\\new.mesh"}`. Keys match case-insensitively. |
+| `outputFile` | string | no (default: in place) | Output `.app` path. |
+
 ---
 
 ## 7. TweakDB
@@ -328,11 +372,11 @@ Generates a `.reds` ready to edit from a catalog of patterns: `add_method`, `wra
 - `new_class`: `className` (required), `extends`, `moduleName`.
 
 ### `generate_tweak_template`
-Generates a `.tweak` (TweakXL — YAML) from a catalog of patterns: `override_field`, `new_record`, `boost_stat`.
+Generates a `.tweak` (TweakXL — YAML) from a catalog of patterns: `override_field`, `new_record`, `boost_stat`, `new_item`.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `pattern` | string | yes | `override_field` \| `new_record` \| `boost_stat`. |
+| `pattern` | string | yes | `override_field` \| `new_record` \| `boost_stat` \| `new_item`. |
 | `parametersJson` | string | yes | Template parameters as JSON (depending on the pattern). |
 | `outputFile` | string | yes | `.tweak` file to produce. |
 
@@ -340,6 +384,7 @@ Generates a `.tweak` (TweakXL — YAML) from a catalog of patterns: `override_fi
 - `override_field`: `recordId` (required), `field` (required), `value` (required).
 - `new_record`: `newId` (required), `baseId` (required), `overrides` (sub-JSON `{field: value}`).
 - `boost_stat`: `recordId` (required), `stat` (default `damage`), `value` (required).
+- `new_item`: `newId` (required), `baseId` (required), `itemType` (`weapon`\|`clothing`\|`cyberware`\|`consumable`\|`recipe`). Emits safe item flats + a checklist of the type-specific flats to fill (run `describe_tweak_record` on `baseId` for exact schemas).
 
 ---
 
@@ -950,7 +995,7 @@ Readable data exposed by URI.
 
 | Resource | URI Template | MIME | Description |
 |---|---|---|---|
-| WolvenKit reference | `wolvenkit://reference` | `text/markdown` | Cheat sheet generated by reflection from the real tools: complete list, REDengine formats, modding workflow. |
-| Installed mods | `wolvenkit://mods/{+gamePath}` | `text/markdown` | Inventory of the mods of an installation (archives, REDmods, tweaks, scripts), game root as absolute path after `wolvenkit://mods/`. |
-| Archive content | `wolvenkit://archive/{+path}` | `text/plain` | Lists the content of a `.archive` identified by its absolute path after `wolvenkit://archive/`. |
-| REDengine file as JSON | `wolvenkit://cr2w-json/{+path}` | `application/json` | Renders an extracted CR2W file (`.mesh`, `.ent`, `.app`...) as JSON, identified by its absolute path after `wolvenkit://cr2w-json/`. |
+| WolvenKit reference | `wkmcp://reference` | `text/markdown` | Cheat sheet generated by reflection from the real tools: complete list, REDengine formats, modding workflow. |
+| Installed mods | `wkmcp://mods/{+gamePath}` | `text/markdown` | Inventory of the mods of an installation (archives, REDmods, tweaks, scripts), game root as absolute path after `wkmcp://mods/`. |
+| Archive content | `wkmcp://archive/{+path}` | `text/plain` | Lists the content of a `.archive` identified by its absolute path after `wkmcp://archive/`. |
+| REDengine file as JSON | `wkmcp://cr2w-json/{+path}` | `application/json` | Renders an extracted CR2W file (`.mesh`, `.ent`, `.app`...) as JSON, identified by its absolute path after `wkmcp://cr2w-json/`. |

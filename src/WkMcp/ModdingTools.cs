@@ -3,10 +3,11 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Server;
 using YamlDotNet.Serialization;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>
 /// Higher-level MCP tools to simplify the creation, evolution and maintenance of
@@ -24,6 +25,8 @@ public static class ModdingTools
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
+    // Same shape as WolvenKitTools.Err (incl. exitCode/log) so error JSON is
+    // identical across both tool classes — the agent parses one consistent schema.
     private static string Err(string summary) => JsonSerializer.Serialize(new
     {
         ok = false,
@@ -32,6 +35,8 @@ public static class ModdingTools
         produced = Array.Empty<string>(),
         warnings = Array.Empty<string>(),
         errors = new[] { summary },
+        exitCode = -1,
+        log = "",
     }, JsonOpts);
 
     // ── Modding frameworks knowledge base ───────────────────────────────────
@@ -871,7 +876,7 @@ public static class ModdingTools
             author = author ?? "",
             version = string.IsNullOrWhiteSpace(version) ? "1.0.0" : version,
             dependencies = deps,
-            createdBy = "wolvenkit-mcp scaffold_mod",
+            createdBy = "wkmcp scaffold_mod",
         }, JsonOpts));
 
         return JsonSerializer.Serialize(new
@@ -1695,7 +1700,7 @@ public static class ModdingTools
     private static async Task<string?> ConvertCr2wToJsonText(
         Cp77ToolsRunner runner, string cr2wFile, CancellationToken ct)
     {
-        var tmp = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-conv", Guid.NewGuid().ToString("N"));
+        var tmp = Path.Combine(Path.GetTempPath(), "wkmcp-conv", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
         try
         {
@@ -2070,8 +2075,17 @@ public static class ModdingTools
 
         var moved = new List<string>();
         var warnings = new List<string>();
-        var names = (archives ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(n => n.EndsWith(".archive", StringComparison.OrdinalIgnoreCase) ? n : n + ".archive").ToList();
+        var rawNames = (archives ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var names = new List<string>();
+        foreach (var raw in rawNames)
+        {
+            var n = raw.EndsWith(".archive", StringComparison.OrdinalIgnoreCase) ? raw : raw + ".archive";
+            // Guard: toggle_mods MOVES files by name. A name with separators or ..
+            // (e.g. "..\content\foo.archive") would relocate a base-game archive out
+            // of the mod tree. Reject anything that isn't a bare file name.
+            if (!PathSafety.IsBareFileName(n)) { warnings.Add($"Refused (invalid name): {raw}"); continue; }
+            names.Add(n);
+        }
 
         if (names.Count > 0)
         {
@@ -2289,6 +2303,97 @@ public static class ModdingTools
         }, JsonOpts);
     }
 
+    [McpServerTool(Name = "add_appearance", ReadOnly = false, Destructive = true, Idempotent = false)]
+    [Description("Adds a new appearance to a .app file by CLONING an existing one — the only robust " +
+                 "way (authoring a valid appearanceAppearanceDefinition from scratch is error-prone). " +
+                 "Renumbers the cloned CR2W HandleIds to fresh unique values so the copy is an " +
+                 "independent definition (not an alias of the source), optionally swaps mesh DepotPaths, " +
+                 "then round-trips the CR2W via JSON and SELF-VERIFIES the new appearance survives " +
+                 "deserialization before writing. Output reinjectable via pack_archive / write_game_file. " +
+                 "Use inspect_app first to see existing appearance names.")]
+    public static async Task<string> AddAppearance(
+        Cp77ToolsRunner runner,
+        [Description("Path to an extracted .app file.")] string appFile,
+        [Description("Name of the new appearance to create (must be unique in the .app).")] string newName,
+        [Description("Name of the existing appearance to clone (default: the first one).")] string? fromAppearance = null,
+        [Description("Optional JSON object of mesh DepotPath swaps to apply in the clone, e.g. " +
+                     "{\"base\\\\a\\\\old.mesh\":\"base\\\\a\\\\new.mesh\"}. Keys match case-insensitively.")] string? meshSwapsJson = null,
+        [Description("Optional output .app path (default: overwrite appFile in place).")] string? outputFile = null,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(appFile)) return Err($".app file not found: {appFile}");
+        if (string.IsNullOrWhiteSpace(newName)) return Err("add_appearance: newName is required.");
+
+        Dictionary<string, string>? swaps = null;
+        if (!string.IsNullOrWhiteSpace(meshSwapsJson))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<Dictionary<string, string>>(meshSwapsJson);
+                if (parsed is { Count: > 0 })
+                    swaps = new Dictionary<string, string>(parsed, StringComparer.OrdinalIgnoreCase);
+            }
+            catch (JsonException ex) { return Err($"add_appearance: meshSwapsJson is not a valid JSON object: {ex.Message}"); }
+        }
+
+        var dir = Path.Combine(Path.GetTempPath(), "wkmcp-addapp", Guid.NewGuid().ToString("N"));
+        var jsonDir = Path.Combine(dir, "json");
+        var outDir = Path.Combine(dir, "out");
+        Directory.CreateDirectory(jsonDir);
+        Directory.CreateDirectory(outDir);
+        try
+        {
+            // 1. CR2W → JSON
+            await runner.RunAsync(new[] { "convert", "serialize", appFile, "--outpath", jsonDir }, ct);
+            var jsonFile = Directory.EnumerateFiles(jsonDir, "*.json", SearchOption.AllDirectories).FirstOrDefault();
+            if (jsonFile is null) return Err("add_appearance: serialization produced no JSON.");
+
+            // 2. clone + renumber HandleIds + rename (+ optional mesh swaps)
+            var node = JsonNode.Parse(await File.ReadAllTextAsync(jsonFile, ct));
+            var (ok, err, clonedFrom, swapCount, warnings, _) =
+                AddAppearanceToApp(node, newName, fromAppearance, swaps);
+            if (!ok) return Err($"add_appearance: {err}");
+            await File.WriteAllTextAsync(jsonFile, node!.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), ct);
+
+            // 3. JSON → CR2W
+            await runner.RunAsync(new[] { "convert", "deserialize", jsonFile, "--outpath", outDir }, ct);
+            var produced = Directory.EnumerateFiles(outDir, "*.app", SearchOption.AllDirectories).FirstOrDefault()
+                           ?? Directory.EnumerateFiles(outDir, "*", SearchOption.AllDirectories).FirstOrDefault();
+            if (produced is null) return Err("add_appearance: deserialization produced no .app.");
+
+            // 4. self-verify: the new appearance must survive the round-trip (guards against HandleId aliasing)
+            var verifyJson = await ConvertCr2wToJsonText(runner, produced, ct);
+            if (verifyJson is null)
+                return Err("add_appearance: could not re-read the produced .app to verify it.");
+            var verifyNames = ParseAppearanceNames(verifyJson);
+            if (!verifyNames.Contains(newName, StringComparer.Ordinal))
+                return Err($"add_appearance: the new appearance '{newName}' did not survive deserialization " +
+                           "(likely a CR2W handle conflict) — file NOT written. Try cloning a different appearance.");
+
+            var dest = outputFile ?? appFile;
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(dest))!);
+            File.Copy(produced, dest, overwrite: true);
+
+            return JsonSerializer.Serialize(new
+            {
+                ok = true,
+                status = "success",
+                summary = $"Added appearance '{newName}' (cloned from '{clonedFrom}'" +
+                          (swapCount > 0 ? $", {swapCount} mesh swap(s)" : "") + $") → {Path.GetFileName(dest)}",
+                produced = new[] { dest },
+                clonedFrom,
+                newAppearance = newName,
+                meshSwapsApplied = swapCount,
+                appearanceCount = verifyNames.Count,
+                appearances = verifyNames,
+                warnings,
+                errors = Array.Empty<string>(),
+            }, JsonOpts);
+        }
+        catch (JsonException ex) { return Err($"add_appearance: could not parse/edit the .app JSON: {ex.Message}"); }
+        finally { try { Directory.Delete(dir, true); } catch { /* best-effort temp cleanup */ } }
+    }
+
     internal sealed record AppAppearanceSummary(string Name, int MeshComponents, IReadOnlyList<string> Meshes);
 
     internal sealed record AppSummary(
@@ -2321,6 +2426,143 @@ public static class ModdingTools
         var distinctMeshes = refs.Select(r => r.MeshPath)
                                  .Distinct(StringComparer.OrdinalIgnoreCase).Count();
         return new AppSummary(ordered.Count, refs.Count, distinctMeshes, appSummaries);
+    }
+
+    /// <summary>Pure core of add_appearance: clones an existing appearance in the .app CR2W JSON,
+    /// renumbers the cloned HandleIds to fresh unique values (so the copy is an independent
+    /// definition, not an alias of the source), renames it, and optionally swaps mesh DepotPaths.
+    /// Mutates <paramref name="root"/> in place (appends the clone). Pure + testable.</summary>
+    internal static (bool Ok, string? Error, string ClonedFrom, int MeshSwaps, List<string> Warnings, string[] FinalNames)
+        AddAppearanceToApp(JsonNode? root, string newName,
+                           string? fromAppearance, IReadOnlyDictionary<string, string>? meshSwaps)
+    {
+        var warnings = new List<string>();
+        var none = Array.Empty<string>();
+        if (string.IsNullOrWhiteSpace(newName))
+            return (false, "newName is required.", "", 0, warnings, none);
+
+        var rc = root?["Data"]?["RootChunk"] ?? root;
+        if (rc?["appearances"] is not JsonArray apps)
+            return (false, "no 'appearances' array found in the .app JSON.", "", 0, warnings, none);
+
+        static string? NameOf(JsonNode? ae)
+        {
+            var def = (ae as JsonObject)?["Data"] as JsonObject ?? ae as JsonObject;
+            return def?["name"] switch
+            {
+                JsonObject no => (no["$value"] as JsonValue)?.GetValue<string>(),
+                JsonValue sv => sv.GetValue<string>(),
+                _ => null,
+            };
+        }
+
+        var existing = apps.Select(NameOf).Where(n => n is not null).Select(n => n!).ToList();
+        if (existing.Contains(newName, StringComparer.Ordinal))
+            return (false, $"an appearance named '{newName}' already exists.", "", 0, warnings, none);
+        if (apps.Count == 0)
+            return (false, "the .app has no appearance to clone from.", "", 0, warnings, none);
+
+        var src = fromAppearance is null
+            ? apps[0]
+            : apps.FirstOrDefault(a => string.Equals(NameOf(a), fromAppearance, StringComparison.Ordinal));
+        if (src is null)
+            return (false, $"source appearance '{fromAppearance}' not found. Available: {string.Join(", ", existing)}",
+                    "", 0, warnings, none);
+        var clonedFrom = NameOf(src) ?? "?";
+
+        var clone = JsonNode.Parse(src.ToJsonString());
+        if (clone is null)
+            return (false, "internal error: could not clone the source appearance.", "", 0, warnings, none);
+
+        // Renumber the cloned HandleIds → fresh unique values, so the copy is its own definition.
+        // Two passes: collect the ids of cloned *definitions* (HandleId + inline Data) and map each
+        // to a fresh id; then rewrite every HandleId in the clone that is in that map (definitions and
+        // any internal references to them), leaving references to external chunks untouched.
+        var next = MaxHandleId(root);
+        var map = new Dictionary<int, int>();
+        void CollectDefs(JsonNode? n)
+        {
+            if (n is JsonObject o)
+            {
+                if (o["Data"] is not null && o["HandleId"] is JsonValue hv
+                    && int.TryParse(hv.ToString(), out var id) && !map.ContainsKey(id))
+                    map[id] = ++next;
+                foreach (var kv in o.ToList()) CollectDefs(kv.Value);
+            }
+            else if (n is JsonArray a) { foreach (var it in a) CollectDefs(it); }
+        }
+        void Rewrite(JsonNode? n)
+        {
+            if (n is JsonObject o)
+            {
+                if (o["HandleId"] is JsonValue hv && int.TryParse(hv.ToString(), out var id)
+                    && map.TryGetValue(id, out var nid))
+                    o["HandleId"] = nid.ToString();
+                foreach (var kv in o.ToList()) Rewrite(kv.Value);
+            }
+            else if (n is JsonArray a) { foreach (var it in a) Rewrite(it); }
+        }
+        CollectDefs(clone);
+        Rewrite(clone);
+
+        // Rename the clone.
+        var cdef = (clone as JsonObject)?["Data"] as JsonObject ?? clone as JsonObject;
+        if (cdef is not null)
+        {
+            if (cdef["name"] is JsonObject no) no["$value"] = newName;
+            else cdef["name"] = new JsonObject { ["$value"] = newName };
+        }
+
+        // Optional mesh DepotPath swaps inside the clone.
+        var swapCount = 0;
+        if (meshSwaps is { Count: > 0 })
+        {
+            var matched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void Swap(JsonNode? n)
+            {
+                if (n is JsonObject o)
+                {
+                    if (o["mesh"] is JsonObject m && m["DepotPath"] is JsonObject dp
+                        && dp["$value"] is JsonValue pv)
+                    {
+                        var cur = pv.GetValue<string>();
+                        if (cur is not null && meshSwaps.TryGetValue(cur, out var rep))
+                        {
+                            dp["$value"] = rep; swapCount++; matched.Add(cur);
+                        }
+                    }
+                    foreach (var kv in o.ToList()) Swap(kv.Value);
+                }
+                else if (n is JsonArray a) { foreach (var it in a) Swap(it); }
+            }
+            Swap(clone);
+            foreach (var k in meshSwaps.Keys)
+                if (!matched.Contains(k))
+                    warnings.Add($"mesh swap source '{k}' did not match any mesh in the cloned appearance.");
+        }
+
+        apps.Add(clone);
+        var finalNames = apps.Select(NameOf).Where(n => n is not null).Select(n => n!).ToArray();
+        return (true, null, clonedFrom, swapCount, warnings, finalNames);
+    }
+
+    /// <summary>Largest integer HandleId anywhere in a CR2W JSON tree (−1 if none). Used to
+    /// allocate fresh unique HandleIds for a cloned subtree.</summary>
+    internal static int MaxHandleId(JsonNode? root)
+    {
+        var max = -1;
+        void Walk(JsonNode? n)
+        {
+            if (n is JsonObject o)
+            {
+                if (o["HandleId"] is JsonValue hv && int.TryParse(hv.ToString(), out var id))
+                    max = Math.Max(max, id);
+                foreach (var kv in o) Walk(kv.Value);
+            }
+            else if (n is JsonArray a) { foreach (var it in a) Walk(it); }
+        }
+        Walk(root);
+        return max;
     }
 
     /// <summary>Names of all the appearances of a .app JSON (including those without a mesh
@@ -2455,7 +2697,7 @@ public static class ModdingTools
     private static async Task<string?> ExtractAsJson(
         Cp77ToolsRunner runner, string archive, string internalPath, CancellationToken ct)
     {
-        var work = Path.Combine(Path.GetTempPath(), "wolvenkit-mcp-diff", Guid.NewGuid().ToString("N"));
+        var work = Path.Combine(Path.GetTempPath(), "wkmcp-diff", Guid.NewGuid().ToString("N"));
         var rawDir = Path.Combine(work, "raw");
         var jsonDir = Path.Combine(work, "json");
         Directory.CreateDirectory(rawDir); Directory.CreateDirectory(jsonDir);

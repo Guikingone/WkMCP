@@ -3,16 +3,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
-using WolvenKitMcp;
+using WkMcp;
 
-// MCP server for WolvenKit. Transport chosen at startup via WOLVENKIT_MCP_TRANSPORT:
+// MCP server for WolvenKit. Transport chosen at startup via WKMCP_TRANSPORT:
 //   stdio (default) — local Claude Desktop/Code; stdout reserved for JSON-RPC, logs on stderr.
 //   http           — HTTP/Streamable server (ModelContextProtocol.AspNetCore), secure by
 //                    default (loopback bind + bearer token + fail-closed). See docs/HTTP_TRANSPORT.md.
 // The 123 tools (including the 35 live_*), the daemon and the CetBridge bridge are identical regardless
 // of the transport — only the host construction differs.
 
-var transport = (Environment.GetEnvironmentVariable(HttpBridgeSecurity.TransportEnv) ?? "stdio")
+var transport = (Cp77ToolsRunner.EnvOrLegacy(HttpBridgeSecurity.TransportEnv, HttpBridgeSecurity.LegacyTransportEnv) ?? "stdio")
     .Trim().ToLowerInvariant();
 
 // Pre-warms the WolvenKit daemon (HashService ~6 s) at startup, regardless of the transport.
@@ -39,15 +39,15 @@ static void RegisterMcp(IServiceCollection services, bool http)
 
 if (transport == "http")
 {
-    var url = Environment.GetEnvironmentVariable(HttpBridgeSecurity.UrlEnv);
+    var url = Cp77ToolsRunner.EnvOrLegacy(HttpBridgeSecurity.UrlEnv, HttpBridgeSecurity.LegacyUrlEnv);
     if (string.IsNullOrWhiteSpace(url)) url = HttpBridgeSecurity.DefaultUrl;
-    var token = Environment.GetEnvironmentVariable(HttpBridgeSecurity.TokenEnv);
+    var token = Cp77ToolsRunner.EnvOrLegacy(HttpBridgeSecurity.TokenEnv, HttpBridgeSecurity.LegacyTokenEnv);
 
     // Fail-closed: no exposure outside loopback without a token.
     var (okStart, error) = HttpBridgeSecurity.CheckStartup(url, token);
     if (!okStart)
     {
-        Console.Error.WriteLine("[WolvenKitMcp] " + error);
+        Console.Error.WriteLine("[WkMcp] " + error);
         return 2;
     }
 
@@ -57,14 +57,15 @@ if (transport == "http")
     var app = builder.Build();
     // Boots the live bridge's TCP listener (idempotent) — coexists with the HTTP server.
     app.Services.GetRequiredService<CetBridge>().EnsureStarted();
+    app.UseWolvenKitOriginGuard(url);  // always-on DNS-rebinding guard (Host/Origin)
     app.UseWolvenKitBearerAuth(token); // no-op if no token (dev loopback)
     app.MapMcp();
 
     if (string.IsNullOrWhiteSpace(token))
-        app.Logger.LogWarning("[WolvenKitMcp] MCP HTTP on {Url} WITHOUT auth (loopback). Do not expose " +
+        app.Logger.LogWarning("[WkMcp] MCP HTTP on {Url} WITHOUT auth (loopback). Do not expose " +
             "this port; set {Env} to enable the bearer token.", url, HttpBridgeSecurity.TokenEnv);
     else
-        app.Logger.LogInformation("[WolvenKitMcp] MCP HTTP on {Url} (bearer auth enabled).", url);
+        app.Logger.LogInformation("[WkMcp] MCP HTTP on {Url} (bearer auth enabled).", url);
 
     await app.RunAsync(url);
     return 0;

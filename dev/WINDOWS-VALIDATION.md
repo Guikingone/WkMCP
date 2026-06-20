@@ -1,4 +1,4 @@
-# Windows validation checklist — WolvenKit MCP
+# Windows validation checklist — WkMCP
 
 > **Internal QA log — point in time.** This file records validation passes at the
 > dates shown below. It is *not* an authoritative count of tools/prompts/resources;
@@ -7,7 +7,7 @@
 > user-facing documentation.
 
 The server exposes 123 tools, 8 prompts and 4 resources (count verified at every
-build by the E2E test of `WolvenKitMcp.Tests`). This checklist validates them on
+build by the E2E test of `WkMcp.Tests`). This checklist validates them on
 Windows with a real installation of Cyberpunk 2077; the counts cited in the
 results below are those of the date of each pass.
 
@@ -37,7 +37,7 @@ were exercised end-to-end via the MCP server by the script
 result (`ok`, `status`, `summary`, `produced`, `warnings`, `errors`,
 `log` truncated preserving head + errors + tail); archive listings
 are served by an **LRU cache** (×6 faster on subsequent calls, stats +
-per-verb metrics visible via `wolvenkit_status`, clearable via
+per-verb metrics visible via `wk_status`, clearable via
 `clear_cache`); the daemon supports **IPC pipelining** (several requests
 in flight).
 
@@ -128,7 +128,7 @@ in flight).
 | Scaffolds | `generate_tweak_template` (patterns `override_field`, `new_record`, `boost_stat`) |
 | `.reds` scripts | `read_script`, `lint_script` (textual analysis) |
 | Safety | `backup_mods`, `restore_mods` (timestamped ZIP) |
-| Observability | LRU cache stats in `wolvenkit_status` · `verbose` parameter on the tools generating large logs |
+| Observability | LRU cache stats in `wk_status` · `verbose` parameter on the tools generating large logs |
 
 **Round 3** (2026-05-20)
 
@@ -139,14 +139,14 @@ in flight).
 | Mod intelligence | `mod_summary` (archive + REDmod), `dump_records` (JSONL/CSV per type) |
 | REDscript scaffolds | `generate_redscript_template` (add_method, wrap_method, replace_method, add_field, new_class) |
 | UI localization | `extract_localization` (from TweakDB), `build_localization` (to `.tweak`) |
-| Maintenance | `clear_cache` (archives / metrics / all) · per-verb metrics (p50/p95) in `wolvenkit_status` |
+| Maintenance | `clear_cache` (archives / metrics / all) · per-verb metrics (p50/p95) in `wk_status` |
 
 ### Bugs found and fixed during this validation
 
 | Symptom | Fix |
 |---|---|
-| `archive --list`: listing written by `Console.WriteLine`, redirected to stderr then lost → `archive_info`, `find_in_archives` and the archive resource returned empty | The daemon captures `Console.Out` in the logger's buffer (`WolvenKitDaemon/Program.cs`) |
-| `kraken.dll` missing from the build output → daemon unable to start | `DeployNativeWindows` MSBuild target + explicit references (`WolvenKitDaemon.csproj`) |
+| `archive --list`: listing written by `Console.WriteLine`, redirected to stderr then lost → `archive_info`, `find_in_archives` and the archive resource returned empty | The daemon captures `Console.Out` in the logger's buffer (`WkDaemon/Program.cs`) |
+| `kraken.dll` missing from the build output → daemon unable to start | `DeployNativeWindows` MSBuild target + explicit references (`WkDaemon.csproj`) |
 | `DirectXTexNet.dll` not deployed then not resolved (absent from `deps.json`) → texture `uncook` failing | Deployment via the csproj + `AssemblyLoadContext` resolver in the daemon |
 | `detect_conflicts` was sending `archive/pc/mod`; the `conflicts` verb expects the game root | Parameter renamed to `gamePath` (`WolvenKitTools.cs`) |
 | `wwise_export` was passing a folder; the `wwise` verb expects an output `.ogg` file | `.wem` → `.ogg` conversion file by file, named output (`WolvenKitTools.cs`) |
@@ -178,9 +178,9 @@ round-trip) · `create_mod_project` · MCP handshake · daemon (~ms latency) ·
 
 - [ ] .NET 8+ SDK installed — https://dotnet.microsoft.com/download
 - [ ] `dotnet tool install -g WolvenKit.CLI`
-- [ ] `wolvenkit-mcp` project retrieved on the machine
-- [ ] `dotnet build src\WolvenKitDaemon`
-- [ ] `dotnet build src\WolvenKitMcp`
+- [ ] `wkmcp` project retrieved on the machine
+- [ ] `dotnet build src\WkDaemon`
+- [ ] `dotnet build src\WkMcp`
 - [ ] The `native/` folder is **unnecessary on Windows** (it is the macOS libkraken fix) — ignore it
 - [ ] Cyberpunk 2077 installation folder located (e.g. `...\steamapps\common\Cyberpunk 2077`)
 
@@ -189,7 +189,7 @@ round-trip) · `create_mod_project` · MCP handshake · daemon (~ms latency) ·
 - [ ] `python test-daemon.py` → "Daemon ready", `hash` in ~1 ms, `pack` OK
   - ⚠️ If the daemon **fails to start** on a `kraken` error: copy `kraken.dll`
     from `%USERPROFILE%\.dotnet\tools\.store\wolvenkit.cli\<version>\...\tools\net8.0\any\kraken.dll`
-    next to `WolvenKitDaemon.dll` (the NuGet package does not always provide it)
+    next to `WkDaemon.dll` (the NuGet package does not always provide it)
 - [ ] `python test-mcp-server.py` → "21 tools", handshake OK
 
 ## 3. Wiring up to Claude
@@ -240,9 +240,9 @@ round-trip) · `create_mod_project` · MCP handshake · daemon (~ms latency) ·
 
 ## 10. MCP resources
 
-- [ ] read `wolvenkit://reference` → the cheat sheet
-- [ ] read `wolvenkit://archive/<path of a .archive>` → content listing
-- [ ] read `wolvenkit://cr2w-json/<path of an extracted file>` → JSON
+- [ ] read `wkmcp://reference` → the cheat sheet
+- [ ] read `wkmcp://archive/<path of a .archive>` → content listing
+- [ ] read `wkmcp://cr2w-json/<path of an extracted file>` → JSON
 
 ## Points of vigilance
 

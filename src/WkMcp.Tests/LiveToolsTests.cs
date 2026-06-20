@@ -1,7 +1,7 @@
-using WolvenKitMcp;
+using WkMcp;
 using Xunit;
 
-namespace WolvenKitMcp.Tests;
+namespace WkMcp.Tests;
 
 /// <summary>Pure helpers of LiveTools (the live bridge itself requires the game).</summary>
 public class LiveToolsTests

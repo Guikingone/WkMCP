@@ -7,7 +7,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>Response to a request to the in-game bridge (CETBridge mod).</summary>
 /// <param name="Transport">"tcp" or "file" — through which channel the response was passed.</param>
@@ -62,7 +62,9 @@ public sealed class CetBridge : IDisposable
     private CancellationTokenSource? _cts;
 
     private volatile TcpClient? _client;
-    private NetworkStream? _stream;
+    // volatile: assigned in AcceptLoop, read in WriteFrameAsync on another thread.
+    // Without it a writer could observe a stale stream after a reconnect (torn read).
+    private volatile NetworkStream? _stream;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     // In-flight TCP requests, indexed by id; completed by the read loop.
@@ -432,9 +434,18 @@ internal static class BridgeProtocol
     /// The wait is driven by a <see cref="FileSystemWatcher"/> (~ms latency) with
     /// a safety-net poll every 250 ms; if the watcher cannot be installed
     /// (exotic network directory), we fall back to upstream's pure 50 ms poll.</summary>
+    // Single-flight per bridge dir: the file transport shares one command.json /
+    // response.json pair and the Lua side does NOT match by request id, so two
+    // overlapping sends would scramble each other. Serialize them here.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _fileGates = new();
+
     internal static async Task<BridgeResponse> FileSendAsync(
         string id, string requestJson, string bridgeDir, TimeSpan timeout, CancellationToken ct)
     {
+        var gate = _fileGates.GetOrAdd(Path.GetFullPath(bridgeDir).ToLowerInvariant(), _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
         var cmd = Path.Combine(bridgeDir, "command.json");
         var tmp = Path.Combine(bridgeDir, "command.json.tmp");
         var res = Path.Combine(bridgeDir, "response.json");
@@ -502,6 +513,8 @@ internal static class BridgeProtocol
         {
             watcher?.Dispose();
         }
+        }
+        finally { gate.Release(); }
     }
 
     private static void SafeDelete(string path)

@@ -1,0 +1,116 @@
+name: WolvenKit compatibility (weekly)
+
+# Weekly probe: build & test WkMCP against the LATEST WolvenKit NuGet release,
+# without changing the version pinned in the repo. This catches the day an
+# upstream WolvenKit update breaks the daemon (API or native-deploy change),
+# so the maintainer is alerted before bumping. It never commits the bump — the
+# version change lives only in the runner.
+#
+# On failure it files (and de-duplicates) an issue. ci.yml stays the
+# reproducible, pinned build on push/PR; this is the forward-looking canary.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # Mondays 06:17 UTC (off the top-of-hour stampede)
+  workflow_dispatch:        # allow a manual run from the Actions tab
+
+permissions:
+  contents: read
+  issues: write             # to open the failure issue
+
+jobs:
+  compat:
+    name: Build & test against latest WolvenKit
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Resolve pinned vs latest WolvenKit version
+        id: ver
+        shell: pwsh
+        run: |
+          $csproj = "src/WkDaemon/WkDaemon.csproj"
+          $cur = [regex]::Match((Get-Content $csproj -Raw),
+                   'WolvenKit\.Modkit"\s+Version="([^"]+)"').Groups[1].Value
+          $idx = Invoke-RestMethod "https://api.nuget.org/v3-flatcontainer/wolvenkit.modkit/index.json"
+          $latest = ($idx.versions | Where-Object { $_ -notmatch '-' } |
+                       Sort-Object { [version]$_ } | Select-Object -Last 1)
+          if (-not $latest) { $latest = $cur }   # fall back to pinned if NuGet has no stable
+          "current=$cur"   | Out-File -Append $env:GITHUB_OUTPUT
+          "latest=$latest" | Out-File -Append $env:GITHUB_OUTPUT
+          Write-Host "WolvenKit.Modkit  pinned=$cur  latest=$latest"
+
+      - name: Pin WolvenKit.* to latest (runner only — not committed)
+        shell: pwsh
+        run: |
+          $latest = "${{ steps.ver.outputs.latest }}"
+          $csproj = "src/WkDaemon/WkDaemon.csproj"
+          $c = Get-Content $csproj -Raw
+          # Bump only the WolvenKit.* package versions, preserving every other
+          # attribute on the line (e.g. GeneratePathProperty="true").
+          $c = [regex]::Replace($c, '(Include="WolvenKit\.[A-Za-z]+"\s+Version=")[^"]+(")', "`${1}$latest`${2}")
+          Set-Content $csproj $c -NoNewline
+          Write-Host "Using WolvenKit.* $latest for this run"
+
+      # The daemon is built first: its build deploys the Windows native binaries
+      # (kraken.dll, DirectXTexNet.dll) the daemon needs at runtime.
+      - name: Build daemon
+        run: dotnet build src/WkDaemon -c Release --nologo
+
+      - name: Build MCP server
+        run: dotnet build src/WkMcp -c Release --nologo
+
+      - name: Unit tests
+        run: dotnet test src/WkMcp.Tests -c Release --nologo --verbosity normal
+
+      - name: Summary
+        if: always()
+        shell: pwsh
+        run: |
+          $icon = if ('${{ job.status }}' -eq 'success') { '✅' } else { '❌' }
+          @"
+          ## WolvenKit weekly compatibility
+          - Pinned in repo: ${{ steps.ver.outputs.current }}
+          - Latest on NuGet: ${{ steps.ver.outputs.latest }}
+          - Build + tests against latest: $icon **${{ job.status }}**
+          "@ | Out-File -Append $env:GITHUB_STEP_SUMMARY
+
+      - name: File a compatibility issue on failure
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          $cur    = "${{ steps.ver.outputs.current }}"
+          $latest = "${{ steps.ver.outputs.latest }}"
+          # Idempotent label, then de-dupe: don't pile up issues week after week.
+          gh label create wolvenkit-compat --color B60205 `
+            --description "Weekly upstream WolvenKit compatibility probe" --force 2>$null
+          $open = gh issue list --label wolvenkit-compat --state open --json number --jq 'length'
+          if (($open -as [int]) -gt 0) {
+            Write-Host "An open wolvenkit-compat issue already exists; not creating a duplicate."
+            exit 0
+          }
+          $body = @"
+          The weekly job that builds & tests **WkMCP** against the latest WolvenKit NuGet release failed.
+
+          - Repo currently pins WolvenKit **$cur**
+          - Latest on NuGet: WolvenKit **$latest**
+
+          This usually means a new WolvenKit release changed an API, or the native-deploy
+          layout the daemon relies on. Review the failed run and decide whether to adapt the
+          daemon or stay pinned:
+
+          $env:RUN_URL
+
+          _Auto-filed by the WolvenKit compatibility workflow. It will not open a duplicate while this issue stays open._
+          "@
+          $body | gh issue create --title "Weekly WolvenKit compatibility check failed (latest $latest)" `
+            --label wolvenkit-compat --body-file -

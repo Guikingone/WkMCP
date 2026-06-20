@@ -5,7 +5,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 
-namespace WolvenKitMcp;
+namespace WkMcp;
 
 /// <summary>
 /// "Live" MCP tools: drive a <b>running</b> Cyberpunk 2077 game via the
@@ -251,13 +251,13 @@ public static class LiveTools
         => Wrap("Level/street cred", await bridge.QueryAsync("set_level", new { level, streetCred }, gamePath, ct));
 
     [McpServerTool(Name = "live_spawn_vehicle", ReadOnly = false, Destructive = false, Idempotent = false)]
-    [Description("Spawns a vehicle near the player (e.g. 'Vehicle.v_sport2_quadra_type66'). " +
+    [Description("Summons a player vehicle (e.g. 'Vehicle.v_sport2_quadra_type66'); the game places it " +
+                 "near the player — exact position is not controllable via this API. " +
                  "Use live_tweakdb_search 'Vehicle.' to find the IDs.")]
     public static async Task<string> LiveSpawnVehicle(CetBridge bridge,
         [Description("Vehicle TweakDBID.")] string vehicleId,
-        [Description("Distance in front of the player in meters (default 5).")] double distance = 5,
         [Description(GamePathDesc)] string? gamePath = null, CancellationToken ct = default)
-        => Wrap($"Spawn vehicle {vehicleId}", await bridge.QueryAsync("spawn_vehicle", new { vehicleId, distance }, gamePath, ct));
+        => Wrap($"Spawn vehicle {vehicleId}", await bridge.QueryAsync("spawn_vehicle", new { vehicleId }, gamePath, ct));
 
     [McpServerTool(Name = "live_set_time", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Sets the in-game time of day (lighting test, NPC schedules, time-based events).")]
@@ -428,6 +428,22 @@ public static class LiveTools
                     false, "n/a"));
         }
         return Wrap("Observations", await bridge.QueryAsync("get_observations", new { subscriptionId }, gamePath, ct));
+    }
+
+    [McpServerTool(Name = "live_unobserve", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Cancels a subscription created by live_observe and frees its in-game buffer. " +
+                 "Without this, observers accumulate in the mod and keep firing for the whole game " +
+                 "session. Accepts the raw ID or the 'Class/Event' label.")]
+    public static async Task<string> LiveUnobserve(CetBridge bridge,
+        [Description("Subscription ID returned by live_observe, or 'Class/Event' label.")] string subscriptionId,
+        [Description(GamePathDesc)] string? gamePath = null, CancellationToken ct = default)
+    {
+        var label = subscriptionId;
+        if (subscriptionId.Contains('/') && ObservationLabels.TryGetValue(subscriptionId, out var mapped))
+            subscriptionId = mapped;
+        var resp = await bridge.QueryAsync("unobserve_events", new { subscriptionId }, gamePath, ct);
+        if (resp.Ok) ObservationLabels.TryRemove(label, out _);
+        return Wrap($"Unobserve {label}", resp);
     }
 
     /// <summary>Converts a text value + type hint into a JSON value of the right type, so that the Lua

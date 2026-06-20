@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Test client for the WolvenKit MCP server (stdio transport / JSON-RPC 2.0).
+Test client for the WkMCP server (stdio transport / JSON-RPC 2.0).
 
 Runs the server, performs the MCP handshake, lists the exposed tools, then
-calls read tools (wolvenkit_status, compute_hash), a write tool
+calls read tools (wk_status, compute_hash), a write tool
 (pack_archive) and a workflow tool (create_mod_project). Each
 response is awaited before sending the next request.
 
@@ -24,10 +24,10 @@ if hasattr(sys.stdout, "reconfigure"):
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SERVER_DLL = os.environ.get(
-    "WOLVENKIT_MCP_DLL",
-    os.path.join(HERE, "src", "WolvenKitMcp", "bin", "Debug", "net8.0", "WolvenKitMcp.dll"))
+    "WKMCP_DLL",
+    os.path.join(HERE, "src", "WkMcp", "bin", "Debug", "net8.0", "WkMcp.dll"))
 # dotnet: from PATH (Windows, Linux), otherwise Homebrew macOS fallback.
-DOTNET = (os.environ.get("WOLVENKIT_DOTNET")
+DOTNET = (os.environ.get("WKMCP_DOTNET")
           or shutil.which("dotnet")
           or "/opt/homebrew/opt/dotnet@8/libexec/dotnet")
 
@@ -44,14 +44,14 @@ def prepare_pack_fixture():
     d = os.path.join(PACK_SRC, "base", "wolvenkit_mcp_test")
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "sample.txt"), "w") as f:
-        f.write("WolvenKit MCP pack test - compressible content. " * 200)
+        f.write("WkMCP pack test - compressible content. " * 200)
     os.makedirs(PACK_OUT, exist_ok=True)
 
 
 def main():
     if not os.path.exists(SERVER_DLL):
         sys.exit(f"Server DLL not found: {SERVER_DLL}\n"
-                 "Build first: dotnet build src/WolvenKitMcp")
+                 "Build first: dotnet build src/WkMcp")
 
     env = dict(os.environ)
 
@@ -96,7 +96,7 @@ def main():
     # 1) handshake: initialize
     send({"jsonrpc": "2.0", "id": 1, "method": "initialize",
           "params": {"protocolVersion": "2024-11-05", "capabilities": {},
-                     "clientInfo": {"name": "wolvenkit-mcp-tester", "version": "0.1"}}})
+                     "clientInfo": {"name": "wkmcp-tester", "version": "0.1"}}})
     init = recv()
     res = (init or {}).get("result", {})
     print(f"=== initialize ===\n  server    : {res.get('serverInfo')}"
@@ -111,10 +111,10 @@ def main():
     for t in tools:
         print(f"  • {t['name']}")
 
-    # 3) tools/call: wolvenkit_status (read)
+    # 3) tools/call: wk_status (read)
     send({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-          "params": {"name": "wolvenkit_status", "arguments": {}}})
-    print("\n=== tools/call: wolvenkit_status ===")
+          "params": {"name": "wk_status", "arguments": {}}})
+    print("\n=== tools/call: wk_status ===")
     print(tool_text(recv()))
 
     # 4) tools/call: compute_hash (read)
@@ -163,15 +163,15 @@ def main():
 
     # 9) resources/read — static resource
     send({"jsonrpc": "2.0", "id": 9, "method": "resources/read",
-          "params": {"uri": "wolvenkit://reference"}})
-    print("\n=== resources/read: wolvenkit://reference (excerpt) ===")
+          "params": {"uri": "wkmcp://reference"}})
+    print("\n=== resources/read: wkmcp://reference (excerpt) ===")
     print(resource_text(recv())[:400])
 
     # 10) resources/read — resource template (archive produced in step 5)
     arch = os.path.join(PACK_OUT, "wkpack_src.archive")
     send({"jsonrpc": "2.0", "id": 10, "method": "resources/read",
-          "params": {"uri": f"wolvenkit://archive/{arch}"}})
-    print(f"\n=== resources/read: wolvenkit://archive/{arch} ===")
+          "params": {"uri": f"wkmcp://archive/{arch}"}})
+    print(f"\n=== resources/read: wkmcp://archive/{arch} ===")
     print(resource_text(recv()))
 
     # 11) prompts/list — MCP recipes

@@ -1,10 +1,10 @@
 using System.Linq;
 using System.Text.Json;
 using System.Xml.Linq;
-using WolvenKitMcp;
+using WkMcp;
 using Xunit;
 
-namespace WolvenKitMcp.Tests;
+namespace WkMcp.Tests;
 
 public class TruncateTests
 {
