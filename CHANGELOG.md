@@ -2,6 +2,26 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — type_check_scripts (REDscript semantic type-check via scc, R2)
+
+New read-only tool **`type_check_scripts`**: runs the game's bundled `scc` compiler over a
+scripts folder (default `<game>/r6/scripts`) and returns its diagnostics — the semantic layer
+`lint_script` can't reach. `scc` resolves game types/methods, so it catches
+`@wrapMethod`/`@addMethod` on an unresolved class, type mismatches, duplicate method
+replacements, missing-dependency imports, etc. Errors/warnings come back structured
+(`{severity, code, file, line, col, message}`), paths relative to the scripts folder.
+
+- **Non-destructive by construction, verified against the real binary.** The exact scc
+  CLI was confirmed from the shipped `scc.exe`: it is invoked `-compile <scripts>
+  -outputCacheFile <temp> -no-exec`. `-outputCacheFile` redirects the compiled bundle to
+  a throwaway `%TEMP%` file (the tool snapshots `final.redscripts` size+mtime and flags
+  any change), and `-no-exec` skips the post-compile deploy/exec phase. A reversible
+  on-machine test confirmed the game's `r6/cache/final.redscripts` is left byte-for-byte
+  untouched.
+- The output parser (`SccDiagnostics`) is a pure, unit-tested core, calibrated against
+  scc's real multi-line format (`[ERROR - …] [CODE] At <path>.reds:line:col:` + message
+  block, spaces in the path), and distinguishes a CLI/usage rejection from script errors.
+
 ## Unreleased — preview_tweak (dry-run a tweak, T2)
 
 New read-only tool **`preview_tweak`** that shows what a `.tweak` would actually change, without

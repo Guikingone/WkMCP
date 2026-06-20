@@ -2663,6 +2663,159 @@ public static class WolvenKitTools
         }, JsonOpts);
     }
 
+    [McpServerTool(Name = "type_check_scripts", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Type-checks REDscript by running the game's bundled `scc` compiler over a " +
+                 "scripts folder (default <game>/r6/scripts) and returning its diagnostics — the " +
+                 "semantic layer lint_script can't reach: scc resolves game types/methods, so it " +
+                 "catches @wrapMethod/@addMethod on an unresolved class, type mismatches, duplicate " +
+                 "method replacements, missing-dependency imports, etc. NON-DESTRUCTIVE: scc runs " +
+                 "with -no-exec and its output bundle is forced to a throwaway temp file, so the " +
+                 "game's r6/cache/final.redscripts is never written (snapshot-verified). Needs the " +
+                 "game installed (scc ships with the REDmod component).")]
+    public static async Task<string> TypeCheckScripts(
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        [Description("Scripts folder to compile (default: <game>/r6/scripts).")] string? scriptsFolder = null,
+        [Description("Max diagnostics returned per severity (default 200).")] int maxDiagnostics = 200,
+        CancellationToken ct = default)
+    {
+        if (!Directory.Exists(gamePath)) return Err($"Game folder not found: {gamePath}");
+        var scc = Path.Combine(gamePath, "engine", "tools", "scc.exe");
+        if (!File.Exists(scc))
+            return Err($"scc.exe not found: {scc}. It ships with the game's REDmod component.");
+        var scripts = scriptsFolder ?? Path.Combine(gamePath, "r6", "scripts");
+        if (!Directory.Exists(scripts)) return Err($"Scripts folder not found: {scripts}");
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "wkmcp-typecheck-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var outBundle = Path.Combine(tempDir, "typecheck.redscripts");
+
+        // Non-destructive guard: snapshot the real cache so we can confirm scc's
+        // -outputCacheFile redirect left it untouched.
+        var gameCache = Path.Combine(gamePath, "r6", "cache", "final.redscripts");
+        (long Size, DateTime Mtime)? before = File.Exists(gameCache)
+            ? (new FileInfo(gameCache).Length, File.GetLastWriteTimeUtc(gameCache))
+            : null;
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = scc,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WorkingDirectory = Path.GetDirectoryName(scc)!,
+        };
+        psi.ArgumentList.Add("-compile");
+        psi.ArgumentList.Add(scripts);
+        psi.ArgumentList.Add("-outputCacheFile");   // redirect output → temp (never r6/cache)
+        psi.ArgumentList.Add(outBundle);
+        psi.ArgumentList.Add("-no-exec");            // skip the post-compile deploy/exec phase (else it hangs)
+
+        using var proc = new Process { StartInfo = psi };
+        var stdout = new StringBuilder();
+        var stderr = new StringBuilder();
+        proc.OutputDataReceived += (_, e) => { if (e.Data is not null) stdout.AppendLine(e.Data); };
+        proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) stderr.AppendLine(e.Data); };
+
+        try { proc.Start(); }
+        catch (Exception ex) { TryDeleteTempDir(tempDir); return Err($"Failed to launch scc.exe: {ex.Message}"); }
+        proc.BeginOutputReadLine();
+        proc.BeginErrorReadLine();
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromMinutes(5));
+        try { await proc.WaitForExitAsync(cts.Token); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { /* already dead */ }
+            TryDeleteTempDir(tempDir);
+            return Err($"Type-check interrupted (>5 min): {scripts}");
+        }
+        catch (OperationCanceledException)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { /* already dead */ }
+            TryDeleteTempDir(tempDir);
+            return Cancelled("type_check_scripts");
+        }
+        proc.WaitForExit();
+
+        var combined = stdout.ToString() + "\n" + stderr.ToString();
+        TryDeleteTempDir(tempDir);
+
+        var warnings = new List<string>();
+
+        // Confirm scc did not write the game's cache.
+        if (before is { } b && File.Exists(gameCache))
+        {
+            var nowSize = new FileInfo(gameCache).Length;
+            var nowMtime = File.GetLastWriteTimeUtc(gameCache);
+            if (nowSize != b.Size || nowMtime != b.Mtime)
+                warnings.Add("The game's r6/cache/final.redscripts changed during the type-check — " +
+                             "unexpected (output is redirected with -outputCacheFile). Verify your " +
+                             "install and restore from final.redscripts.bk if needed.");
+        }
+
+        // scc rejected the command line itself (wrong flag form) rather than the scripts.
+        if (proc.ExitCode != 0 && SccDiagnostics.LooksLikeUsageError(combined)
+            && !combined.Contains(".reds:", StringComparison.OrdinalIgnoreCase))
+            return Err("scc rejected the command line (unexpected CLI form). Output:\n" + Truncate(combined, 4_000));
+
+        var diags = SccDiagnostics.Parse(combined);
+        var errs = diags.Where(d => d.Severity == "error").ToList();
+        var warns = diags.Where(d => d.Severity == "warning").ToList();
+        var ok = proc.ExitCode == 0 && errs.Count == 0;
+        var cap = Math.Max(0, maxDiagnostics);
+        if (errs.Count > cap) warnings.Add($"{errs.Count} errors found; returning the first {cap}.");
+        if (warns.Count > cap) warnings.Add($"{warns.Count} warnings found; returning the first {cap}.");
+
+        return JsonSerializer.Serialize(new
+        {
+            ok,
+            status = ok ? "success" : "errors",
+            summary = ok
+                ? $"Type-check passed: {scripts} (scc exit 0, {warns.Count} warning(s))"
+                : $"Type-check found {errs.Count} error(s), {warns.Count} warning(s) (scc exit {proc.ExitCode})",
+            produced = Array.Empty<string>(),
+            warnings,
+            errors = Array.Empty<string>(),
+            errorCount = errs.Count,
+            warningCount = warns.Count,
+            diagnostics = new
+            {
+                errors = errs.Take(cap).Select(d => RenderScc(d, scripts)),
+                warnings = warns.Take(cap).Select(d => RenderScc(d, scripts)),
+            },
+            exitCode = proc.ExitCode,
+            scriptsFolder = scripts,
+            note = "Non-destructive: compiled with -no-exec to a temp bundle; final.redscripts untouched.",
+        }, JsonOpts);
+    }
+
+    private static object RenderScc(SccDiagnostics.Diagnostic d, string scriptsRoot) => new
+    {
+        severity = d.Severity,
+        code = d.Code,
+        file = RelativizeToScripts(d.File, scriptsRoot),
+        line = d.Line,
+        col = d.Col,
+        message = d.Message,
+    };
+
+    private static string? RelativizeToScripts(string? file, string scriptsRoot)
+    {
+        if (string.IsNullOrEmpty(file)) return file;
+        var f = file.Replace('\\', '/');
+        var root = scriptsRoot.Replace('\\', '/').TrimEnd('/') + "/";
+        var idx = f.IndexOf(root, StringComparison.OrdinalIgnoreCase);
+        return idx >= 0 ? f[(idx + root.Length)..] : f;
+    }
+
+    private static void TryDeleteTempDir(string dir)
+    {
+        try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+        catch { /* best-effort cleanup */ }
+    }
+
     // ── REDmod packaging (post-1.6) ──────────────────────────────────────
 
     [McpServerTool(Name = "create_redmod_project", ReadOnly = false, Destructive = false, Idempotent = false)]

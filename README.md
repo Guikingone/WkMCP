@@ -204,10 +204,14 @@ WolvenKit is licensed GPL-3.0; that license is itself the permission to build on
 
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — modder's guide: install, wire up to Claude, step-by-step workflows (read a file, edit a tweak, create/pack/install a mod, check dependencies, package).
 <<<<<<< HEAD
+<<<<<<< HEAD
 - **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 157 tools + 10 prompts + 4 resources (parameters included).
 =======
 - **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 130 tools + 8 prompts + 4 resources (parameters included).
 >>>>>>> ab93588 (REDscript: script_api_index — symbol lookup (R1, 129 -> 130 tools))
+=======
+- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 131 tools + 8 prompts + 4 resources (parameters included).
+>>>>>>> 0c49136 (REDscript: type_check_scripts — semantic type-check via scc (R2, 130 -> 131 tools))
 - **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — copy-paste recipes by mod type (tweak, redscript, ArchiveXL, REDmod, localization, texture, analysis).
 - **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — the 35 `live_*` tools to drive a running game (CETBridge / Cyber Engine Tweaks). Optional, separate prerequisites.
 - **[docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)** — remote access over HTTP/Streamable (instead of stdio); secure by default.
@@ -235,10 +239,14 @@ More in [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (§10 troubleshooting) and [doc
 ```
 wkmcp/
 <<<<<<< HEAD
+<<<<<<< HEAD
 ├── src/WkMcp/         C# / .NET 8 MCP server (157 tools, 10 prompts, 4 resources)
 =======
 ├── src/WkMcp/         C# / .NET 8 MCP server (130 tools, 8 prompts, 4 resources)
 >>>>>>> ab93588 (REDscript: script_api_index — symbol lookup (R1, 129 -> 130 tools))
+=======
+├── src/WkMcp/         C# / .NET 8 MCP server (131 tools, 8 prompts, 4 resources)
+>>>>>>> 0c49136 (REDscript: type_check_scripts — semantic type-check via scc (R2, 130 -> 131 tools))
 │   ├── Program.cs            Host + stdio/http transport + DI + daemon warmup
 │   ├── Cp77ToolsRunner.cs    Drives the daemon (pipelined IPC, LRU cache, cp77tools fallback)
 │   ├── WolvenKitTools.cs     63 base MCP tools + helpers

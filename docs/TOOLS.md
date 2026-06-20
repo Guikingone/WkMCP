@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WkMCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **94 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **130 tools** in total.
+> **Counts.** The server exposes **95 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **131 tools** in total.
 
 ## Contents
 
@@ -434,6 +434,15 @@ Indexes the REDscript symbols (classes, methods, fields, enums, free functions) 
 | `kind` | string | no | `class` \| `struct` \| `enum` \| `func` \| `field` \| `method` (func with a class) \| `global` (free func). |
 | `ofClass` | string | no | Enclosing/target class filter, e.g. `PlayerPuppet`. |
 | `maxResults` | int | no | Max results (default 100). |
+
+### `type_check_scripts`
+Type-checks REDscript by running the game's bundled `scc` compiler over a scripts folder (default `<game>/r6/scripts`) and returning its diagnostics — the **semantic** layer `lint_script` can't reach: `scc` resolves game types/methods, so it catches `@wrapMethod`/`@addMethod` on an unresolved class, type mismatches, duplicate method replacements, missing-dependency imports, etc. **Non-destructive**: `scc` runs with `-no-exec` and its output bundle is forced to a throwaway temp file, so the game's `r6/cache/final.redscripts` is never written (snapshot-verified). Needs the game installed (`scc` ships with the REDmod component).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `gamePath` | string | yes | Root folder of the Cyberpunk 2077 installation. |
+| `scriptsFolder` | string | no | Scripts folder to compile (default: `<game>/r6/scripts`). |
+| `maxDiagnostics` | int | no | Max diagnostics returned per severity (default 200). |
 
 ---
 
