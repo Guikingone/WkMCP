@@ -269,4 +269,63 @@ public static class WolvenKitPrompts
                materials, etc.): call `read_game_file` on the same file.
             """;
     }
+
+    [McpServerPrompt(Name = "translate_scene")]
+    [Description("Recipe: translate a .scene's dialogue headlessly — extract the embedded text, " +
+                 "edit it, write it back into the scene's loc store, and re-validate.")]
+    public static string TranslateScene(
+        [Description("Path to the source .scene file.")] string sceneFile,
+        [Description("Path for the translations JSON (extract → edit → apply).")] string translationsJson)
+    {
+        return $$"""
+            Procedure to translate the dialogue of a scene ({{sceneFile}}):
+
+            1. Understand it first (optional but useful):
+               `inspect_scene` (structure), `scene_graph` (flow), `validate_scene` (integrity).
+
+            2. Extract the dialogue with `extract_scene_localization`
+               - sceneOrJson = "{{sceneFile}}"
+               - outputJson  = "{{translationsJson}}"
+               - optional locale (e.g. en-us) to target one language
+               → produces { "<ruid>": { text, speaker, kind } }. If every text is null, this
+                 scene's text is localized externally (not embedded) — it cannot be translated
+                 by editing the scene; stop here.
+
+            3. Edit "{{translationsJson}}": replace each line's text with your translation (or
+               set a key's value directly to the translated string).
+
+            4. Write it back with `apply_scene_localization`
+               - sceneFile = "{{sceneFile}}", translationsJson = "{{translationsJson}}"
+               - outputScene = the .scene to produce
+               → it re-serializes and does a control round-trip; heed any warning that a string
+                 did not survive (WolvenKit can mis-serialize some scenes).
+
+            5. Re-check with `validate_scene` on the output, then pack/install the .scene like any
+               asset (pack_archive → install_mod).
+            """;
+    }
+
+    [McpServerPrompt(Name = "audit_scene")]
+    [Description("Recipe: fully audit a .scene — structure, integrity, external dependencies and " +
+                 "what it plays — before shipping it.")]
+    public static string AuditScene(
+        [Description("Path to the .scene file (or its converted .json).")] string sceneFile)
+    {
+        return $$"""
+            Procedure to audit the scene {{sceneFile}}:
+
+            1. `inspect_scene` — node histogram, actors, version (a quick shape check).
+            2. `validate_scene` — internal integrity (graph, sockets, actor refs, dialogue/loc).
+            3. `scene_dependencies` — the external refs (.anims, rid resources, prop .ent, actor
+               TweakDB records). Pass modRoot to flag references your mod must ship but doesn't —
+               this catches scenes that are internally valid yet break in-game for a missing asset.
+            4. `scene_events` — what actually plays per section (dialogue, anim, audio), to sanity
+               -check timing/content.
+
+            To edit: `scene_set_actor` (retarget an actor's record/appearance), `scene_replace_resource`
+            (swap a depot path), `apply_scene_localization` (translate). To start a new scene:
+            `scaffold_scene` → `json_to_cr2w` → open in WolvenKit's scene editor. Ship via
+            `pack_archive` → `install_mod`.
+            """;
+    }
 }

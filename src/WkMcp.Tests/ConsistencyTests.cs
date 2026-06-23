@@ -15,7 +15,7 @@ namespace WkMcp.Tests;
 public class ConsistencyTests
 {
     private static readonly Type[] ToolClasses =
-        { typeof(WolvenKitTools), typeof(ModdingTools), typeof(LiveTools) };
+        { typeof(WolvenKitTools), typeof(ModdingTools), typeof(SceneTools), typeof(LiveTools) };
 
     private static HashSet<string> AllToolNames() =>
         ToolClasses.SelectMany(WolvenKitResources.ToolNames)
@@ -100,7 +100,7 @@ public class ConsistencyTests
     {
         var srcDir = Path.Combine(TestsDir(), "..", "WkMcp");
         var missing = new List<string>();
-        foreach (var file in new[] { "WolvenKitTools.cs", "ModdingTools.cs", "LiveTools.cs" })
+        foreach (var file in new[] { "WolvenKitTools.cs", "ModdingTools.cs", "SceneTools.cs", "LiveTools.cs" })
             foreach (var line in File.ReadLines(Path.Combine(srcDir, file)))
             {
                 if (!line.Contains("[McpServerTool(")) continue;

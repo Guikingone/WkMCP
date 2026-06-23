@@ -164,9 +164,10 @@ public static class WolvenKitResources
     {
         var offline = ToolNames(typeof(WolvenKitTools));
         var modding = ToolNames(typeof(ModdingTools));
+        var scene = ToolNames(typeof(SceneTools));
         var live = ToolNames(typeof(LiveTools));
         var prompts = PromptInfos();
-        var total = offline.Count + modding.Count + live.Count;
+        var total = offline.Count + modding.Count + scene.Count + live.Count;
 
         var sb = new StringBuilder();
         sb.AppendLine("# WolvenKit / Cyberpunk 2077 — cheat sheet");
@@ -185,6 +186,7 @@ public static class WolvenKitResources
         sb.AppendLine("- Appearances: list_entity_appearances, resolve_dynamic_appearance; export_entity stays experimental (headless refusal on NPCs)");
         sb.AppendLine("- Safety: backup_mods / restore_mods, toggle_mods (bisection), uninstall_mod / uninstall_redmod / uninstall_tweak");
         sb.AppendLine("- In-game (offline): launch_game, tail_game_logs");
+        sb.AppendLine("- Scenes (.scene): inspect_scene (structure), scene_graph (flow), find_in_scene (locate node/dialogue), validate_scene (graph + dialogue integrity), scene_dependencies / scene_events, scene_set_actor / scene_replace_resource (editing), extract_scene_localization / apply_scene_localization (dialogue translation), scaffold_scene");
         sb.AppendLine("- Live (game running + CETBridge mod): live_status first, then the live_* tools (player state, inventory, teleport, live TweakDB, quest facts, event observation)");
         sb.AppendLine();
         sb.AppendLine($"### Full list — archives/CR2W/TweakDB/projects tools ({offline.Count})");
@@ -192,6 +194,9 @@ public static class WolvenKitResources
         sb.AppendLine();
         sb.AppendLine($"### Full list — modding workflow tools ({modding.Count})");
         sb.AppendLine(string.Join(", ", modding));
+        sb.AppendLine();
+        sb.AppendLine($"### Full list — scene tools ({scene.Count})");
+        sb.AppendLine(string.Join(", ", scene));
         sb.AppendLine();
         sb.AppendLine($"### Full list — live in-game tools ({live.Count})");
         sb.AppendLine(string.Join(", ", live));

@@ -2,6 +2,52 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — Scene (.scene / scnSceneResource) support
+
+First-class support for `.scene` files (the quest/dialogue scene system), which had no
+dedicated tooling before — only the generic `inspect_cr2w` / `find_in_cr2w`. New
+`SceneTools.cs` adds **11 scene-aware tools** that work offline via the daemon's
+`convert serialize/deserialize` (each accepts a `.scene` or its converted `.json`).
+**128 → 139 tools** (92 → 103 offline), **8 → 10 prompts**.
+
+### Inspect / graph / validate / translate
+- **`inspect_scene`** — structural summary: node count + histogram by node type, actors,
+  screenplay lines/options, entry/exit/notable points, version.
+- **`scene_graph`** — the narrative flow: nodes + output→input socket edges; choice nodes
+  carry their option captions. Bounded with a `truncated` flag.
+- **`find_in_scene`** — locate a node or dialogue line by id, node `$type`, or resolved
+  text; returns JSON paths for `read_game_file` / `write_game_file`.
+- **`validate_scene`** — graph integrity (unique ids; start/end present + resolve; every
+  output-socket destination resolves; reachability), actor refs, dialogue refs
+  (dialogLineEvent → screenplay line; choice option → screenplay option; locstrings resolve
+  to non-empty embedded text), and choice-option/socket consistency. Correctly **whitelists
+  the `scnCutControlNode` backup socket** (`stamp.name=1026`) and **ignores
+  `scnDeletionMarkerNode` tombstones** (only warns on a live edge into one).
+- **`extract_scene_localization`** / **`apply_scene_localization`** — dump a scene's
+  dialogue (resolving the embedded loc store, with speaker) to a translations JSON, then
+  write edited text back into the loc store and re-serialize. The write-back does a
+  **control round-trip** and warns if a string did not survive (WolvenKit can mis-serialize
+  some scenes). Scenes whose text is localized externally yield text=null and are not written.
+
+### Dependencies / events / editing / scaffold
+- **`scene_dependencies`** — lists every EXTERNAL reference a scene needs (animation `.anims`
+  from `resouresReferences`, `ridResources`, prop `.ent`, plus actor TweakDB character records),
+  which the internal validator never checked. Optionally resolves against a mod folder
+  (`modRoot`): paths the mod ships are `inMod`, base-game-prefixed paths are assumed present, the
+  rest are flagged unresolved — catching a custom asset the mod forgot to include.
+- **`scene_events`** — per-section timeline of what plays (dialogue with resolved text + speaker,
+  animation name, audio, camera/VFX) with startTime/duration. Complements `inspect_scene`.
+- **`scene_set_actor`** — retarget an actor's `specCharacterRecordId` / `specAppearance` by id.
+- **`scene_replace_resource`** — swap a depot path everywhere it appears (e.g. a `.anims`).
+  Both re-serialize with the control round-trip of `apply_scene_localization`.
+- **`scaffold_scene`** — generate a minimal valid `scnSceneResource` skeleton (start → N sections
+  → end, auto node ids + wired sockets) that passes `validate_scene` and converts to a `.scene`
+  via `json_to_cr2w` (verified end-to-end against the CLI). A skeleton generator, not a full
+  authoring suite.
+- New prompts `translate_scene` and `audit_scene`; docs [docs/SCENES.md](docs/SCENES.md).
+  Verified end-to-end against a real game scene (`WKMCP_TEST_SCENE` smoke test) plus
+  synthetic-JSON unit tests.
+
 ## 2.0.0 — Renamed to WkMCP + audit hardening
 
 A multi-axis audit (security, daemon performance, live bridge, code quality,
