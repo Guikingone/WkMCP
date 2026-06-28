@@ -12,7 +12,7 @@ Exhaustive reference of the **tools**, **prompts** and **resources** exposed by 
 - [9. REDscript scripts](#9-redscript-scripts-reds) · [10. Audio / low-level compression](#10-audio--low-level-compression) · [11. Localization](#11-localization) · [12. Mod writing / packing](#12-mod-writing--packing)
 - [13. REDmod](#13-redmod-post-16) · [14. Installation / uninstallation](#14-installation--uninstallation) · [15. Safety](#15-safety-backup--restore) · [16. In-game (launch / logs)](#16-in-game-launch--logs)
 - [17. Intelligence / workflow](#17-intelligence--workflow-high-level--moddingtools) · [18. Quest/codex journal](#18-questcodex-journal-journal) · [19. CR2W navigation & conflicts](#19-generic-cr2w-navigation-diagnostics--conflicts) · [20. Advanced creation / maintenance](#20-advanced-creation--maintenance)
-- [21. Asset inspection](#21-asset-inspection-materials--ui--rig--diff--nexus)
+- [21. Asset inspection](#21-asset-inspection-materials--ui--rig--diff--nexus) · [22. Gameplay logic](#22-gameplay-logic-quest-phases--communities)
 - [MCP prompts (recipes)](#mcp-prompts-recipes) · [MCP resources](#mcp-resources)
 
 ## Result convention
@@ -1032,6 +1032,40 @@ than `package_mod`. Set `allowBinaries=true` for RED4ext/CET mods that legitimat
 | `sourceFolder` | string | yes | Mod folder in the game layout. |
 | `outputZip` | string | yes | Output `.zip` path. |
 | `allowBinaries` | bool | no | Allow quarantined binaries instead of failing (default `false`). |
+
+---
+
+## 22. Gameplay logic (quest phases / communities)
+
+Inspectors for the two file families that drive quest flow and world population. Both accept a binary
+CR2W (converted via the daemon) or a `.json` already produced by `read_game_file` / `cr2w_to_json`.
+Validated against real Cyberpunk 2077 files.
+
+### `inspect_questphase`
+
+Summary of a quest phase graph (`.questphase` / questQuestPhaseResource): its nodes (with a per-type
+histogram), the node→node edges reconstructed from the socket connections, the entry/exit nodes
+(`questInput`/`questOutput`), and the `.scene` files and sub-phases it triggers. The map of a quest's
+flow — which scenes fire, in what order, and where it starts/ends. Pair with `inspect_scene` on the
+referenced `.scene` files.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `questphaseOrJson` | string | yes | A `.questphase` file or its converted `.json`. |
+| `maxNodes` | int | no | Max nodes listed (default `400`). `nodeCount` always gives the real total. |
+| `maxEdges` | int | no | Max edges listed (default `600`). `edgeCount` always gives the real total. |
+
+### `inspect_community`
+
+Summary of a community / population template (`.community` / communityCommunityTemplate): each spawn
+entry with the `Character.*` record it spawns, its appearances, its spawn phases and per-phase time
+periods (Day/Night quantities), plus voice-tag initializers. The map of who populates a location/quest
+scene and when — so you know which entry to retune or which character to swap.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `communityOrJson` | string | yes | A `.community` file or its converted `.json`. |
+| `maxEntries` | int | no | Max entries listed (default `200`). `entryCount` always gives the real total. |
 
 ---
 

@@ -2,6 +2,31 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — Gameplay-logic inspectors (quest phases / communities)
+
+Continues the tooling-gap work onto the two file families that drive quest flow and world
+population and still had no dedicated tooling — only the generic `inspect_cr2w`. New
+`GameplayInspectionTools.cs` (a third partial of `ModdingTools`) adds **2 tools**; each accepts
+a binary CR2W (converted via the daemon) or its `.json`. The pure cores were validated against
+real Cyberpunk 2077 files (extracted + converted): `teddy_holocall` / `sq023_bd_studio`
+questphases, `wbr_hil_rippdoc` / `sq017_caliente` / `q003_militech` communities.
+**149 → 151 tools** (113 → 115 offline). +9 tests (218 → 227), of which 2 are env-guarded
+real-file smoke tests (`WKMCP_TEST_QUESTPHASE` / `WKMCP_TEST_COMMUNITY`).
+
+- **`inspect_questphase`** — a `.questphase` (questQuestPhaseResource): nodes with a per-type
+  histogram, the **node→node edges reconstructed from the CR2W socket-handle graph** (each
+  connection references its sockets by `HandleId`/`HandleRefId`; sockets are mapped to their
+  owning node), entry/exit nodes (`questInput`/`questOutput`), and the `.scene` files and
+  external sub-phases it triggers.
+- **`inspect_community`** — a `.community` (communityCommunityTemplate): each spawn entry with
+  its `Character.*` record, appearances, spawn phases and per-phase time periods (Day/Night
+  quantities), plus voice-tag initializers; rolls up distinct characters.
+
+`clone_tweak_record` was scoped out this round: `generate_tweak_template`'s `new_item`/`new_record`
+already emit `$instanceOf` skeletons, and a *faithful* clone would need either a new daemon verb
+serializing every RED flat type untruncated, or TweakXL `$base` semantics that can't be validated
+headlessly.
+
 ## Unreleased — Asset-inspection coverage (materials / UI / rig / diff / Nexus)
 
 Fills the tool-surface gaps for asset families that had no dedicated tooling. Gap analysis

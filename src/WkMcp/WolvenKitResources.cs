@@ -188,6 +188,7 @@ public static class WolvenKitResources
         sb.AppendLine("- In-game (offline): launch_game, tail_game_logs");
         sb.AppendLine("- Assets: inspect_material (.mi) / inspect_mlsetup / edit_material_instance / trace_material_chain (mesh→.mi→.mlsetup→textures), inspect_inkatlas / resolve_inkatlas_part / inspect_inkwidget (UI), inspect_rig (skeleton), diff_cr2w (any two files), package_for_nexus (release pre-flight)");
         sb.AppendLine("- Scenes (.scene): inspect_scene (structure), scene_graph (flow), find_in_scene (locate node/dialogue), validate_scene (graph + dialogue integrity), scene_dependencies / scene_events, scene_set_actor / scene_replace_resource (editing), extract_scene_localization / apply_scene_localization (dialogue translation), scaffold_scene");
+        sb.AppendLine("- Gameplay logic: inspect_questphase (.questphase node/edge graph + scene & sub-phase refs, entry/exit nodes), inspect_community (.community spawn entries, characters, phases & Day/Night quantities)");
         sb.AppendLine("- Live (game running + CETBridge mod): live_status first, then the live_* tools (player state, inventory, teleport, live TweakDB, quest facts, event observation)");
         sb.AppendLine();
         sb.AppendLine($"### Full list — archives/CR2W/TweakDB/projects tools ({offline.Count})");
