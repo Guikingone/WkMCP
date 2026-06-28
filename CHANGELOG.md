@@ -2,6 +2,29 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — clone_tweak_record (faithful TweakDB record clone)
+
+New daemon verb `tweakdb-clone` + MCP tool **`clone_tweak_record`** (**151 → 152 tools**,
+116 offline). Closes the gap left in the previous entry: a *faithful* clone of an existing
+TweakDB record, not the blind skeleton `generate_tweak_template` produces.
+
+- Verifies `baseId` exists in the `tweakdb.bin`, then emits `<newId>:` with **`$base: <baseId>`**
+  — TweakXL's documented clone attribute copies every property of the base record at load, so
+  correctness does not depend on us serializing each flat.
+- Appends a **commented inventory of all the base's flats with their current values**, rendered
+  properly (TweakDBIDs resolved to ids, floats in `InvariantCulture` — the engine values use `.`
+  and a fr-FR host's default `ToString()` would emit `,`, arrays expanded, `Vector3` as
+  `{ x, y, z }`). The author uncomments only what they want to override; unhandled types
+  (LocKey wrapper, resource refs) stay as a `<TypeName>` tag in the comment, harmless.
+- Optional `overridesJson` `{field: value}` is emitted as active keys (removed from the inventory).
+- Validated end-to-end against the real `tweakdb.bin` (`Items.Preset_Lexington_Default`,
+  gamedataWeaponItem_Record, 140 flats): faithful `$base`, all values rendered, unknown base →
+  hard error with no file written, overrides path correct.
+
+Note discovered while building this: TweakXL has **no `$instanceOf` attribute** (its docs define
+`$base` for cloning and `$type` for a new record's type). `generate_tweak_template`'s
+`new_record`/`new_item` emit `$instanceOf` — likely ineffective; flagged for a separate fix.
+
 ## Unreleased — Gameplay-logic inspectors (quest phases / communities)
 
 Continues the tooling-gap work onto the two file families that drive quest flow and world
@@ -22,10 +45,7 @@ real-file smoke tests (`WKMCP_TEST_QUESTPHASE` / `WKMCP_TEST_COMMUNITY`).
   its `Character.*` record, appearances, spawn phases and per-phase time periods (Day/Night
   quantities), plus voice-tag initializers; rolls up distinct characters.
 
-`clone_tweak_record` was scoped out this round: `generate_tweak_template`'s `new_item`/`new_record`
-already emit `$instanceOf` skeletons, and a *faithful* clone would need either a new daemon verb
-serializing every RED flat type untruncated, or TweakXL `$base` semantics that can't be validated
-headlessly.
+(`clone_tweak_record` was deferred at this point, then implemented in the entry above.)
 
 ## Unreleased — Asset-inspection coverage (materials / UI / rig / diff / Nexus)
 

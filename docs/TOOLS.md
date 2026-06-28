@@ -312,6 +312,17 @@ For a TweakDB identifier (record), lists all its flats with types and current va
 | `tweakdbPath` | string | yes | `tweakdb.bin` file. |
 | `recordId` | string | yes | TweakDB identifier of the record. |
 
+### `clone_tweak_record`
+Clones an existing TweakDB record into a ready-to-edit `.tweak`. Verifies `baseId` exists, emits `<newId>:` with `$base: <baseId>` (TweakXL copies every base property at load — a faithful clone), then appends a commented inventory of all the base's flats with their current values (TweakDBIDs resolved, floats in invariant form, arrays expanded, Vector3 as `{ x, y, z }`) so you can see and uncomment exactly what to override. Stronger than `generate_tweak_template` (blind skeleton). Needs the daemon (the no-binary package has no TweakDB support). Install the result with `install_tweak`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `tweakdbBin` | string | yes | `tweakdb.bin` file (typically `<game>/r6/cache/tweakdb.bin`). |
+| `baseId` | string | yes | Existing record to clone (e.g. `Items.Preset_Lexington_Default`). |
+| `newId` | string | yes | Identifier of the new record (e.g. `MyMod.MyLexington`). |
+| `outputTweakFile` | string | yes | Output `.tweak` path (TweakXL YAML). |
+| `overridesJson` | string | no | Overrides as JSON `{"field":value,…}` emitted as active keys (rest stays inherited). |
+
 ### `read_tweak`
 Reads a `.tweak` file (TweakXL — YAML) and returns its content as editable JSON.
 

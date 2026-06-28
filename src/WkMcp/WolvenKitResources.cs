@@ -179,7 +179,7 @@ public static class WolvenKitResources
         sb.AppendLine("- Read/edit a game file: read_game_file / write_game_file (JSON in one call), cr2w_to_json / json_to_cr2w");
         sb.AppendLine("- Extract: extract_files / uncook (mesh -> glTF, textures -> image; flags meshExportType, meshExporterType, meshExportLodFilter), extract_audio (opus voice-over)");
         sb.AppendLine("- Pack/install: pack_archive, install_mod, build_project, package_mod, scaffold_mod / scaffold_archivexl");
-        sb.AppendLine("- TweakDB: tweakdb_query / tweakdb_resolve / describe_tweak_record / dump_records + read_tweak / write_tweak / validate_tweak / install_tweak / lint_tweak");
+        sb.AppendLine("- TweakDB: tweakdb_query / tweakdb_resolve / describe_tweak_record / clone_tweak_record (faithful $base clone) / dump_records + read_tweak / write_tweak / validate_tweak / install_tweak / lint_tweak");
         sb.AppendLine("- REDscript scripts: read_script / lint_script (line:column syntax validation), generate_redscript_template");
         sb.AppendLine("- Diagnose: mod_doctor, diagnose_logs (6 logs + known-error database), analyze_conflicts, analyze_dependencies / check_requirements, migration_check");
         sb.AppendLine("- Validate: validate_xl, validate_item_mod (full ArchiveXL chain), validate_appearance (.app -> .mesh), lint_mod");
