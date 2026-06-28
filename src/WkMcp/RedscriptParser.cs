@@ -33,7 +33,14 @@ internal sealed record RedDiagnostic(int Line, int Col, string Severity, string 
         $"{Severity} L{Line}:{Col} — {Message}";
 }
 
-internal sealed record RedDeclaration(string Kind, string Name, int Line);
+internal sealed record RedDeclaration(string Kind, string Name, int Line)
+{
+    // R1 (API index): optional, populated by the parser; lint ignores them.
+    // Additive — the positional ctor used everywhere else stays valid.
+    public string? Parent { get; init; }                    // method/field: enclosing class; class: extends; annotated free func: @target
+    public string? Signature { get; init; }                 // func: "name(p: T, …) -> Ret"; field: "name: Type"
+    public IReadOnlyList<string>? Annotations { get; init; } // e.g. ["wrapMethod", "if"]
+}
 
 internal sealed class RedParseResult
 {
@@ -73,7 +80,7 @@ internal static class RedscriptParser
             res.Diagnostics.Add(new RedDiagnostic(1, 1, "ERROR", "tokenizer failed: " + ex.Message));
             return res;
         }
-        new Impl(toks, res).ParseFile();
+        new Impl(toks, res, source).ParseFile();
         return res;
     }
 
@@ -229,11 +236,55 @@ internal static class RedscriptParser
     {
         private readonly List<Tok> _t;
         private readonly RedParseResult _r;
+        private readonly string _src;
+        private readonly int[] _lineStarts;
         private int _p;
         private int _errors;
         private const int MaxErrors = 60;
 
-        public Impl(List<Tok> toks, RedParseResult res) { _t = toks; _r = res; }
+        public Impl(List<Tok> toks, RedParseResult res, string source)
+        {
+            _t = toks; _r = res; _src = source;
+            // Line → absolute offset of its first char (1-based lines). Lets us
+            // slice signatures straight from the source without touching the lexer.
+            var starts = new List<int> { 0 };
+            for (var k = 0; k < source.Length; k++)
+                if (source[k] == '\n') starts.Add(k + 1);
+            _lineStarts = starts.ToArray();
+        }
+
+        // Absolute source offset of a token's first character.
+        private int Off(Tok t)
+        {
+            var li = t.Line - 1;
+            if (li < 0 || li >= _lineStarts.Length) return 0;
+            return Math.Clamp(_lineStarts[li] + t.Col - 1, 0, _src.Length);
+        }
+
+        // Source between two tokens [start, endExclusive), whitespace-collapsed.
+        private string? Slice(Tok start, Tok endExclusive)
+        {
+            int a = Off(start), b = Off(endExclusive);
+            if (b <= a || a < 0 || b > _src.Length) return null;
+            var raw = _src.Substring(a, b - a);
+            return System.Text.RegularExpressions.Regex.Replace(raw, @"\s+", " ").Trim();
+        }
+
+        // Annotations that name a target class as their first argument
+        // (@wrapMethod(PlayerPuppet) → "PlayerPuppet").
+        private static readonly HashSet<string> ClassTargetAnnotations =
+            new(StringComparer.OrdinalIgnoreCase) { "wrapMethod", "replaceMethod", "addMethod", "addField" };
+
+        private static IReadOnlyList<string>? AnnNames(List<(string Name, string? Target)> a)
+            => a.Count == 0 ? null : a.ConvertAll(x => x.Name);
+
+        private static string? AnnTarget(List<(string Name, string? Target)> a)
+        {
+            foreach (var x in a)
+                if (ClassTargetAnnotations.Contains(x.Name) && !string.IsNullOrEmpty(x.Target))
+                    return x.Target;
+            return null;
+        }
 
         private Tok Cur => _t[_p];
         private Tok Peek(int k = 1) => _t[Math.Min(_p + k, _t.Count - 1)];
@@ -294,10 +345,10 @@ internal static class RedscriptParser
             var anns = ParseAnnotations();      // @if(...) may precede an import
             if (IsKw("import")) { ParseImport(); return; }
             ParseModifiers();
-            if (IsKw("class") || IsKw("struct")) { ParseClass(); return; }
-            if (IsKw("enum")) { ParseEnum(); return; }
-            if (IsKw("func")) { ParseFunc(topLevel: true); return; }
-            if (IsKw("let") || IsKw("const")) { ParseField(); return; }
+            if (IsKw("class") || IsKw("struct")) { ParseClass(anns); return; }
+            if (IsKw("enum")) { ParseEnum(anns); return; }
+            if (IsKw("func")) { ParseFunc(topLevel: true, enclosingClass: null, anns); return; }
+            if (IsKw("let") || IsKw("const")) { ParseField(enclosingClass: null, anns); return; }
             // nothing recognized
             if (!Is(TokKind.Eof))
             {
@@ -325,14 +376,23 @@ internal static class RedscriptParser
             if (Is(TokKind.Semicolon)) Next();
         }
 
-        private List<string> ParseAnnotations()
+        // Returns each annotation's (name, first-paren-argument). The argument is
+        // the target class for @wrapMethod/@replaceMethod/@addMethod/@addField.
+        private List<(string Name, string? Target)> ParseAnnotations()
         {
-            var anns = new List<string>();
+            var anns = new List<(string, string?)>();
             while (Is(TokKind.Annotation))
             {
-                anns.Add(Cur.Text);
+                var name = Cur.Text;
                 Next();
-                if (Is(TokKind.LParen)) SkipBalanced(TokKind.LParen, TokKind.RParen);
+                string? target = null;
+                if (Is(TokKind.LParen))
+                {
+                    // peek the first identifier inside the parens, then skip the rest
+                    if (Peek().Kind is TokKind.Ident or TokKind.Keyword) target = Peek().Text;
+                    SkipBalanced(TokKind.LParen, TokKind.RParen);
+                }
+                anns.Add((name, target));
             }
             return anns;
         }
@@ -342,41 +402,49 @@ internal static class RedscriptParser
             while (Cur.Kind == TokKind.Keyword && Modifiers.Contains(Cur.Text)) Next();
         }
 
-        private void ParseClass()
+        private void ParseClass(List<(string Name, string? Target)> anns)
         {
             Next(); // class/struct
             var nameTok = Cur;
             if (!Expect(TokKind.Ident, "class name")) { Synchronize(); return; }
-            _r.Declarations.Add(new RedDeclaration("class", nameTok.Text, nameTok.Line));
-            if (IsKw("extends")) { Next(); ParseType(); }
+            string? extends = null;
+            if (IsKw("extends")) { Next(); var st = Cur; ParseType(); extends = Slice(st, Cur); }
+            _r.Declarations.Add(new RedDeclaration("class", nameTok.Text, nameTok.Line)
+            {
+                Parent = extends,
+                Annotations = AnnNames(anns),
+            });
             if (!Expect(TokKind.LBrace, "\"{\"")) return;
             while (!Is(TokKind.RBrace) && !Is(TokKind.Eof) && _errors < MaxErrors)
             {
                 int before = _p;
-                ParseMember();
+                ParseMember(nameTok.Text);
                 if (_p == before) Next();
             }
             Expect(TokKind.RBrace, "\"}\"");
         }
 
-        private void ParseMember()
+        private void ParseMember(string? enclosingClass)
         {
             if (Is(TokKind.Semicolon)) { Next(); return; } // stray ";" after a member
-            ParseAnnotations();
+            var anns = ParseAnnotations();
             ParseModifiers();
-            if (IsKw("func")) { ParseFunc(topLevel: false); return; }
-            if (IsKw("let") || IsKw("const")) { ParseField(); return; }
+            if (IsKw("func")) { ParseFunc(topLevel: false, enclosingClass, anns); return; }
+            if (IsKw("let") || IsKw("const")) { ParseField(enclosingClass, anns); return; }
             if (Is(TokKind.RBrace)) return;
             Err($"member expected (func/let), found \"{Describe(Cur)}\"");
             Synchronize();
         }
 
-        private void ParseEnum()
+        private void ParseEnum(List<(string Name, string? Target)> anns)
         {
             Next();
             var nameTok = Cur;
             if (!Expect(TokKind.Ident, "enum name")) { Synchronize(); return; }
-            _r.Declarations.Add(new RedDeclaration("enum", nameTok.Text, nameTok.Line));
+            _r.Declarations.Add(new RedDeclaration("enum", nameTok.Text, nameTok.Line)
+            {
+                Annotations = AnnNames(anns),
+            });
             if (!Expect(TokKind.LBrace, "\"{\"")) return;
             while (!Is(TokKind.RBrace) && !Is(TokKind.Eof))
             {
@@ -389,33 +457,46 @@ internal static class RedscriptParser
             Expect(TokKind.RBrace, "\"}\"");
         }
 
-        private void ParseField()
+        private void ParseField(string? enclosingClass, List<(string Name, string? Target)> anns)
         {
             Next(); // let/const
             var nameTok = Cur;
             // some contextual keywords (quest, wrapped...) serve as names.
             if (Is(TokKind.Ident) || Is(TokKind.Keyword)) Next();
             else { Err($"field name expected, found \"{Describe(Cur)}\""); Synchronize(); return; }
-            _r.Declarations.Add(new RedDeclaration("field", nameTok.Text, nameTok.Line));
-            if (Is(TokKind.Colon)) { Next(); ParseType(); }
+            string? type = null;
+            if (Is(TokKind.Colon)) { Next(); var st = Cur; ParseType(); type = Slice(st, Cur); }
+            _r.Declarations.Add(new RedDeclaration("field", nameTok.Text, nameTok.Line)
+            {
+                Parent = enclosingClass ?? AnnTarget(anns),
+                Signature = type is null ? nameTok.Text : $"{nameTok.Text}: {type}",
+                Annotations = AnnNames(anns),
+            });
             if (IsOp("=")) { Next(); SkipExpression(); }
             Expect(TokKind.Semicolon, "\";\"");
         }
 
-        private void ParseFunc(bool topLevel)
+        private void ParseFunc(bool topLevel, string? enclosingClass, List<(string Name, string? Target)> anns)
         {
             Next(); // func
             var nameTok = Cur;
             if (!(Is(TokKind.Ident) || Is(TokKind.Keyword)))
             { Err("function name expected"); Synchronize(); return; }
             Next();
-            _r.Declarations.Add(new RedDeclaration("func", nameTok.Text, nameTok.Line));
             // optional generics <T, U>
             if (IsOp("<")) SkipAngles();
             if (!Expect(TokKind.LParen, "\"(\"")) { Synchronize(); return; }
             ParseParams();
             Expect(TokKind.RParen, "\")\"");
             if (Is(TokKind.Arrow)) { Next(); ParseType(); }
+            // The signature spans the name → body/";"/"="/next-decl boundary (Cur).
+            // Recorded after parsing it so the slice captures params + return type.
+            _r.Declarations.Add(new RedDeclaration("func", nameTok.Text, nameTok.Line)
+            {
+                Parent = enclosingClass ?? AnnTarget(anns),
+                Signature = Slice(nameTok, Cur),
+                Annotations = AnnNames(anns),
+            });
             if (Is(TokKind.LBrace)) ParseBlock();
             else if (Is(TokKind.Semicolon)) Next();        // native func with ";"
             else if (IsOp("=")) { Next(); SkipExprBody(); } // expression-bodied func: = expr

@@ -1,7 +1,7 @@
 # WkMCP — an MCP server for Cyberpunk 2077 modding
 
 An **MCP (Model Context Protocol)** server that exposes WolvenKit's modding CLI
-(`cp77tools`) as **152 tools** an agent (Claude) can call — so you steer Cyberpunk
+(`cp77tools`) as **157 tools** an agent (Claude) can call — so you steer Cyberpunk
 2077 modding from a chat window without writing code: read and edit game files,
 query and patch the TweakDB, create/pack/install mods, export meshes and textures,
 lint REDscript, diagnose a broken install, and even drive a **running** game live.
@@ -17,7 +17,7 @@ Cyberpunk 2077 install.
 - **Create, pack & install mods** — `.archive` mods, REDmods, REDscript, ArchiveXL items, localization.
 - **Diagnostics** — `mod_doctor` (frameworks health), `lint_mod`, `detect_conflicts`, log analysis, conflict bisection.
 - **REDscript lint** — a real grammar parser, line:column errors (0 false positives on 1374 real `.reds`).
-- **Live in-game bridge** — 35 `live_*` tools to drive a *running* game (Lua, state, spawn, teleport, weather, in-memory TweakDB, event observation).
+- **Live in-game bridge** — 36 `live_*` tools to drive a *running* game (Lua, state, spawn, teleport, weather, in-memory TweakDB, event observation).
 - **Scenes** — inspect, graph, validate, translate and edit `.scene` (quest/dialogue) files headlessly: catch broken dialogue graphs and edit subtitles without the scene editor.
 - **Structured JSON** — every tool returns `{ ok, status, summary, produced, warnings, errors, log }`, reliable for an agent to parse.
 
@@ -106,16 +106,16 @@ Optional environment variables go in the `"env"` block (Desktop) or via `-e VAR=
 
 ## Tools, prompts, resources
 
-The server exposes **152 tools** (116 offline + 36 `live_*`), **10 prompts** and **4 resources**.
+The server exposes **157 tools** (121 offline + 36 `live_*`), **10 prompts** and **4 resources**.
 
 **Tools by category** (full parameter reference: [docs/TOOLS.md](docs/TOOLS.md)):
 
-- *Diagnostics* — `wk_status`, `clear_cache`, `compute_hash`, `resolve_hash`, `tweakdb_resolve`, `tweakdb_query`.
-- *Archives* — `archive_info`, `archive_stats`, `find_in_archives`, `diff_archives`, `extract_files`, `uncook`.
-- *Conversion / export* — `cr2w_to_json`, `json_to_cr2w`, `export_files`, `export_animation`, `export_morphtarget`, `export_mlmask`, `export_entity`, `export_materials`.
+- *Diagnostics* — `wk_status`, `clear_cache`, `compute_hash`, `resolve_hash`, `tweakdb_resolve`, `tweakdb_query`, `find_record_by_name`.
+- *Archives* — `archive_info`, `archive_stats`, `find_in_archives`, `diff_archives`, `diff_against_installed`, `extract_files`, `uncook`.
+- *Conversion / export* — `cr2w_to_json`, `json_to_cr2w`, `export_files`, `export_animation`, `export_morphtarget`, `export_mlmask`, `export_entity`, `export_materials`, `set_texture_format`.
 - *Read / write game files* — `read_game_file`, `write_game_file`, `inspect_mesh`, `inspect_texture`, `inspect_app`.
-- *TweakDB* — `describe_tweak_record`, `clone_tweak_record` (faithful `$base` clone of an existing record + commented value inventory), `read_tweak`, `write_tweak`, `validate_tweak`, `install_tweak`, `dump_records`, `generate_tweak_template`.
-- *REDscript* — `read_script`, `lint_script`, `generate_redscript_template`.
+- *TweakDB* — `describe_tweak_record`, `clone_tweak_record` (faithful `$base` clone of an existing record + commented value inventory), `read_tweak`, `write_tweak`, `validate_tweak`, `preview_tweak`, `install_tweak`, `dump_records`, `generate_tweak_template`.
+- *REDscript* — `read_script`, `lint_script`, `script_api_index`, `type_check_scripts`, `generate_redscript_template`.
 - *Audio / compression* — `wwise_export`, `extract_audio`, `import_audio`, `loc_resolve`, `oodle_compress`, `oodle_decompress`.
 - *Localization* — `extract_localization`, `build_localization`.
 - *Mod creation / packing* — `pack_archive`, `import_raw`, `build_project`, `create_mod_project`, `generate_modproj`, `lint_mod`, `mod_summary`.
@@ -123,11 +123,12 @@ The server exposes **152 tools** (116 offline + 36 `live_*`), **10 prompts** and
 - *Install / uninstall* — `install_mod`, `uninstall_mod`, `uninstall_redmod`, `uninstall_tweak`, `list_installed_mods`, `detect_conflicts`.
 - *Safety* — `backup_mods`, `restore_mods`.
 - *In-game* — `launch_game`, `tail_game_logs`.
-- *Workflow / intelligence* (25 high-level) — `analyze_dependencies`, `check_requirements`, `mod_doctor`, `validate_xl`, `scaffold_archivexl`, `find_references`, `diff_mod_vs_base`, `scaffold_mod`, `package_mod`, `inspect_journal`, `find_journal_entry`, `inspect_cr2w`, `find_in_cr2w`, `diagnose_logs`, `analyze_conflicts`, `validate_item_mod`, `lint_tweak`, `generate_manifest`, `resolve_dynamic_appearance`, `migration_check`, `toggle_mods`, `list_entity_appearances`, `validate_appearance`, `validate_redmod`.
+- *Workflow / intelligence* (23 high-level) — `analyze_dependencies`, `check_requirements`, `mod_doctor`, `validate_xl`, `scaffold_archivexl`, `find_references`, `diff_mod_vs_base`, `scaffold_mod`, `package_mod`, `inspect_journal`, `find_journal_entry`, `inspect_cr2w`, `find_in_cr2w`, `diagnose_logs`, `analyze_conflicts`, `validate_item_mod`, `lint_tweak`, `generate_manifest`, `resolve_dynamic_appearance`, `migration_check`, `toggle_mods`, `list_entity_appearances`, `validate_appearance`.
 - *Asset inspection* (10) — `inspect_material` (.mi), `inspect_mlsetup`, `edit_material_instance`, `trace_material_chain` (mesh → .mi → .mlsetup → textures), `inspect_inkatlas` / `resolve_inkatlas_part` (UI sprites), `inspect_inkwidget` (HUD/menus), `inspect_rig` (skeletons), `diff_cr2w` (generic two-file diff), `package_for_nexus` (Nexus pre-flight + zip).
 - *Scenes (.scene)* (11) — `inspect_scene`, `scene_graph` (flow), `find_in_scene`, `validate_scene` (graph + dialogue integrity), `scene_dependencies` (external refs), `scene_events` (timeline), `extract_scene_localization` / `apply_scene_localization` (translation), `scene_set_actor` / `scene_replace_resource` (edit), `scaffold_scene` (new scene). See [docs/SCENES.md](docs/SCENES.md).
 - *Gameplay logic* (2) — `inspect_questphase` (.questphase quest graph: nodes/edges, entry/exit, scene & sub-phase refs), `inspect_community` (.community population: spawn entries, characters, phases & Day/Night quantities).
-- *Live in-game* (35 `live_*`) — drive a running game via the CETBridge mod; see [docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md).
+- *Appearance authoring* (3) — `add_appearance` (add an appearance to a `.app`), `set_mesh_material` (set a component's `meshAppearance` material selector + optional mesh swap), `scaffold_appearance_mod` (ArchiveXL appearance-swap mod skeleton).
+- *Live in-game* (36 `live_*`) — drive a running game via the CETBridge mod; see [docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md).
 
 ### MCP prompts (10)
 
@@ -203,9 +204,9 @@ WolvenKit is licensed GPL-3.0; that license is itself the permission to build on
 ## Documentation
 
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — modder's guide: install, wire up to Claude, step-by-step workflows (read a file, edit a tweak, create/pack/install a mod, check dependencies, package).
-- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 152 tools + 10 prompts + 4 resources (parameters included).
+- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 157 tools + 10 prompts + 4 resources (parameters included).
 - **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — copy-paste recipes by mod type (tweak, redscript, ArchiveXL, REDmod, localization, texture, analysis).
-- **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — the 35 `live_*` tools to drive a running game (CETBridge / Cyber Engine Tweaks). Optional, separate prerequisites.
+- **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — the 36 `live_*` tools to drive a running game (CETBridge / Cyber Engine Tweaks). Optional, separate prerequisites.
 - **[docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)** — remote access over HTTP/Streamable (instead of stdio); secure by default.
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — for contributors: IPC, cache, parser, and how to add an MCP tool or daemon verb.
 
@@ -230,15 +231,21 @@ More in [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (§10 troubleshooting) and [doc
 
 ```
 wkmcp/
-├── src/WkMcp/         C# / .NET 8 MCP server (152 tools, 10 prompts, 4 resources)
+├── src/WkMcp/         C# / .NET 8 MCP server (157 tools, 10 prompts, 4 resources)
 │   ├── Program.cs            Host + stdio/http transport + DI + daemon warmup
 │   ├── Cp77ToolsRunner.cs    Drives the daemon (pipelined IPC, LRU cache, cp77tools fallback)
-│   ├── WolvenKitTools.cs     63 base MCP tools + helpers
-│   ├── ModdingTools.cs       25 workflow tools (deps, health, scaffolding, refs, diff)
+│   ├── WolvenKitTools.cs     70 base MCP tools + helpers
+│   ├── ModdingTools.cs       28 workflow tools (deps, health, scaffolding, refs, diff, appearance)
+│   ├── AssetInspectionTools.cs 10 asset-inspection tools (materials / UI / rig / diff / Nexus) — partial of ModdingTools
+│   ├── GameplayInspectionTools.cs 2 gameplay-logic tools (.questphase / .community) — partial of ModdingTools
+│   ├── SceneTools.cs         11 scene (.scene) tools (inspect / graph / validate / translate / edit)
 │   ├── LiveTools.cs          36 live_* tools (running game, via CetBridge.cs)
 │   ├── CetBridge.cs          TCP/file bridge to the CETBridge Lua mod
-│   ├── RedscriptParser.cs    REDscript grammar parser (lint_script)
-│   ├── WolvenKitPrompts.cs   8 MCP prompts (recipes)
+│   ├── RedscriptParser.cs    REDscript grammar parser (lint_script, script_api_index)
+│   ├── ScriptApi.cs          REDscript symbol index (script_api_index)
+│   ├── SccDiagnostics.cs     scc output parser (type_check_scripts)
+│   ├── TweakValidation.cs    TweakXL typed-validation / preview core (validate_tweak, preview_tweak)
+│   ├── WolvenKitPrompts.cs   10 MCP prompts (recipes)
 │   └── WolvenKitResources.cs 4 MCP resources (reference generated by reflection)
 ├── src/WkDaemon/      Persistent daemon — links the WolvenKit GPL-3.0 libraries
 ├── src/WkMcp.Tests/   xUnit tests (incl. ConsistencyTests anti-drift guard)

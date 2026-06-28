@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WkMCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **92 offline tools**, **8 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **128 tools** in total.
+> **Counts.** The server exposes **121 offline tools**, **10 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **157 tools** in total.
 
 ## Contents
 
@@ -33,7 +33,7 @@ Each tool returns a structured JSON object, typically:
 
 ## Live in-game (CETBridge bridge)
 
-35 `live_*` tools drive a **running** game (Lua execution, state
+36 `live_*` tools drive a **running** game (Lua execution, state
 reading/writing, spawn, teleportation, weather, in-memory TweakDB, observing events).
 Documented separately: see **[LIVE_BRIDGE.md](LIVE_BRIDGE.md)**. Prerequisites: game running + Cyber
 Engine Tweaks (+ RedSocket for the TCP transport). The tools below are, themselves, **offline**.
@@ -300,6 +300,27 @@ Adds a new appearance to a `.app` file by **cloning** an existing one — the on
 | `meshSwapsJson` | string | no | JSON object of mesh `DepotPath` swaps applied in the clone, e.g. `{"base\\a\\old.mesh":"base\\a\\new.mesh"}`. Keys match case-insensitively. |
 | `outputFile` | string | no (default: in place) | Output `.app` path. |
 
+### `set_mesh_material`
+Sets a mesh component's `meshAppearance` — the CName that selects **which** material/appearance set inside the referenced `.mesh` is used — for a named appearance in a `.app` (the core of a recolor/retexture), and optionally swaps the component's `mesh` DepotPath. Round-trips the CR2W via JSON and **self-verifies** the edit survives before writing. Edits the `.app`-level **selector**, not the `.mesh` `materialEntries` themselves. Idempotent.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `appFile` | string | yes | Extracted `.app` file. |
+| `appearance` | string | yes | Name of the appearance to edit. |
+| `meshAppearance` | string | yes | New `meshAppearance` CName to set on the matching component(s). |
+| `meshFilter` | string | no | Only update components whose current mesh path contains this (substring, case-insensitive). Empty = all mesh components. |
+| `newMesh` | string | no | Also swap the matching component's `mesh` DepotPath to this value. |
+| `outputFile` | string | no (default: in place) | Output `.app` path. |
+
+### `scaffold_appearance_mod`
+Generates a ready-to-fill ArchiveXL appearance-swap mod skeleton under `<outputFolder>/<modName>/`: a commented `<modName>.xl` resource patch wiring a base `.app` to the mod's custom `.app`, the `source/archive` folder layout, and a README documenting the loop (`find_in_archives` → `extract_files` → `add_appearance` → `set_mesh_material` → `pack_archive` → `install_mod`). The appearance-mod equivalent of `scaffold_archivexl`/`scaffold_mod`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `outputFolder` | string | yes | Parent destination folder (the mod folder is created inside it). |
+| `modName` | string | yes | Mod name (used as the project folder and `<name>.xl`). |
+| `targetApp` | string | no | Base `.app` depot path to pre-fill in the patch. Empty = a placeholder path. |
+
 ---
 
 ## 7. TweakDB
@@ -339,11 +360,19 @@ Reconverts a JSON (from `read_tweak`) into a `.tweak` file (YAML TweakXL).
 | `outputTweakFile` | string | yes | `.tweak` file to produce. |
 
 ### `validate_tweak`
-Verifies a `.tweak` against a TweakDB: each key must exist (record/flat) unless it declares `$base` or `$type` (new/derived record). Returns the unknown keys.
+Validates a `.tweak` against a TweakDB on two axes: **existence** — each key must exist (record/flat) unless it declares `$base` or `$type` (new/derived record) — and **types** — each overridden flat's value must be type-compatible with the flat (a string into a numeric flat, an array/scalar mismatch, … the #1 silently-ignored TweakXL error). Returns unknown keys (as errors) and type mismatches (as warnings, also in `typeFindings`).
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `tweakFile` | string | yes | `.tweak` file to validate. |
+| `tweakdbBin` | string | yes | Reference `tweakdb.bin`. |
+
+### `preview_tweak`
+Dry-run a `.tweak` against a TweakDB without writing anything — answers "what will this tweak actually change?". For **scalar** flats it shows the **BEFORE → AFTER** (current TweakDB value vs the file's value); for **array** flats it resolves the mutation operators (`!append`/`!prepend`/`!append-once`/`!append-from`/`!remove`, or a full replacement when there are no operator tags) and reports the `added`/`removed` elements. For a new record (`$instanceOf`/`$base`) the BEFORE is inherited from the base. Inline-record values are listed under `skipped`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `tweakFile` | string | yes | `.tweak` file to preview. |
 | `tweakdbBin` | string | yes | Reference `tweakdb.bin`. |
 
 ### `install_tweak`
@@ -415,6 +444,26 @@ Syntactic analysis via a real parser (tokenizer + recursive descent): syntax err
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `scriptFile` | string | yes | Script file. |
+
+### `script_api_index`
+Indexes the REDscript symbols (classes, methods, fields, enums, free functions) across a folder of `.reds` sources and looks one up by name — returning the exact **signature** and `file:line` needed to `@wrapMethod`/`@replaceMethod` a game method or find which class declares a field. For an `@wrapMethod(PlayerPuppet)` hook the enclosing class is the annotation target. Point it at a decompiled game-scripts dump, a mod's `r6/scripts`, or any `.reds` tree. Pure syntactic index — no scc, no type resolution.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `scriptsFolder` | string | yes | Folder of `.reds` files (searched recursively). |
+| `query` | string | no | Name filter (case-insensitive substring). Empty = list all (capped). |
+| `kind` | string | no | `class` \| `struct` \| `enum` \| `func` \| `field` \| `method` (func with a class) \| `global` (free func). |
+| `ofClass` | string | no | Enclosing/target class filter, e.g. `PlayerPuppet`. |
+| `maxResults` | int | no | Max results (default 100). |
+
+### `type_check_scripts`
+Type-checks REDscript by running the game's bundled `scc` compiler over a scripts folder (default `<game>/r6/scripts`) and returning its diagnostics — the **semantic** layer `lint_script` can't reach: `scc` resolves game types/methods, so it catches `@wrapMethod`/`@addMethod` on an unresolved class, type mismatches, duplicate method replacements, missing-dependency imports, etc. **Non-destructive**: `scc` runs with `-no-exec` and its output bundle is forced to a throwaway temp file, so the game's `r6/cache/final.redscripts` is never written (snapshot-verified). Needs the game installed (`scc` ships with the REDmod component).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `gamePath` | string | yes | Root folder of the Cyberpunk 2077 installation. |
+| `scriptsFolder` | string | no | Scripts folder to compile (default: `<game>/r6/scripts`). |
+| `maxDiagnostics` | int | no | Max diagnostics returned per severity (default 200). |
 
 ---
 
@@ -851,7 +900,7 @@ Validates the reference chain of an ArchiveXL item mod: `.yaml`(entityName)↔`.
 ## 20. Advanced creation / maintenance
 
 ### `lint_tweak`
-Semantic lint of a TweakXL file (`.tweak` / `.yaml`): tabs forbidden (silent load failure), indentation not a multiple of 2, duplicate record names, and an auto-generated `inlineN` record used as `$base` (breaks on every game update). Complements `validate_tweak` (which checks the keys vs `tweakdb.bin`). Read-only.
+Semantic lint of a TweakXL file (`.tweak` / `.yaml`): tabs forbidden (silent load failure), indentation not a multiple of 2, duplicate record names, an auto-generated `inlineN` record used as `$base` (breaks on every game update), unknown array-mutation operators (the real ones are hyphenated — `!append-once`, not `!appendOnce`; `!merge` does not exist), and unknown `$directives`. Complements `validate_tweak` (keys + value types vs `tweakdb.bin`). Read-only.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|

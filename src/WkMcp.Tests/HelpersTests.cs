@@ -458,6 +458,52 @@ public class TweakLintTests
         Assert.Empty(errors);
         Assert.Empty(warnings);
     }
+
+    [Fact]
+    public void CamelCaseOperatorIsWarnedWithHyphenatedSuggestion()
+    {
+        var (_, warnings) = ModdingTools.LintTweakText(new[]
+        {
+            "Items.Foo:",
+            "  statModifiers:",
+            "    - !appendOnce Items.Bar",
+        });
+        Assert.Contains(warnings, w => w.Contains("!appendOnce") && w.Contains("!append-once"));
+    }
+
+    [Fact]
+    public void InventedOperatorIsWarned()
+    {
+        var (_, warnings) = ModdingTools.LintTweakText(new[] { "Items.Foo:", "  parts:", "    - !merge X" });
+        Assert.Contains(warnings, w => w.Contains("!merge"));
+    }
+
+    [Fact]
+    public void RealHyphenatedOperatorsAreAccepted()
+    {
+        var (_, warnings) = ModdingTools.LintTweakText(new[]
+        {
+            "Items.Foo:",
+            "  parts:",
+            "    - !append-once Items.A",
+            "    - !append-from Items.B",
+            "    - !remove Items.C",
+        });
+        Assert.DoesNotContain(warnings, w => w.Contains("operator"));
+    }
+
+    [Fact]
+    public void UnknownDirectiveIsWarnedButRealOnesAreNot()
+    {
+        var (_, warnings) = ModdingTools.LintTweakText(new[]
+        {
+            "Items.Foo:",
+            "  $instanceOf: Items.Base",   // valid → no warning
+            "  $clone: Items.Other",       // invalid directive → warning
+        });
+        Assert.Contains(warnings, w => w.Contains("unknown directive `$clone`"));
+        Assert.DoesNotContain(warnings, w => w.Contains("unknown directive `$instanceOf`"));
+    }
 }
 
 public class DynamicAppearanceTests

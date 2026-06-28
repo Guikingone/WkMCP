@@ -2,6 +2,84 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — Appearance authoring (set_mesh_material + scaffold_appearance_mod)
+
+Closes the offline appearance-authoring loop (`add_appearance` already wrote `.app` files).
+Adds **2 tools** (partials of `ModdingTools`).
+
+- **`set_mesh_material`** — sets a mesh component's `meshAppearance` (the CName that selects
+  which material/appearance set inside the referenced `.mesh` is used) for a named appearance
+  in a `.app`, and optionally swaps the component's `mesh` DepotPath. This is the core of a
+  recolor/retexture — the one `.app` edit `add_appearance` couldn't do (it swaps the mesh path
+  but never the material selector). Reuses the proven CR2W↔JSON round-trip + self-verify
+  discipline; the mutation logic is a pure, unit-tested core (`SetComponentMeshAppearance`).
+  Idempotent. Edits the `.app`-level selector, not the `.mesh` `materialEntries` themselves.
+- **`scaffold_appearance_mod`** — emits a ready-to-fill ArchiveXL appearance-swap mod skeleton
+  (`<modName>.xl` resource patch + `source/archive` layout + a README walking the
+  find→extract→add_appearance→set_mesh_material→pack→install loop). The appearance-mod
+  equivalent of `scaffold_archivexl`.
+
+## Unreleased — type_check_scripts (REDscript semantic type-check via scc, R2)
+
+New read-only tool **`type_check_scripts`**: runs the game's bundled `scc` compiler over a
+scripts folder (default `<game>/r6/scripts`) and returns its diagnostics — the semantic layer
+`lint_script` can't reach. `scc` resolves game types/methods, so it catches
+`@wrapMethod`/`@addMethod` on an unresolved class, type mismatches, duplicate method
+replacements, missing-dependency imports, etc. Errors/warnings come back structured
+(`{severity, code, file, line, col, message}`), paths relative to the scripts folder.
+
+- **Non-destructive by construction, verified against the real binary.** The exact scc
+  CLI was confirmed from the shipped `scc.exe`: it is invoked `-compile <scripts>
+  -outputCacheFile <temp> -no-exec`. `-outputCacheFile` redirects the compiled bundle to
+  a throwaway `%TEMP%` file (the tool snapshots `final.redscripts` size+mtime and flags
+  any change), and `-no-exec` skips the post-compile deploy/exec phase. A reversible
+  on-machine test confirmed the game's `r6/cache/final.redscripts` is left byte-for-byte
+  untouched.
+- The output parser (`SccDiagnostics`) is a pure, unit-tested core, calibrated against
+  scc's real multi-line format (`[ERROR - …] [CODE] At <path>.reds:line:col:` + message
+  block, spaces in the path), and distinguishes a CLI/usage rejection from script errors.
+
+## Unreleased — preview_tweak (dry-run a tweak, T2)
+
+New read-only tool **`preview_tweak`** that shows what a `.tweak` would actually change, without
+writing anything. **Scalar** flats report before → after; **array** flats resolve the mutation
+operators (`!append`/`!prepend`/`!append-once`/`!append-from`/`!remove`, or a full replacement)
+and report the `added`/`removed` elements. For a new record (`$base`/`$type`/`$instanceOf`) the
+"before" is inherited from the base; inline records are `skipped`. The apply logic is a pure,
+unit-tested core (`TweakValidation`, representation-model tag parsing); the daemon's
+`tweakdb-describe` gains a small per-element emission so the diff can be computed array-aware.
+
+## Unreleased — script_api_index (REDscript symbol lookup, R1)
+
+New read-only tool **`script_api_index`**: a "ctags for `.reds`". Indexes the declarations
+across a folder of REDscript sources (a decompiled game-scripts dump, a mod's `r6/scripts`,
+any `.reds` tree) and looks one up by name, returning the exact **signature** and `file:line`
+you need to `@wrapMethod`/`@replaceMethod` a game method or find which class declares a field.
+Filters by `kind` (incl. synthetic `method`/`global`) and enclosing/target `ofClass`; for an
+`@wrapMethod(PlayerPuppet)` hook the enclosing class is the annotation target.
+
+- The existing `RedscriptParser` was **enriched additively** (no lexer change, so the
+  zero-false-positive lint calibration is untouched): declarations now carry the
+  enclosing class / `extends` / `@`-target, the rendered signature (params + return),
+  and the annotation names — sliced from the source via a `Line/Col → offset` map. The
+  index/query logic is a pure, unit-tested core (`ScriptApi`).
+- Pure syntactic index — no scc, no type resolution. The base-game API is only present
+  if the folder is a decompiled dump.
+
+## Unreleased — TweakXL validation, deeper (no new tools)
+
+- **`validate_tweak` is now type-aware (T1).** On top of the existing key-existence
+  check it verifies that each overridden flat's value is type-compatible with the
+  flat — a string into a numeric flat, an array/scalar mismatch, etc. — the #1
+  silently-ignored TweakXL error. Mismatches come back as warnings in a new
+  `typeFindings` field. The flat types are read from the already-warm TweakDB via
+  `tweakdb-describe`; all classification logic is a pure, unit-tested core
+  (`TweakValidation`), deliberately lenient to keep near-zero false positives.
+- **`lint_tweak` now knows the TweakXL operators & directives (T3).** Flags unknown
+  array-mutation operators — the real ones are hyphenated (`!append-once`, not
+  `!appendOnce`; `!merge` does not exist) — with a suggestion, and unknown
+  `$directives` (valid: `$type`, `$base`, `$instanceOf`, `$instances`).
+
 ## Unreleased — Fix: TweakXL `$instanceOf` → `$base` (correctness)
 
 Acting on the finding from the previous entry: `$instanceOf` is **not a real TweakXL

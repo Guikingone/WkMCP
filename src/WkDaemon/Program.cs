@@ -548,6 +548,7 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         logger.Info($"record {recordId} ({recordType ?? "?"})");
 
         int found = 0;
+        var elemBudget = 0;
         var recordFlats = DaemonState.FlatsByRecord is not null
             && DaemonState.FlatsByRecord.TryGetValue(recordId, out var rf)
             ? rf : new List<WolvenKit.RED4.Types.TweakDBID>();
@@ -564,6 +565,25 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             if (valueStr.Length > 200) valueStr = valueStr[..200] + "…";
             logger.Info($"  flat  {fieldName} : {typeName} = {valueStr}");
             found++;
+
+            // For array flats, also emit each element on its own stable line so a
+            // dry-run preview can compute add/remove diffs (the ToString above is
+            // truncated and not parseable). Bounded per-flat and per-record.
+            if (value is System.Collections.IEnumerable seq and not string)
+            {
+                var idx = 0;
+                foreach (var el in seq)
+                {
+                    if (idx >= 256 || elemBudget >= 2000)
+                    {
+                        logger.Info($"  elem  {fieldName} [..] = … (truncated)");
+                        break;
+                    }
+                    logger.Info($"  elem  {fieldName} [{idx}] = {el}");
+                    idx++;
+                    elemBudget++;
+                }
+            }
         }
         logger.Info($"{found} flat(s) under {recordId}");
         return 0;

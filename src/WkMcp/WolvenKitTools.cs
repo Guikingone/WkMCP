@@ -1876,10 +1876,12 @@ public static class WolvenKitTools
     }
 
     [McpServerTool(Name = "validate_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Checks a .tweak file against a TweakDB: each key in the file must " +
-                 "exist in TweakDB (record or flat), unless it declares $base or $type " +
-                 "(new/derived record). Returns the list of unknown keys — useful " +
-                 "before install_tweak.")]
+    [Description("Validates a .tweak against a TweakDB on two axes: (1) existence — each key " +
+                 "must exist in TweakDB (record or flat) unless it declares $base or $type (new/" +
+                 "derived record); (2) types — each overridden flat's value must be " +
+                 "type-compatible with the flat (a string into a numeric flat, an array/scalar " +
+                 "mismatch, … — the #1 silently-ignored TweakXL error). Returns unknown keys " +
+                 "(errors) and type mismatches (warnings, in `typeFindings`). Use before install_tweak.")]
     public static async Task<string> ValidateTweak(
         Cp77ToolsRunner runner,
         [Description("Path to the .tweak file to validate.")] string tweakFile,
@@ -1891,9 +1893,86 @@ public static class WolvenKitTools
         if (!File.Exists(tweakdbBin))
             return Err($"tweakdb.bin not found: {tweakdbBin}");
 
+        // 1. Existence pass (daemon): keys must exist or declare $base / $type.
         var r = await runner.RunAsync(
             new[] { "tweak", "validate", tweakFile, tweakdbBin }, ct);
-        return Structured($".tweak validation: {tweakFile} against {tweakdbBin}", r);
+        var log = (r.Stdout + r.Stderr).Trim();
+        var existenceWarnings = LogLines(log, "Warning");   // unknown-key warnings
+        var errors = LogLines(log, "Error");
+
+        // 2. Typed pass (MCP-side): each overridden flat must be type-compatible.
+        List<string> typeFindings;
+        try { typeFindings = await TypedTweakFindingsAsync(runner, tweakFile, tweakdbBin, ct); }
+        catch (OperationCanceledException) { return Cancelled("validate_tweak"); }
+        catch { typeFindings = new List<string>(); } // the bonus pass must never break validation
+
+        // Existence is authoritative for ok (exit 1 = unknown keys); type issues are warnings.
+        var existenceFailed = r.ExitCode != 0 || errors.Count > 0;
+        var allWarnings = existenceWarnings.Concat(typeFindings).ToList();
+        var status = existenceFailed ? "error" : allWarnings.Count > 0 ? "partial" : "success";
+        return JsonSerializer.Serialize(new
+        {
+            ok = !existenceFailed,
+            status,
+            summary = $".tweak validation: {Path.GetFileName(tweakFile)} — " +
+                      $"{existenceWarnings.Count} unknown key(s), {typeFindings.Count} type issue(s)",
+            produced = Array.Empty<string>(),
+            warnings = allWarnings,
+            errors,
+            typeFindings,
+            exitCode = r.ExitCode,
+            log = Truncate(log, 12_000),
+        }, JsonOpts);
+    }
+
+    /// <summary>MCP-side typed pass of validate_tweak: parses the .tweak, and for each
+    /// `record.field: value` override describes the record (or its $base when the record
+    /// is new) to learn the flat's type, then flags high-confidence type mismatches. The
+    /// pure logic lives in <see cref="TweakValidation"/>; this only orchestrates the
+    /// (cached, capped) describe calls against the already-warm TweakDB.</summary>
+    private static async Task<List<string>> TypedTweakFindingsAsync(
+        Cp77ToolsRunner runner, string tweakFile, string tweakdbBin, CancellationToken ct)
+    {
+        var findings = new List<string>();
+        var yaml = await File.ReadAllTextAsync(tweakFile, ct);
+        object? root;
+        try { root = new YamlDotNet.Serialization.DeserializerBuilder().Build().Deserialize<object?>(yaml); }
+        catch { return findings; } // invalid YAML is already reported by the existence pass
+
+        var assignments = TweakValidation.EnumerateAssignments(root);
+        if (assignments.Count == 0) return findings;
+
+        const int maxRecords = 64;
+        var flatCache = new Dictionary<string, Dictionary<string, TweakValidation.Kind>>(StringComparer.Ordinal);
+        var capped = false;
+
+        async Task<Dictionary<string, TweakValidation.Kind>> FlatsOf(string record, string? baseRecord)
+        {
+            if (flatCache.TryGetValue(record, out var cached)) return cached;
+            if (flatCache.Count >= maxRecords) { capped = true; return new(); }
+            var dr = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, record }, ct);
+            var map = TweakValidation.ParseDescribedFlats(dr.Stdout + dr.Stderr);
+            if (map.Count == 0 && !string.IsNullOrEmpty(baseRecord))
+            {
+                var br = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, baseRecord }, ct);
+                map = TweakValidation.ParseDescribedFlats(br.Stdout + br.Stderr);
+            }
+            flatCache[record] = map;
+            return map;
+        }
+
+        foreach (var a in assignments)
+        {
+            var flats = await FlatsOf(a.Record, a.BaseRecord);
+            var flatKind = flats.TryGetValue(a.Field, out var fk) ? fk : TweakValidation.Kind.Unknown;
+            var valueKind = TweakValidation.ClassifyValue(a.Value);
+            if (!TweakValidation.AreCompatible(valueKind, flatKind))
+                findings.Add($"{a.Record}.{a.Field}: value looks like {TweakValidation.Label(valueKind)} " +
+                             $"but the flat is {TweakValidation.Label(flatKind)} — TweakXL will likely ignore this override.");
+        }
+        if (capped)
+            findings.Add($"(type check limited to the first {maxRecords} records — the rest were not type-checked.)");
+        return findings;
     }
 
     [McpServerTool(Name = "clone_tweak_record", ReadOnly = false, Destructive = false, Idempotent = true)]
@@ -1945,6 +2024,135 @@ public static class WolvenKitTools
         var r = await runner.RunAsync(args, ct);
         return Structured($"clone_tweak_record: {baseId} → {newId}", r,
             File.Exists(outputTweakFile) ? new List<string> { outputTweakFile } : new List<string>());
+    }
+
+    [McpServerTool(Name = "preview_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Dry-run a .tweak against a TweakDB without writing anything — answers 'what will this " +
+                 "tweak actually change?'. For scalar flats it shows the BEFORE → AFTER (current TweakDB " +
+                 "value vs the file's value); for array flats it resolves the mutation operators " +
+                 "(!append/!prepend/!append-once/!append-from/!remove, or a full replacement) and reports " +
+                 "the `added`/`removed` elements. For a new record ($instanceOf/$base) the BEFORE is " +
+                 "inherited from the base. Inline-record values are listed under `skipped`.")]
+    public static async Task<string> PreviewTweak(
+        Cp77ToolsRunner runner,
+        [Description("Path to the .tweak file.")] string tweakFile,
+        [Description("Path to the reference tweakdb.bin (typically <game>/r6/cache/tweakdb.bin).")] string tweakdbBin,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(tweakFile)) return Err($".tweak file not found: {tweakFile}");
+        if (!File.Exists(tweakdbBin)) return Err($"tweakdb.bin not found: {tweakdbBin}");
+
+        var yaml = await File.ReadAllTextAsync(tweakFile, ct);
+        object? root;
+        try { root = new YamlDotNet.Serialization.DeserializerBuilder().Build().Deserialize<object?>(yaml); }
+        catch (Exception ex) { return Err($"preview_tweak: invalid YAML: {ex.Message}"); }
+
+        var changes = new List<object>();
+        var skipped = new List<string>();
+        const int maxRecords = 64;
+        var capped = false;
+
+        // One describe per record, parsed into both scalar values and array elements.
+        var cache = new Dictionary<string, (Dictionary<string, string> Values, Dictionary<string, List<string>> Elements)>(StringComparer.Ordinal);
+
+        async Task<(Dictionary<string, string> Values, Dictionary<string, List<string>> Elements)> Describe(string record, string? baseRecord)
+        {
+            if (cache.TryGetValue(record, out var c)) return c;
+            if (cache.Count >= maxRecords) { capped = true; return (new(), new()); }
+            var dr = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, record }, ct);
+            var text = dr.Stdout + dr.Stderr;
+            var values = TweakValidation.ParseDescribedValues(text);
+            var elements = TweakValidation.ParseDescribedArrayElements(text);
+            if (values.Count == 0 && elements.Count == 0 && !string.IsNullOrEmpty(baseRecord))
+            {
+                var br = await runner.RunAsync(new[] { "tweakdb-describe", tweakdbBin, baseRecord }, ct);
+                var btext = br.Stdout + br.Stderr;
+                values = TweakValidation.ParseDescribedValues(btext);
+                elements = TweakValidation.ParseDescribedArrayElements(btext);
+            }
+            c = (values, elements);
+            cache[record] = c;
+            return c;
+        }
+
+        static List<string> Cap(List<string> xs) =>
+            xs.Count <= 50 ? xs : xs.Take(50).Append($"… (+{xs.Count - 50} more)").ToList();
+
+        try
+        {
+            // Scalar overrides.
+            foreach (var a in TweakValidation.EnumerateAssignments(root))
+            {
+                var vk = TweakValidation.ClassifyValue(a.Value);
+                if (vk == TweakValidation.Kind.Array) continue;   // handled by the array pass below
+                if (vk == TweakValidation.Kind.Struct)
+                {
+                    skipped.Add($"{a.Record}.{a.Field}: inline record — not previewed.");
+                    continue;
+                }
+                var before = (await Describe(a.Record, a.BaseRecord)).Values;
+                var has = before.TryGetValue(a.Field, out var beforeVal);
+                changes.Add(new
+                {
+                    record = a.Record, field = a.Field, kind = "scalar",
+                    before = has ? beforeVal : null,
+                    after = TweakValidation.RenderValue(a.Value),
+                    isNew = !has,
+                });
+            }
+
+            // Array mutations / replacements.
+            foreach (var aa in TweakValidation.EnumerateArrayOps(yaml))
+            {
+                var current = (await Describe(aa.Record, aa.BaseRecord)).Elements
+                    .TryGetValue(aa.Field, out var cur) ? cur : new List<string>();
+                List<string> after;
+                if (aa.Ops.Count == 0)
+                {
+                    after = new List<string>(aa.Replacement); // full replacement (no operator tags)
+                }
+                else
+                {
+                    // Pre-resolve any *-from source arrays (operand = "Record.field").
+                    var sources = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+                    foreach (var op in aa.Ops)
+                    {
+                        if (op.Kind is not (TweakValidation.ArrayOpKind.AppendFrom or TweakValidation.ArrayOpKind.PrependFrom)
+                            || sources.ContainsKey(op.Operand)) continue;
+                        var dot = op.Operand.LastIndexOf('.');
+                        sources[op.Operand] = dot > 0
+                            && (await Describe(op.Operand[..dot], null)).Elements.TryGetValue(op.Operand[(dot + 1)..], out var se)
+                            ? se : new List<string>();
+                    }
+                    after = TweakValidation.ApplyArrayOps(current, aa.Ops,
+                        o => sources.TryGetValue(o, out var v) ? v : Array.Empty<string>());
+                }
+                var added = after.Where(x => !current.Contains(x)).Distinct().ToList();
+                var removed = current.Where(x => !after.Contains(x)).Distinct().ToList();
+                changes.Add(new
+                {
+                    record = aa.Record, field = aa.Field, kind = "array",
+                    before = Cap(current), after = Cap(after),
+                    added = Cap(added), removed = Cap(removed),
+                    isNew = current.Count == 0,
+                });
+            }
+        }
+        catch (OperationCanceledException) { return Cancelled("preview_tweak"); }
+
+        if (capped) skipped.Add($"(limited to the first {maxRecords} records.)");
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            status = "success",
+            summary = $"preview: {changes.Count} change(s)" +
+                      (skipped.Count > 0 ? $", {skipped.Count} skipped" : ""),
+            produced = Array.Empty<string>(),
+            changes,
+            skipped,
+            warnings = Array.Empty<string>(),
+            errors = Array.Empty<string>(),
+        }, JsonOpts);
     }
 
     [McpServerTool(Name = "generate_redscript_template", ReadOnly = false, Destructive = false, Idempotent = true)]
@@ -2381,6 +2589,231 @@ public static class WolvenKitTools
             limitation = "Syntax analysis + light semantics: no type checking " +
                          "(external resolution = scc compiler + ecosystem, out of scope).",
         }, JsonOpts);
+    }
+
+    [McpServerTool(Name = "script_api_index", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Indexes the REDscript symbols (classes, methods, fields, enums, free " +
+                 "functions) across a folder of .reds sources and looks one up by name — " +
+                 "returning the exact SIGNATURE and file:line you need to @wrapMethod / " +
+                 "@replaceMethod a game method, or to find which class declares a field. " +
+                 "Point it at a decompiled game-scripts dump, a mod's r6/scripts, or any " +
+                 ".reds tree. For an @wrapMethod hook the enclosing class is the annotation " +
+                 "target (e.g. @wrapMethod(PlayerPuppet)). Pure syntactic index — no scc, " +
+                 "no type resolution (the base-game API only exists in this index if you " +
+                 "point it at a decompiled dump).")]
+    public static async Task<string> ScriptApiIndex(
+        [Description("Folder containing .reds files (searched recursively).")] string scriptsFolder,
+        [Description("Name filter (case-insensitive substring). Empty = list all (capped).")] string query = "",
+        [Description("Kind filter: class | struct | enum | func | field | method (func with a class) | global (free func). Empty = any.")] string kind = "",
+        [Description("Enclosing/target class filter, e.g. PlayerPuppet. Empty = any.")] string ofClass = "",
+        [Description("Max results (default 100).")] int maxResults = 100,
+        CancellationToken ct = default)
+    {
+        if (!Directory.Exists(scriptsFolder))
+            return Err($"Scripts folder not found: {scriptsFolder}");
+
+        var symbols = new List<ScriptApi.ScriptSymbol>();
+        var warnings = new List<string>();
+        const int FileCap = 20_000;
+        int fileCount = 0;
+        try
+        {
+            foreach (var f in Directory.EnumerateFiles(scriptsFolder, "*.reds", SearchOption.AllDirectories))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (fileCount >= FileCap) { warnings.Add($"Stopped after {FileCap} files — narrow the folder."); break; }
+                fileCount++;
+                string text;
+                try { text = await File.ReadAllTextAsync(f, ct); }
+                catch (Exception ex) { warnings.Add($"skip {Path.GetFileName(f)}: {ex.Message}"); continue; }
+                symbols.AddRange(ScriptApi.SymbolsOf(Path.GetRelativePath(scriptsFolder, f), text));
+            }
+        }
+        catch (OperationCanceledException) { return Cancelled("script_api_index"); }
+
+        var matches = ScriptApi.Query(symbols, query, kind, ofClass, maxResults);
+        var byKind = symbols.GroupBy(s => s.Kind)
+                            .OrderBy(g => g.Key, StringComparer.Ordinal)
+                            .ToDictionary(g => g.Key, g => g.Count());
+
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            status = "success",
+            summary = $"Indexed {symbols.Count} symbol(s) across {fileCount} file(s) — " +
+                      $"{matches.Count} match(es)" + (matches.Count >= maxResults && maxResults > 0 ? " (capped)" : ""),
+            produced = Array.Empty<string>(),
+            warnings,
+            errors = Array.Empty<string>(),
+            scriptsFolder,
+            filesIndexed = fileCount,
+            totalSymbols = symbols.Count,
+            byKind,
+            results = matches.Select(m => new
+            {
+                kind = m.Kind,
+                name = m.Name,
+                ofClass = m.Parent,
+                signature = m.Signature,
+                annotations = m.Annotations,
+                location = $"{m.File}:{m.Line}",
+            }),
+            limitation = "Syntactic index over the .reds you point at — no type resolution; " +
+                         "the base-game API is only present if the folder is a decompiled dump.",
+        }, JsonOpts);
+    }
+
+    [McpServerTool(Name = "type_check_scripts", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Type-checks REDscript by running the game's bundled `scc` compiler over a " +
+                 "scripts folder (default <game>/r6/scripts) and returning its diagnostics — the " +
+                 "semantic layer lint_script can't reach: scc resolves game types/methods, so it " +
+                 "catches @wrapMethod/@addMethod on an unresolved class, type mismatches, duplicate " +
+                 "method replacements, missing-dependency imports, etc. NON-DESTRUCTIVE: scc runs " +
+                 "with -no-exec and its output bundle is forced to a throwaway temp file, so the " +
+                 "game's r6/cache/final.redscripts is never written (snapshot-verified). Needs the " +
+                 "game installed (scc ships with the REDmod component).")]
+    public static async Task<string> TypeCheckScripts(
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        [Description("Scripts folder to compile (default: <game>/r6/scripts).")] string? scriptsFolder = null,
+        [Description("Max diagnostics returned per severity (default 200).")] int maxDiagnostics = 200,
+        CancellationToken ct = default)
+    {
+        if (!Directory.Exists(gamePath)) return Err($"Game folder not found: {gamePath}");
+        var scc = Path.Combine(gamePath, "engine", "tools", "scc.exe");
+        if (!File.Exists(scc))
+            return Err($"scc.exe not found: {scc}. It ships with the game's REDmod component.");
+        var scripts = scriptsFolder ?? Path.Combine(gamePath, "r6", "scripts");
+        if (!Directory.Exists(scripts)) return Err($"Scripts folder not found: {scripts}");
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "wkmcp-typecheck-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var outBundle = Path.Combine(tempDir, "typecheck.redscripts");
+
+        // Non-destructive guard: snapshot the real cache so we can confirm scc's
+        // -outputCacheFile redirect left it untouched.
+        var gameCache = Path.Combine(gamePath, "r6", "cache", "final.redscripts");
+        (long Size, DateTime Mtime)? before = File.Exists(gameCache)
+            ? (new FileInfo(gameCache).Length, File.GetLastWriteTimeUtc(gameCache))
+            : null;
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = scc,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WorkingDirectory = Path.GetDirectoryName(scc)!,
+        };
+        psi.ArgumentList.Add("-compile");
+        psi.ArgumentList.Add(scripts);
+        psi.ArgumentList.Add("-outputCacheFile");   // redirect output → temp (never r6/cache)
+        psi.ArgumentList.Add(outBundle);
+        psi.ArgumentList.Add("-no-exec");            // skip the post-compile deploy/exec phase (else it hangs)
+
+        using var proc = new Process { StartInfo = psi };
+        var stdout = new StringBuilder();
+        var stderr = new StringBuilder();
+        proc.OutputDataReceived += (_, e) => { if (e.Data is not null) stdout.AppendLine(e.Data); };
+        proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) stderr.AppendLine(e.Data); };
+
+        try { proc.Start(); }
+        catch (Exception ex) { TryDeleteTempDir(tempDir); return Err($"Failed to launch scc.exe: {ex.Message}"); }
+        proc.BeginOutputReadLine();
+        proc.BeginErrorReadLine();
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromMinutes(5));
+        try { await proc.WaitForExitAsync(cts.Token); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { /* already dead */ }
+            TryDeleteTempDir(tempDir);
+            return Err($"Type-check interrupted (>5 min): {scripts}");
+        }
+        catch (OperationCanceledException)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { /* already dead */ }
+            TryDeleteTempDir(tempDir);
+            return Cancelled("type_check_scripts");
+        }
+        proc.WaitForExit();
+
+        var combined = stdout.ToString() + "\n" + stderr.ToString();
+        TryDeleteTempDir(tempDir);
+
+        var warnings = new List<string>();
+
+        // Confirm scc did not write the game's cache.
+        if (before is { } b && File.Exists(gameCache))
+        {
+            var nowSize = new FileInfo(gameCache).Length;
+            var nowMtime = File.GetLastWriteTimeUtc(gameCache);
+            if (nowSize != b.Size || nowMtime != b.Mtime)
+                warnings.Add("The game's r6/cache/final.redscripts changed during the type-check — " +
+                             "unexpected (output is redirected with -outputCacheFile). Verify your " +
+                             "install and restore from final.redscripts.bk if needed.");
+        }
+
+        // scc rejected the command line itself (wrong flag form) rather than the scripts.
+        if (proc.ExitCode != 0 && SccDiagnostics.LooksLikeUsageError(combined)
+            && !combined.Contains(".reds:", StringComparison.OrdinalIgnoreCase))
+            return Err("scc rejected the command line (unexpected CLI form). Output:\n" + Truncate(combined, 4_000));
+
+        var diags = SccDiagnostics.Parse(combined);
+        var errs = diags.Where(d => d.Severity == "error").ToList();
+        var warns = diags.Where(d => d.Severity == "warning").ToList();
+        var ok = proc.ExitCode == 0 && errs.Count == 0;
+        var cap = Math.Max(0, maxDiagnostics);
+        if (errs.Count > cap) warnings.Add($"{errs.Count} errors found; returning the first {cap}.");
+        if (warns.Count > cap) warnings.Add($"{warns.Count} warnings found; returning the first {cap}.");
+
+        return JsonSerializer.Serialize(new
+        {
+            ok,
+            status = ok ? "success" : "errors",
+            summary = ok
+                ? $"Type-check passed: {scripts} (scc exit 0, {warns.Count} warning(s))"
+                : $"Type-check found {errs.Count} error(s), {warns.Count} warning(s) (scc exit {proc.ExitCode})",
+            produced = Array.Empty<string>(),
+            warnings,
+            errors = Array.Empty<string>(),
+            errorCount = errs.Count,
+            warningCount = warns.Count,
+            diagnostics = new
+            {
+                errors = errs.Take(cap).Select(d => RenderScc(d, scripts)),
+                warnings = warns.Take(cap).Select(d => RenderScc(d, scripts)),
+            },
+            exitCode = proc.ExitCode,
+            scriptsFolder = scripts,
+            note = "Non-destructive: compiled with -no-exec to a temp bundle; final.redscripts untouched.",
+        }, JsonOpts);
+    }
+
+    private static object RenderScc(SccDiagnostics.Diagnostic d, string scriptsRoot) => new
+    {
+        severity = d.Severity,
+        code = d.Code,
+        file = RelativizeToScripts(d.File, scriptsRoot),
+        line = d.Line,
+        col = d.Col,
+        message = d.Message,
+    };
+
+    private static string? RelativizeToScripts(string? file, string scriptsRoot)
+    {
+        if (string.IsNullOrEmpty(file)) return file;
+        var f = file.Replace('\\', '/');
+        var root = scriptsRoot.Replace('\\', '/').TrimEnd('/') + "/";
+        var idx = f.IndexOf(root, StringComparison.OrdinalIgnoreCase);
+        return idx >= 0 ? f[(idx + root.Length)..] : f;
+    }
+
+    private static void TryDeleteTempDir(string dir)
+    {
+        try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+        catch { /* best-effort cleanup */ }
     }
 
     // ── REDmod packaging (post-1.6) ──────────────────────────────────────
