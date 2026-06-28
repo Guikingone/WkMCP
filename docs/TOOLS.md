@@ -339,7 +339,7 @@ Reconverts a JSON (from `read_tweak`) into a `.tweak` file (YAML TweakXL).
 | `outputTweakFile` | string | yes | `.tweak` file to produce. |
 
 ### `validate_tweak`
-Verifies a `.tweak` against a TweakDB: each key must exist (record/flat) unless it declares `$instanceOf`. Returns the unknown keys.
+Verifies a `.tweak` against a TweakDB: each key must exist (record/flat) unless it declares `$base` or `$type` (new/derived record). Returns the unknown keys.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -394,9 +394,9 @@ Generates a `.tweak` (TweakXL — YAML) from a catalog of patterns: `override_fi
 
 **Keys of `parametersJson` depending on the pattern:**
 - `override_field`: `recordId` (required), `field` (required), `value` (required).
-- `new_record`: `newId` (required), `baseId` (required), `overrides` (sub-JSON `{field: value}`).
+- `new_record`: `newId` (required), `baseId` (required — emits `$base` to clone it), `overrides` (sub-JSON `{field: value}`). For a full value inventory of the base, prefer `clone_tweak_record`.
 - `boost_stat`: `recordId` (required), `stat` (default `damage`), `value` (required).
-- `new_item`: `newId` (required), `baseId` (required), `itemType` (`weapon`\|`clothing`\|`cyberware`\|`consumable`\|`recipe`). Emits safe item flats + a checklist of the type-specific flats to fill (run `describe_tweak_record` on `baseId` for exact schemas).
+- `new_item`: `newId` (required), `baseId` (required — emits `$base` to clone it), `itemType` (`weapon`\|`clothing`\|`cyberware`\|`consumable`\|`recipe`). Emits safe item flats + a checklist of the type-specific flats to fill (run `describe_tweak_record` on `baseId` for exact schemas, or `clone_tweak_record` for a full materialized clone).
 
 ---
 

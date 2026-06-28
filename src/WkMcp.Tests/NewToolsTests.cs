@@ -13,7 +13,7 @@ namespace WkMcp.Tests;
 public class TweakTemplateTests
 {
     [Fact]
-    public void New_item_scaffold_emits_instanceOf_and_typed_checklist()
+    public void New_item_scaffold_emits_base_and_typed_checklist()
     {
         var outFile = Path.Combine(Path.GetTempPath(), "wkmcp-newitem-" + Guid.NewGuid().ToString("N") + ".tweak");
         try
@@ -27,9 +27,29 @@ public class TweakTemplateTests
                 Assert.True(doc.RootElement.GetProperty("ok").GetBoolean());
             var yaml = File.ReadAllText(outFile);
             Assert.Contains("MyMod.MyGun:", yaml);
-            Assert.Contains("$instanceOf: Items.Preset_Lexington", yaml);
+            Assert.Contains("$base: Items.Preset_Lexington", yaml);   // TweakXL clone attribute
+            Assert.DoesNotContain("$instanceOf", yaml);              // not a real TweakXL key
             Assert.Contains("statModifiers", yaml);     // weapon-specific checklist line
             Assert.Contains("quality:", yaml);          // universally-safe flat
+        }
+        finally { try { File.Delete(outFile); } catch { /* ignore */ } }
+    }
+
+    [Fact]
+    public void New_record_emits_base_not_instanceOf()
+    {
+        var outFile = Path.Combine(Path.GetTempPath(), "wkmcp-newrec-" + Guid.NewGuid().ToString("N") + ".tweak");
+        try
+        {
+            var json = WolvenKitTools.GenerateTweakTemplate(
+                "new_record",
+                "{\"newId\":\"MyMod.NewRec\",\"baseId\":\"Items.Preset_Lexington\"}",
+                outFile);
+            using (var doc = System.Text.Json.JsonDocument.Parse(json))
+                Assert.True(doc.RootElement.GetProperty("ok").GetBoolean());
+            var yaml = File.ReadAllText(outFile);
+            Assert.Contains("$base: Items.Preset_Lexington", yaml);
+            Assert.DoesNotContain("$instanceOf", yaml);
         }
         finally { try { File.Delete(outFile); } catch { /* ignore */ } }
     }

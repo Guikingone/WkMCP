@@ -191,9 +191,11 @@ rebuild). The reference `tweakdb.bin` is typically
    the identifier: it lists all the record's flats with their types and current
    values. Indispensable before editing (knowing which field to modify).
 
-3. **Write the `.tweak`.** Two paths:
+3. **Write the `.tweak`.** Three paths:
+   - **`clone_tweak_record`** to faithfully clone an existing record (emits
+     `$base` + a commented inventory of every flat's current value to override);
    - **`generate_tweak_template`** to start from a skeleton (patterns:
-     `override_field`, `new_record`, `boost_stat`), then adjust the values;
+     `override_field`, `new_record`, `boost_stat`, `new_item`), then adjust the values;
    - or edit an existing `.tweak` via **`read_tweak`** (→ editable JSON),
      modify the JSON, then **`write_tweak`** (JSON → `.tweak` YAML).
 
@@ -201,7 +203,7 @@ rebuild). The reference `tweakdb.bin` is typically
    - `tweakFile`: your `.tweak`
    - `tweakdbBin`: `<GAME>\r6\cache\tweakdb.bin`
 
-   It flags unknown keys (except new records declaring `$instanceOf`).
+   It flags unknown keys (except new records declaring `$base` or `$type`).
 
 5. **Install.** **`install_tweak`** copies the file to
    `<GAME>\r6\tweaks\<name>.tweak`:

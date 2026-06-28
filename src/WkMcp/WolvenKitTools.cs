@@ -1877,8 +1877,8 @@ public static class WolvenKitTools
 
     [McpServerTool(Name = "validate_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Checks a .tweak file against a TweakDB: each key in the file must " +
-                 "exist in TweakDB (record or flat), unless it declares $instanceOf " +
-                 "(new derived record). Returns the list of unknown keys — useful " +
+                 "exist in TweakDB (record or flat), unless it declares $base or $type " +
+                 "(new/derived record). Returns the list of unknown keys — useful " +
                  "before install_tweak.")]
     public static async Task<string> ValidateTweak(
         Cp77ToolsRunner runner,
@@ -2094,7 +2094,7 @@ public static class WolvenKitTools
     [Description("Generates a .tweak file (TweakXL — YAML) ready to edit, from a " +
                  "catalog of common patterns. Avoids knowing the TweakXL syntax by hand. " +
                  "Supported patterns: override_field (modifies a field of an existing record), " +
-                 "new_record (creates a new record via $instanceOf), boost_stat (modifies a " +
+                 "new_record (clones an existing record via $base), boost_stat (modifies a " +
                  "numeric stat with a new value), new_item (typed clone of an existing item — " +
                  "params newId, baseId, itemType=weapon|clothing|cyberware|consumable|recipe — " +
                  "emits safe item flats + a checklist of the type-specific flats to fill).")]
@@ -2158,10 +2158,10 @@ public static class WolvenKitTools
                 if (string.IsNullOrEmpty(newId))
                     return Err("new_record: 'newId' required (e.g. MyMod.NewWeapon).");
                 if (string.IsNullOrEmpty(baseId))
-                    return Err("new_record: 'baseId' required (existing record to instantiate).");
+                    return Err("new_record: 'baseId' required (existing record to clone).");
                 var sb = new StringBuilder();
                 sb.Append(newId).AppendLine(":");
-                sb.Append("  $instanceOf: ").AppendLine(baseId);
+                sb.Append("  $base: ").AppendLine(baseId);   // TweakXL clones the base record's flats
                 if (p.TryGetValue("overrides", out var ov) && ov is string ovJson)
                 {
                     // overrides as sub-JSON {field: value, ...}
@@ -2175,7 +2175,7 @@ public static class WolvenKitTools
                     catch { /* malformed overrides: continue without */ }
                 }
                 yaml = sb.ToString();
-                description = $"New record: {newId} <- $instanceOf {baseId}";
+                description = $"New record: {newId} <- $base {baseId}";
                 break;
             }
             case "boost_stat":
@@ -2226,14 +2226,14 @@ public static class WolvenKitTools
 
                 var sb = new StringBuilder();
                 sb.Append(newId).AppendLine(":");
-                sb.Append("  $instanceOf: ").AppendLine(baseId);
+                sb.Append("  $base: ").AppendLine(baseId);   // TweakXL clones the base record's flats
                 sb.AppendLine("  displayName: LocKey#0          # replace with your LocKey or a localization secondaryKey");
                 sb.AppendLine("  localizedDescription: LocKey#0");
                 sb.AppendLine("  quality: Quality.Legendary     # Common/Uncommon/Rare/Epic/Legendary");
                 sb.AppendLine($"  # --- {typeNote}: flats you typically also set (see describe_tweak_record {baseId}) ---");
                 foreach (var c in checklist) sb.Append("  #   ").AppendLine(c);
                 yaml = sb.ToString();
-                description = $"New {itemType}: {newId} <- $instanceOf {baseId}";
+                description = $"New {itemType}: {newId} <- $base {baseId}";
                 break;
             }
             default:

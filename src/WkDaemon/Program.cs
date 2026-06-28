@@ -1133,12 +1133,15 @@ static async Task<int> TweakValidate(IServiceProvider provider, CapturingLoggerS
         var key = kvp.Key?.ToString() ?? "";
         if (string.IsNullOrEmpty(key)) continue;
         total++;
-        var hasInstanceOf = kvp.Value is Dictionary<object, object> body &&
-                            body.Keys.Any(k => k?.ToString() == "$instanceOf");
-        if (hasInstanceOf)
+        // A new/derived record is declared with $base (clone an existing record) or $type
+        // (a fresh record of a given type) — TweakXL's attributes. ($instanceOf is tolerated
+        // for legacy hand-written tweaks but is not a real TweakXL key.)
+        var isNewRecord = kvp.Value is Dictionary<object, object> body &&
+                          body.Keys.Any(k => k?.ToString() is "$base" or "$type" or "$instanceOf");
+        if (isNewRecord)
         {
             instances++;
-            logger.Info($"  + {key} ($instanceOf: new record)");
+            logger.Info($"  + {key} ($base/$type: new record)");
             continue;
         }
         // Hash the name via the official TweakDBID function, then check
@@ -1154,10 +1157,10 @@ static async Task<int> TweakValidate(IServiceProvider provider, CapturingLoggerS
         {
             missing++;
             logger.Warning(
-                $"  - {key}: unknown in TweakDB (add $instanceOf if it's a new record)");
+                $"  - {key}: unknown in TweakDB (add $base or $type if it's a new record)");
         }
     }
-    logger.Info($"tweak validate: {total} key(s); {ok} OK + {instances} instanceOf + {missing} unknown");
+    logger.Info($"tweak validate: {total} key(s); {ok} OK + {instances} new record(s) + {missing} unknown");
     return missing > 0 ? 1 : 0;
 }
 

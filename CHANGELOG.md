@@ -2,6 +2,24 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — Fix: TweakXL `$instanceOf` → `$base` (correctness)
+
+Acting on the finding from the previous entry: `$instanceOf` is **not a real TweakXL
+attribute** (confirmed against the TweakXL wiki and the redmodding docs — TweakXL uses
+`$base` to clone a record and `$type` for a new record's type). The scaffolds that emitted
+it produced `.tweak` files whose new record would not be created as intended.
+
+- **`generate_tweak_template`** `new_record` and `new_item` now emit **`$base: <baseId>`**
+  (clone the base record's flats) instead of the bogus `$instanceOf`.
+- **`validate_tweak`** now treats a record declaring **`$base` or `$type`** as a new/derived
+  record (previously only `$instanceOf`, which meant a correct `$base` tweak was wrongly
+  flagged "unknown in TweakDB"). `$instanceOf` is still tolerated for legacy hand-written tweaks.
+- Verified end-to-end against the real `tweakdb.bin`: a `$base` tweak now validates as
+  "1 new record + 0 unknown" (exit 0) where it previously failed.
+- Tool/param descriptions and docs (TOOLS.md, USER_GUIDE.md, MODDING_RECIPES.md,
+  validate-windows.py) updated; test renamed/added to assert `$base` and the absence of
+  `$instanceOf`. No tool-count change. Full suite 237 green.
+
 ## Unreleased — clone_tweak_record (faithful TweakDB record clone)
 
 New daemon verb `tweakdb-clone` + MCP tool **`clone_tweak_record`** (**151 → 152 tools**,
