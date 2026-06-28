@@ -531,7 +531,16 @@ public static partial class ModdingTools
         var textures = new List<string>();
         var parts = new List<InkPart>();
 
-        void AddTexture(string? t) { if (!string.IsNullOrEmpty(t) && !textures.Contains(t!)) textures.Add(t!); }
+        // A null resource ref serializes as a uint64 hash "0" — ignore it.
+        void AddTexture(string? t) { if (!string.IsNullOrEmpty(t) && t != "0" && !textures.Contains(t!)) textures.Add(t!); }
+        // CStatic<N> arrays serialize as { "Elements": [ … ] }; plain arrays stay arrays.
+        static IEnumerable<JsonElement> Elements(JsonElement node)
+        {
+            if (node.ValueKind == JsonValueKind.Array) return node.EnumerateArray().ToList();
+            if (node.ValueKind == JsonValueKind.Object && node.TryGetProperty("Elements", out var el)
+                && el.ValueKind == JsonValueKind.Array) return el.EnumerateArray().ToList();
+            return Enumerable.Empty<JsonElement>();
+        }
         static string? Rect(JsonElement o, string prop)
         {
             if (!o.TryGetProperty(prop, out var r) || r.ValueKind != JsonValueKind.Object) return null;
@@ -544,20 +553,27 @@ public static partial class ModdingTools
         InkPart ReadPart(JsonElement p, string? slotTexture)
         {
             var name = (p.TryGetProperty("partName", out var pn) ? NameLike(pn) : null) ?? "?";
-            return new InkPart(name, slotTexture, Rect(p, "clippingRectInUVCoords"), Rect(p, "clippingRectInPixelCoords"));
+            // Pixel rect is "clippingRectInPixels" (real files) or "clippingRectInPixelCoords" (older).
+            var pixel = Rect(p, "clippingRectInPixels") ?? Rect(p, "clippingRectInPixelCoords");
+            return new InkPart(name, slotTexture, Rect(p, "clippingRectInUVCoords"), pixel);
         }
 
-        // Primary: slots[] each with a texture + parts[].
-        if (rc.TryGetProperty("slots", out var slots) && slots.ValueKind == JsonValueKind.Array)
-            foreach (var raw in slots.EnumerateArray())
+        // Primary: slots (a CStatic → {Elements:[…]}, or a plain array) each with a texture + parts[].
+        var rootTexture = DepotPathVal(rc, "texture");
+        if (rootTexture == "0") rootTexture = null;
+        if (rc.TryGetProperty("slots", out var slots))
+            foreach (var raw in Elements(slots))
             {
                 var slot = UnwrapData(raw);
                 var tex = DepotPathVal(slot, "texture");
+                if (tex == "0") tex = null;
+                tex ??= rootTexture;
                 AddTexture(tex);
-                if (slot.TryGetProperty("parts", out var ps) && ps.ValueKind == JsonValueKind.Array)
-                    foreach (var p in ps.EnumerateArray())
+                if (slot.TryGetProperty("parts", out var ps))
+                    foreach (var p in Elements(ps))
                         if (p.ValueKind == JsonValueKind.Object) parts.Add(ReadPart(UnwrapData(p), tex));
             }
+        AddTexture(rootTexture);
 
         // Fallback: walk the tree for any object carrying a partName (and any DepotPath as a texture).
         if (parts.Count == 0)

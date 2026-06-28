@@ -268,6 +268,91 @@ public class DepotPathAndDiffTests
     }
 }
 
+// Guarded smoke tests against REAL extracted game files (cr2w_to_json output). Each runs only
+// when its env var points at a converted .json — they validate the parsers against the actual
+// WolvenKit shapes (e.g. inkatlas slots = {Elements:[…]}, rig boneNames = CName objects) that
+// synthetic fixtures can't fully guarantee. Set WKMCP_TEST_MI / _MLSETUP / _INKATLAS /
+// _INKWIDGET / _RIG to run. Silently pass when unset (like SceneTests' WKMCP_TEST_SCENE).
+public class RealGameFileSmokeTests
+{
+    private static JsonElement? Load(string env)
+    {
+        var p = Environment.GetEnvironmentVariable(env);
+        if (string.IsNullOrEmpty(p) || !File.Exists(p)) return null;
+        return JsonDocument.Parse(File.ReadAllText(p)).RootElement.Clone();
+    }
+
+    [Fact]
+    public void Real_mi()
+    {
+        if (Load("WKMCP_TEST_MI") is not { } root) return;
+        var (type, baseMat, vals) = ModdingTools.SummarizeMaterialInstance(root);
+        Assert.Equal("CMaterialInstance", type);
+        Assert.False(string.IsNullOrEmpty(baseMat));
+        Assert.NotEmpty(vals);
+        Assert.Contains(vals, v => v.Kind == "texture" && v.DepotPath is { Length: > 0 });
+    }
+
+    [Fact]
+    public void Real_mlsetup()
+    {
+        if (Load("WKMCP_TEST_MLSETUP") is not { } root) return;
+        var (type, layers) = ModdingTools.SummarizeMlSetup(root);
+        Assert.Equal("Multilayer_Setup", type);
+        Assert.NotEmpty(layers);
+        Assert.Contains(layers, l => l.Material is { Length: > 0 });
+    }
+
+    [Fact]
+    public void Real_inkatlas()
+    {
+        if (Load("WKMCP_TEST_INKATLAS") is not { } root) return;
+        var (textures, parts) = ModdingTools.ParseInkAtlasParts(root);
+        Assert.NotEmpty(parts);                       // slots = {Elements:[…]} must be unwrapped
+        Assert.NotEmpty(textures);
+        Assert.Contains(parts, p => p.UvRect is { Length: > 0 });
+        Assert.Contains(parts, p => p.Texture is { Length: > 0 });
+    }
+
+    [Fact]
+    public void Real_inkwidget()
+    {
+        if (Load("WKMCP_TEST_INKWIDGET") is not { } root) return;
+        var s = ModdingTools.SummarizeInkWidget(root);
+        Assert.Equal("inkWidgetLibraryResource", s.Type);
+        Assert.NotEmpty(s.LibraryItems);
+        Assert.True(s.TotalWidgets > 0);
+    }
+
+    [Fact]
+    public void Real_rig()
+    {
+        if (Load("WKMCP_TEST_RIG") is not { } root) return;
+        var (type, bones, roots, maxDepth) = ModdingTools.SummarizeRig(root);
+        Assert.Equal("animRig", type);
+        Assert.NotEmpty(bones);
+        Assert.NotEmpty(roots);
+        Assert.All(bones, b => Assert.False(string.IsNullOrEmpty(b.Name)));
+        Assert.True(maxDepth >= 1);
+    }
+
+    // End-to-end: drives the real daemon to follow a mesh's material refs across a depot folder.
+    // Set WKMCP_TEST_MESH (a real .mesh) and WKMCP_TEST_DEPOT (a folder of its extracted refs).
+    [Fact]
+    public async Task Real_trace_material_chain()
+    {
+        var mesh = Environment.GetEnvironmentVariable("WKMCP_TEST_MESH");
+        var depot = Environment.GetEnvironmentVariable("WKMCP_TEST_DEPOT");
+        if (string.IsNullOrEmpty(mesh) || !File.Exists(mesh) || string.IsNullOrEmpty(depot)) return;
+
+        var json = await ModdingTools.TraceMaterialChain(Cp77ToolsRunner.Shared, mesh, depot, null, 6);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("ok").GetBoolean());
+        Assert.True(root.GetProperty("nodeCount").GetInt32() > 0); // followed at least one ref across files
+    }
+}
+
 public class NexusPreflightTests
 {
     [Fact]
