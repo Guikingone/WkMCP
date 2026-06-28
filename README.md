@@ -1,7 +1,7 @@
 # WkMCP — an MCP server for Cyberpunk 2077 modding
 
 An **MCP (Model Context Protocol)** server that exposes WolvenKit's modding CLI
-(`cp77tools`) as **139 tools** an agent (Claude) can call — so you steer Cyberpunk
+(`cp77tools`) as **149 tools** an agent (Claude) can call — so you steer Cyberpunk
 2077 modding from a chat window without writing code: read and edit game files,
 query and patch the TweakDB, create/pack/install mods, export meshes and textures,
 lint REDscript, diagnose a broken install, and even drive a **running** game live.
@@ -106,7 +106,7 @@ Optional environment variables go in the `"env"` block (Desktop) or via `-e VAR=
 
 ## Tools, prompts, resources
 
-The server exposes **139 tools** (103 offline + 36 `live_*`), **10 prompts** and **4 resources**.
+The server exposes **149 tools** (113 offline + 36 `live_*`), **10 prompts** and **4 resources**.
 
 **Tools by category** (full parameter reference: [docs/TOOLS.md](docs/TOOLS.md)):
 
@@ -124,6 +124,7 @@ The server exposes **139 tools** (103 offline + 36 `live_*`), **10 prompts** and
 - *Safety* — `backup_mods`, `restore_mods`.
 - *In-game* — `launch_game`, `tail_game_logs`.
 - *Workflow / intelligence* (25 high-level) — `analyze_dependencies`, `check_requirements`, `mod_doctor`, `validate_xl`, `scaffold_archivexl`, `find_references`, `diff_mod_vs_base`, `scaffold_mod`, `package_mod`, `inspect_journal`, `find_journal_entry`, `inspect_cr2w`, `find_in_cr2w`, `diagnose_logs`, `analyze_conflicts`, `validate_item_mod`, `lint_tweak`, `generate_manifest`, `resolve_dynamic_appearance`, `migration_check`, `toggle_mods`, `list_entity_appearances`, `validate_appearance`, `validate_redmod`.
+- *Asset inspection* (10) — `inspect_material` (.mi), `inspect_mlsetup`, `edit_material_instance`, `trace_material_chain` (mesh → .mi → .mlsetup → textures), `inspect_inkatlas` / `resolve_inkatlas_part` (UI sprites), `inspect_inkwidget` (HUD/menus), `inspect_rig` (skeletons), `diff_cr2w` (generic two-file diff), `package_for_nexus` (Nexus pre-flight + zip).
 - *Scenes (.scene)* (11) — `inspect_scene`, `scene_graph` (flow), `find_in_scene`, `validate_scene` (graph + dialogue integrity), `scene_dependencies` (external refs), `scene_events` (timeline), `extract_scene_localization` / `apply_scene_localization` (translation), `scene_set_actor` / `scene_replace_resource` (edit), `scaffold_scene` (new scene). See [docs/SCENES.md](docs/SCENES.md).
 - *Live in-game* (35 `live_*`) — drive a running game via the CETBridge mod; see [docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md).
 
@@ -201,7 +202,7 @@ WolvenKit is licensed GPL-3.0; that license is itself the permission to build on
 ## Documentation
 
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — modder's guide: install, wire up to Claude, step-by-step workflows (read a file, edit a tweak, create/pack/install a mod, check dependencies, package).
-- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 139 tools + 10 prompts + 4 resources (parameters included).
+- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 149 tools + 10 prompts + 4 resources (parameters included).
 - **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — copy-paste recipes by mod type (tweak, redscript, ArchiveXL, REDmod, localization, texture, analysis).
 - **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — the 35 `live_*` tools to drive a running game (CETBridge / Cyber Engine Tweaks). Optional, separate prerequisites.
 - **[docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)** — remote access over HTTP/Streamable (instead of stdio); secure by default.
@@ -228,7 +229,7 @@ More in [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (§10 troubleshooting) and [doc
 
 ```
 wkmcp/
-├── src/WkMcp/         C# / .NET 8 MCP server (139 tools, 10 prompts, 4 resources)
+├── src/WkMcp/         C# / .NET 8 MCP server (149 tools, 10 prompts, 4 resources)
 │   ├── Program.cs            Host + stdio/http transport + DI + daemon warmup
 │   ├── Cp77ToolsRunner.cs    Drives the daemon (pipelined IPC, LRU cache, cp77tools fallback)
 │   ├── WolvenKitTools.cs     63 base MCP tools + helpers

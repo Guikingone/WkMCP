@@ -100,7 +100,7 @@ public class ConsistencyTests
     {
         var srcDir = Path.Combine(TestsDir(), "..", "WkMcp");
         var missing = new List<string>();
-        foreach (var file in new[] { "WolvenKitTools.cs", "ModdingTools.cs", "SceneTools.cs", "LiveTools.cs" })
+        foreach (var file in new[] { "WolvenKitTools.cs", "ModdingTools.cs", "AssetInspectionTools.cs", "SceneTools.cs", "LiveTools.cs" })
             foreach (var line in File.ReadLines(Path.Combine(srcDir, file)))
             {
                 if (!line.Contains("[McpServerTool(")) continue;

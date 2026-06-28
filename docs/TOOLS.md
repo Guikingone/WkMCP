@@ -12,6 +12,7 @@ Exhaustive reference of the **tools**, **prompts** and **resources** exposed by 
 - [9. REDscript scripts](#9-redscript-scripts-reds) · [10. Audio / low-level compression](#10-audio--low-level-compression) · [11. Localization](#11-localization) · [12. Mod writing / packing](#12-mod-writing--packing)
 - [13. REDmod](#13-redmod-post-16) · [14. Installation / uninstallation](#14-installation--uninstallation) · [15. Safety](#15-safety-backup--restore) · [16. In-game (launch / logs)](#16-in-game-launch--logs)
 - [17. Intelligence / workflow](#17-intelligence--workflow-high-level--moddingtools) · [18. Quest/codex journal](#18-questcodex-journal-journal) · [19. CR2W navigation & conflicts](#19-generic-cr2w-navigation-diagnostics--conflicts) · [20. Advanced creation / maintenance](#20-advanced-creation--maintenance)
+- [21. Asset inspection](#21-asset-inspection-materials--ui--rig--diff--nexus)
 - [MCP prompts (recipes)](#mcp-prompts-recipes) · [MCP resources](#mcp-resources)
 
 ## Result convention
@@ -916,6 +917,121 @@ Deep validation of the `.app` → `.mesh` appearance chain: for each appearance 
 | `modRoot` | string | no | Root of the mod folder (to resolve the mod's `.mesh`). |
 | `gamePath` | string | no | Game root (to resolve base `.mesh` files not found in the mod). |
 | `maxMeshes` | int | no | Max number of resolved `.mesh` (default `40`). |
+
+---
+
+## 21. Asset inspection (materials / UI / rig / diff / Nexus)
+
+Inspectors for asset families that previously had no dedicated tooling. Each accepts either a
+binary CR2W file (converted internally via the daemon) or a `.json` already produced by
+`read_game_file` / `cr2w_to_json`. Field shapes follow WolvenKit's CR2W→JSON conventions and the
+parsers are defensive (extract what is present, degrade gracefully).
+
+### `inspect_material`
+
+Summary of a material instance (`.mi` / `CMaterialInstance`): its `baseMaterial` and every parameter
+with its kind (color, scalar, texture, vector…) and value; texture parameters expose their DepotPath.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `materialOrJson` | string | yes | A `.mi` file or its converted `.json`. |
+
+### `inspect_mlsetup`
+
+Summary of a multilayer setup (`.mlsetup` / `Multilayer_Setup`): its layers, and per layer the
+material / microblend referenced plus `colorScale`, `opacity`, `normalStrength` and tiling.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `mlsetupOrJson` | string | yes | A `.mlsetup` file or its converted `.json`. |
+
+### `edit_material_instance`
+
+Sets ONE named parameter of a `.mi` and writes the edited JSON to `outputJson` (then feed it to
+`json_to_cr2w` / `write_game_file`). The parameter must already exist (use `inspect_material`).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `materialOrJson` | string | yes | A `.mi` file or its converted `.json`. |
+| `outputJson` | string | yes | Output JSON path. |
+| `parameter` | string | yes | Parameter name to set (e.g. `DiffuseColor`). |
+| `value` | string | yes | Depot path (texture), `r,g,b,a` (color), a number (scalar) or text (string). |
+| `type` | string | no | `texture` \| `color` \| `scalar` \| `string` (default `texture`). |
+
+### `trace_material_chain`
+
+Traces the material pipeline from a starting file (`.mesh`/`.app`/`.ent`/`.mi`/`.mlsetup`) down to
+the textures it ends up using, following resource references across files. References are resolved by
+base name under `depotRoot`, then in the base game under `gamePath`; unresolved refs are flagged.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `fileOrJson` | string | yes | Starting file or its `.json`. |
+| `depotRoot` | string | no | Folder of extracted/converted files used to resolve references. |
+| `gamePath` | string | no | Game root, to resolve references not found under `depotRoot`. |
+| `maxDepth` | int | no | Max chain depth to follow (default `6`). |
+
+### `inspect_inkatlas`
+
+Summary of a UI texture atlas (`.inkatlas` / `inkTextureAtlas`): the texture(s) it packs and every
+named part (sprite) with its clipping rect in UV and pixel coordinates.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `inkatlasOrJson` | string | yes | An `.inkatlas` file or its converted `.json`. |
+| `maxParts` | int | no | Max parts returned (default `200`). |
+
+### `resolve_inkatlas_part`
+
+Looks up ONE part (sprite) in an `.inkatlas` by name and returns its backing texture DepotPath and
+clipping rect. Returns close matches if the exact name is absent.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `inkatlasOrJson` | string | yes | An `.inkatlas` file or its converted `.json`. |
+| `partName` | string | yes | Part name to resolve (CName). |
+
+### `inspect_inkwidget`
+
+Summary of a UI widget library (`.inkwidget` / `inkWidgetLibraryResource`): the named library items
+and a histogram of the widget types used (`inkTextWidget`, `inkImageWidget`, `inkCanvasWidget`…).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `inkwidgetOrJson` | string | yes | An `.inkwidget` file or its converted `.json`. |
+
+### `inspect_rig`
+
+Summary of a rig/skeleton (`.rig` / `animRig`): bone count, root bone(s), hierarchy depth, and each
+bone with its parent — built from `boneNames` + `boneParentIndexes`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `rigOrJson` | string | yes | A `.rig` file or its converted `.json`. |
+| `maxBones` | int | no | Max bones listed (default `300`). |
+
+### `diff_cr2w`
+
+Semantic diff of TWO arbitrary CR2W files (or their JSON): field-level added / removed / changed with
+each change's exact JSON path. Generalizes `diff_mod_vs_base` to any two files.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `fileA` | string | yes | First file (the "base" side): a CR2W binary or its `.json`. |
+| `fileB` | string | yes | Second file (the "new" side): a CR2W binary or its `.json`. |
+| `maxResults` | int | no | Max entries returned per category (default `100`). |
+
+### `package_for_nexus`
+
+Nexus pre-flight + packaging: flags files Nexus auto-quarantines (`.dll`/`.exe`/`.asi`…), checks for a
+recognized game layout, reports framework dependencies, then writes a distributable `.zip`. Stricter
+than `package_mod`. Set `allowBinaries=true` for RED4ext/CET mods that legitimately ship a `.dll`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `sourceFolder` | string | yes | Mod folder in the game layout. |
+| `outputZip` | string | yes | Output `.zip` path. |
+| `allowBinaries` | bool | no | Allow quarantined binaries instead of failing (default `false`). |
 
 ---
 

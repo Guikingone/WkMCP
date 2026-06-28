@@ -2,6 +2,38 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — Asset-inspection coverage (materials / UI / rig / diff / Nexus)
+
+Fills the tool-surface gaps for asset families that had no dedicated tooling. Gap analysis
+was cross-checked with two local models (Kimi-K2.7, GLM-5.2 via Ollama) and verified against
+the code. New `AssetInspectionTools.cs` (a second partial of `ModdingTools`) adds **10 tools**;
+each accepts a binary CR2W (converted via the daemon) or its `.json`. The pure analysis cores
+are unit-tested against synthetic CR2W-JSON fixtures (no live game install required).
+**139 → 149 tools** (103 → 113 offline). +14 tests (204 → 218).
+
+### Materials
+- **`inspect_material`** — a `.mi` (CMaterialInstance): `baseMaterial` + every parameter with
+  its kind (color/scalar/texture/vector) and value; textures expose their DepotPath. Handles
+  both the "single-key wrapper" and `{Key,Value}` value shapes.
+- **`inspect_mlsetup`** — a `.mlsetup` (Multilayer_Setup): per-layer material/microblend refs +
+  `colorScale`, `opacity`, `normalStrength`, tiling.
+- **`edit_material_instance`** — sets ONE named parameter (texture/color/scalar/string) of a
+  `.mi` and writes edited JSON (→ `json_to_cr2w` / `write_game_file`). Pure JSON in→out.
+- **`trace_material_chain`** — follows resource refs from a `.mesh`/`.app`/`.ent`/`.mi`/`.mlsetup`
+  down to the textures it uses, resolving across a `depotRoot` folder and/or the base game.
+
+### UI / rig
+- **`inspect_inkatlas`** / **`resolve_inkatlas_part`** — `.inkatlas` sprites: textures + named
+  parts with UV/pixel clipping rects; targeted lookup of one part by name.
+- **`inspect_inkwidget`** — `.inkwidget` library: named items + widget-type histogram.
+- **`inspect_rig`** — `.rig` (animRig): bone count, roots, depth, each bone → parent (cycle-guarded).
+
+### Diff / packaging
+- **`diff_cr2w`** — generic field-level diff of any two CR2W files (or their JSON), with JSON
+  paths; generalizes `diff_mod_vs_base`.
+- **`package_for_nexus`** — Nexus pre-flight (auto-quarantine binary guard, layout check,
+  dependency report) then a `/`-separated `.zip`; `allowBinaries` for RED4ext/CET mods.
+
 ## Unreleased — Scene (.scene / scnSceneResource) support
 
 First-class support for `.scene` files (the quest/dialogue scene system), which had no
