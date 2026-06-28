@@ -703,7 +703,7 @@ def run_all(srv):
         # falling back to a generic identifier known from the base TweakDB.
         rec = rec_name or "Items.Preset_Achilles_Collectible_inline0"
         f.write(f"{rec}:\n  damage: 250\n  attacksPerSecond: 3.0\n")
-        f.write("MyMod.NewItem:\n  $instanceOf: Items.Preset_Achilles_Collectible_inline0\n  damage: 500\n")
+        f.write("MyMod.NewItem:\n  $base: Items.Preset_Achilles_Collectible_inline0\n  damage: 500\n")
 
     # read_tweak
     res, _ = srv.call("read_tweak", {"tweakFile": tweak_src})
@@ -731,7 +731,7 @@ def run_all(srv):
         res, _ = srv.call("validate_tweak",
                           {"tweakFile": tweak_src, "tweakdbBin": TWEAKDB})
         show(res)
-        # The 2nd record (MyMod.NewItem) has $instanceOf, so OK; the 1st must exist.
+        # The 2nd record (MyMod.NewItem) has $base, so OK; the 1st must exist.
         record("validate_tweak", "PASS" if res["ok"] else "WARN",
                f"validation run (exit={res.get('exitCode')})")
     else:

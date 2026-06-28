@@ -13,7 +13,7 @@ namespace WkMcp.Tests;
 public class TweakTemplateTests
 {
     [Fact]
-    public void New_item_scaffold_emits_instanceOf_and_typed_checklist()
+    public void New_item_scaffold_emits_base_and_typed_checklist()
     {
         var outFile = Path.Combine(Path.GetTempPath(), "wkmcp-newitem-" + Guid.NewGuid().ToString("N") + ".tweak");
         try
@@ -27,9 +27,29 @@ public class TweakTemplateTests
                 Assert.True(doc.RootElement.GetProperty("ok").GetBoolean());
             var yaml = File.ReadAllText(outFile);
             Assert.Contains("MyMod.MyGun:", yaml);
-            Assert.Contains("$instanceOf: Items.Preset_Lexington", yaml);
+            Assert.Contains("$base: Items.Preset_Lexington", yaml);   // TweakXL clone attribute
+            Assert.DoesNotContain("$instanceOf", yaml);              // not a real TweakXL key
             Assert.Contains("statModifiers", yaml);     // weapon-specific checklist line
             Assert.Contains("quality:", yaml);          // universally-safe flat
+        }
+        finally { try { File.Delete(outFile); } catch { /* ignore */ } }
+    }
+
+    [Fact]
+    public void New_record_emits_base_not_instanceOf()
+    {
+        var outFile = Path.Combine(Path.GetTempPath(), "wkmcp-newrec-" + Guid.NewGuid().ToString("N") + ".tweak");
+        try
+        {
+            var json = WolvenKitTools.GenerateTweakTemplate(
+                "new_record",
+                "{\"newId\":\"MyMod.NewRec\",\"baseId\":\"Items.Preset_Lexington\"}",
+                outFile);
+            using (var doc = System.Text.Json.JsonDocument.Parse(json))
+                Assert.True(doc.RootElement.GetProperty("ok").GetBoolean());
+            var yaml = File.ReadAllText(outFile);
+            Assert.Contains("$base: Items.Preset_Lexington", yaml);
+            Assert.DoesNotContain("$instanceOf", yaml);
         }
         finally { try { File.Delete(outFile); } catch { /* ignore */ } }
     }
@@ -42,6 +62,58 @@ public class TweakTemplateTests
         using (var doc = System.Text.Json.JsonDocument.Parse(json))
             Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
         Assert.False(File.Exists(outFile));
+    }
+}
+
+public class CloneTweakRecordTests
+{
+    [Fact]
+    public async Task Missing_tweakdb_returns_error_without_daemon()
+    {
+        var outFile = Path.Combine(Path.GetTempPath(), "wkmcp-clone-" + Guid.NewGuid().ToString("N") + ".tweak");
+        var json = await WolvenKitTools.CloneTweakRecord(
+            Cp77ToolsRunner.Shared, "C:/no/such/tweakdb.bin",
+            "Items.Preset_Lexington_Default", "MyMod.X", outFile);
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+        Assert.False(File.Exists(outFile));
+    }
+
+    [Fact]
+    public async Task Invalid_overrides_json_is_rejected()
+    {
+        // tweakdb path doesn't exist, but overrides are parsed first — assert it errors cleanly
+        // either way and never spawns the daemon (the bad JSON / missing file both short-circuit).
+        var outFile = Path.Combine(Path.GetTempPath(), "wkmcp-clone-" + Guid.NewGuid().ToString("N") + ".tweak");
+        var json = await WolvenKitTools.CloneTweakRecord(
+            Cp77ToolsRunner.Shared, "C:/no/such/tweakdb.bin",
+            "Items.X", "MyMod.X", outFile, overridesJson: "{not valid json");
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+    }
+
+    // Real-file smoke test: drives the daemon against a real tweakdb.bin to clone a record and
+    // checks the emitted .tweak uses $base. Set WKMCP_TEST_TWEAKDB (a tweakdb.bin); optionally
+    // WKMCP_TEST_TWEAKBASE (a base record id, default a vanilla weapon). Silently passes when unset.
+    [Fact]
+    public async Task Real_clone_emits_base_and_inventory()
+    {
+        var tdb = Environment.GetEnvironmentVariable("WKMCP_TEST_TWEAKDB");
+        if (string.IsNullOrEmpty(tdb) || !File.Exists(tdb)) return;
+        var baseId = Environment.GetEnvironmentVariable("WKMCP_TEST_TWEAKBASE") ?? "Items.Preset_Lexington_Default";
+        var outFile = Path.Combine(Path.GetTempPath(), "wkmcp-clone-real-" + Guid.NewGuid().ToString("N") + ".tweak");
+        try
+        {
+            var json = await WolvenKitTools.CloneTweakRecord(
+                Cp77ToolsRunner.Shared, tdb, baseId, "MyMod.CloneSmokeTest", outFile);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            Assert.True(doc.RootElement.GetProperty("ok").GetBoolean(), json);
+            var yaml = File.ReadAllText(outFile);
+            Assert.Contains("MyMod.CloneSmokeTest:", yaml);
+            Assert.Contains($"$base: {baseId}", yaml);
+            Assert.Contains("# ", yaml);                       // commented value inventory present
+        }
+        finally { try { File.Delete(outFile); } catch { /* ignore */ } }
     }
 }
 

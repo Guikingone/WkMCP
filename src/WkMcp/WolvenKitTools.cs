@@ -1877,8 +1877,8 @@ public static class WolvenKitTools
 
     [McpServerTool(Name = "validate_tweak", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Checks a .tweak file against a TweakDB: each key in the file must " +
-                 "exist in TweakDB (record or flat), unless it declares $instanceOf " +
-                 "(new derived record). Returns the list of unknown keys — useful " +
+                 "exist in TweakDB (record or flat), unless it declares $base or $type " +
+                 "(new/derived record). Returns the list of unknown keys — useful " +
                  "before install_tweak.")]
     public static async Task<string> ValidateTweak(
         Cp77ToolsRunner runner,
@@ -1894,6 +1894,57 @@ public static class WolvenKitTools
         var r = await runner.RunAsync(
             new[] { "tweak", "validate", tweakFile, tweakdbBin }, ct);
         return Structured($".tweak validation: {tweakFile} against {tweakdbBin}", r);
+    }
+
+    [McpServerTool(Name = "clone_tweak_record", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Clones an EXISTING TweakDB record into a ready-to-edit .tweak file (TweakXL). " +
+                 "Reads the base record from a tweakdb.bin and emits '<newId>:\\n  $base: <baseId>' — " +
+                 "TweakXL's $base copies every property of the base at load, so the clone is faithful — " +
+                 "then appends a commented inventory of ALL the base's flats with their CURRENT values " +
+                 "(TweakDBIDs resolved, floats in invariant form, arrays expanded), so you can see and " +
+                 "uncomment exactly what to override. Stronger than generate_tweak_template (which emits " +
+                 "a blind skeleton): the base id is verified to exist and real values are shown. Pass " +
+                 "overridesJson to set fields as active keys up front. Install with install_tweak. " +
+                 "Needs the daemon (the bundled no-binary package falls back to the CLI, which has no " +
+                 "TweakDB support).")]
+    public static async Task<string> CloneTweakRecord(
+        Cp77ToolsRunner runner,
+        [Description("Path to a tweakdb.bin (typically <game>/r6/cache/tweakdb.bin).")] string tweakdbBin,
+        [Description("Existing record to clone (e.g. Items.Preset_Lexington_Default). Verified to exist.")] string baseId,
+        [Description("Identifier of the new record (e.g. MyMod.MyLexington).")] string newId,
+        [Description("Output .tweak path (TweakXL YAML; install with install_tweak).")] string outputTweakFile,
+        [Description("Optional overrides as JSON {\"field\":value,…} emitted as active keys (the rest stays inherited).")] string? overridesJson = null,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(tweakdbBin))
+            return Err($"tweakdb.bin not found: {tweakdbBin}");
+        if (string.IsNullOrWhiteSpace(baseId)) return Err("baseId empty.");
+        if (string.IsNullOrWhiteSpace(newId)) return Err("newId empty.");
+
+        // Overrides travel to the daemon as a temp JSON file (argv stays simple).
+        string? overridesFile = null;
+        if (!string.IsNullOrWhiteSpace(overridesJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(overridesJson);
+                if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                    return Err("overridesJson must be a JSON object {field: value, …}.");
+            }
+            catch (JsonException ex) { return Err($"Invalid overridesJson: {ex.Message}"); }
+            overridesFile = Path.Combine(Path.GetTempPath(), "wkmcp-tweakclone",
+                Guid.NewGuid().ToString("N") + ".json");
+            Directory.CreateDirectory(Path.GetDirectoryName(overridesFile)!);
+            await File.WriteAllTextAsync(overridesFile, overridesJson, ct);
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputTweakFile)) ?? ".");
+        var args = overridesFile is null
+            ? new[] { "tweakdb-clone", tweakdbBin, baseId, newId, outputTweakFile }
+            : new[] { "tweakdb-clone", tweakdbBin, baseId, newId, outputTweakFile, overridesFile };
+        var r = await runner.RunAsync(args, ct);
+        return Structured($"clone_tweak_record: {baseId} → {newId}", r,
+            File.Exists(outputTweakFile) ? new List<string> { outputTweakFile } : new List<string>());
     }
 
     [McpServerTool(Name = "generate_redscript_template", ReadOnly = false, Destructive = false, Idempotent = true)]
@@ -2043,7 +2094,7 @@ public static class WolvenKitTools
     [Description("Generates a .tweak file (TweakXL — YAML) ready to edit, from a " +
                  "catalog of common patterns. Avoids knowing the TweakXL syntax by hand. " +
                  "Supported patterns: override_field (modifies a field of an existing record), " +
-                 "new_record (creates a new record via $instanceOf), boost_stat (modifies a " +
+                 "new_record (clones an existing record via $base), boost_stat (modifies a " +
                  "numeric stat with a new value), new_item (typed clone of an existing item — " +
                  "params newId, baseId, itemType=weapon|clothing|cyberware|consumable|recipe — " +
                  "emits safe item flats + a checklist of the type-specific flats to fill).")]
@@ -2107,10 +2158,10 @@ public static class WolvenKitTools
                 if (string.IsNullOrEmpty(newId))
                     return Err("new_record: 'newId' required (e.g. MyMod.NewWeapon).");
                 if (string.IsNullOrEmpty(baseId))
-                    return Err("new_record: 'baseId' required (existing record to instantiate).");
+                    return Err("new_record: 'baseId' required (existing record to clone).");
                 var sb = new StringBuilder();
                 sb.Append(newId).AppendLine(":");
-                sb.Append("  $instanceOf: ").AppendLine(baseId);
+                sb.Append("  $base: ").AppendLine(baseId);   // TweakXL clones the base record's flats
                 if (p.TryGetValue("overrides", out var ov) && ov is string ovJson)
                 {
                     // overrides as sub-JSON {field: value, ...}
@@ -2124,7 +2175,7 @@ public static class WolvenKitTools
                     catch { /* malformed overrides: continue without */ }
                 }
                 yaml = sb.ToString();
-                description = $"New record: {newId} <- $instanceOf {baseId}";
+                description = $"New record: {newId} <- $base {baseId}";
                 break;
             }
             case "boost_stat":
@@ -2175,14 +2226,14 @@ public static class WolvenKitTools
 
                 var sb = new StringBuilder();
                 sb.Append(newId).AppendLine(":");
-                sb.Append("  $instanceOf: ").AppendLine(baseId);
+                sb.Append("  $base: ").AppendLine(baseId);   // TweakXL clones the base record's flats
                 sb.AppendLine("  displayName: LocKey#0          # replace with your LocKey or a localization secondaryKey");
                 sb.AppendLine("  localizedDescription: LocKey#0");
                 sb.AppendLine("  quality: Quality.Legendary     # Common/Uncommon/Rare/Epic/Legendary");
                 sb.AppendLine($"  # --- {typeNote}: flats you typically also set (see describe_tweak_record {baseId}) ---");
                 foreach (var c in checklist) sb.Append("  #   ").AppendLine(c);
                 yaml = sb.ToString();
-                description = $"New {itemType}: {newId} <- $instanceOf {baseId}";
+                description = $"New {itemType}: {newId} <- $base {baseId}";
                 break;
             }
             default:

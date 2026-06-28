@@ -9,7 +9,7 @@ using WkMcp;
 //   stdio (default) — local Claude Desktop/Code; stdout reserved for JSON-RPC, logs on stderr.
 //   http           — HTTP/Streamable server (ModelContextProtocol.AspNetCore), secure by
 //                    default (loopback bind + bearer token + fail-closed). See docs/HTTP_TRANSPORT.md.
-// The 123 tools (including the 35 live_*), the daemon and the CetBridge bridge are identical regardless
+// The 152 tools (including the 36 live_*), the daemon and the CetBridge bridge are identical regardless
 // of the transport — only the host construction differs.
 
 var transport = (Cp77ToolsRunner.EnvOrLegacy(HttpBridgeSecurity.TransportEnv, HttpBridgeSecurity.LegacyTransportEnv) ?? "stdio")

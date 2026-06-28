@@ -17,7 +17,7 @@ namespace WkMcp;
 /// calling WolvenKit directly.
 /// </summary>
 [McpServerToolType]
-public static class ModdingTools
+public static partial class ModdingTools
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
     {

@@ -2,6 +2,101 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — Fix: TweakXL `$instanceOf` → `$base` (correctness)
+
+Acting on the finding from the previous entry: `$instanceOf` is **not a real TweakXL
+attribute** (confirmed against the TweakXL wiki and the redmodding docs — TweakXL uses
+`$base` to clone a record and `$type` for a new record's type). The scaffolds that emitted
+it produced `.tweak` files whose new record would not be created as intended.
+
+- **`generate_tweak_template`** `new_record` and `new_item` now emit **`$base: <baseId>`**
+  (clone the base record's flats) instead of the bogus `$instanceOf`.
+- **`validate_tweak`** now treats a record declaring **`$base` or `$type`** as a new/derived
+  record (previously only `$instanceOf`, which meant a correct `$base` tweak was wrongly
+  flagged "unknown in TweakDB"). `$instanceOf` is still tolerated for legacy hand-written tweaks.
+- Verified end-to-end against the real `tweakdb.bin`: a `$base` tweak now validates as
+  "1 new record + 0 unknown" (exit 0) where it previously failed.
+- Tool/param descriptions and docs (TOOLS.md, USER_GUIDE.md, MODDING_RECIPES.md,
+  validate-windows.py) updated; test renamed/added to assert `$base` and the absence of
+  `$instanceOf`. No tool-count change. Full suite 237 green.
+
+## Unreleased — clone_tweak_record (faithful TweakDB record clone)
+
+New daemon verb `tweakdb-clone` + MCP tool **`clone_tweak_record`** (**151 → 152 tools**,
+116 offline). Closes the gap left in the previous entry: a *faithful* clone of an existing
+TweakDB record, not the blind skeleton `generate_tweak_template` produces.
+
+- Verifies `baseId` exists in the `tweakdb.bin`, then emits `<newId>:` with **`$base: <baseId>`**
+  — TweakXL's documented clone attribute copies every property of the base record at load, so
+  correctness does not depend on us serializing each flat.
+- Appends a **commented inventory of all the base's flats with their current values**, rendered
+  properly (TweakDBIDs resolved to ids, floats in `InvariantCulture` — the engine values use `.`
+  and a fr-FR host's default `ToString()` would emit `,`, arrays expanded, `Vector3` as
+  `{ x, y, z }`). The author uncomments only what they want to override; unhandled types
+  (LocKey wrapper, resource refs) stay as a `<TypeName>` tag in the comment, harmless.
+- Optional `overridesJson` `{field: value}` is emitted as active keys (removed from the inventory).
+- Validated end-to-end against the real `tweakdb.bin` (`Items.Preset_Lexington_Default`,
+  gamedataWeaponItem_Record, 140 flats): faithful `$base`, all values rendered, unknown base →
+  hard error with no file written, overrides path correct.
+
+Note discovered while building this: TweakXL has **no `$instanceOf` attribute** (its docs define
+`$base` for cloning and `$type` for a new record's type). `generate_tweak_template`'s
+`new_record`/`new_item` emit `$instanceOf` — likely ineffective; flagged for a separate fix.
+
+## Unreleased — Gameplay-logic inspectors (quest phases / communities)
+
+Continues the tooling-gap work onto the two file families that drive quest flow and world
+population and still had no dedicated tooling — only the generic `inspect_cr2w`. New
+`GameplayInspectionTools.cs` (a third partial of `ModdingTools`) adds **2 tools**; each accepts
+a binary CR2W (converted via the daemon) or its `.json`. The pure cores were validated against
+real Cyberpunk 2077 files (extracted + converted): `teddy_holocall` / `sq023_bd_studio`
+questphases, `wbr_hil_rippdoc` / `sq017_caliente` / `q003_militech` communities.
+**149 → 151 tools** (113 → 115 offline). +9 tests (218 → 227), of which 2 are env-guarded
+real-file smoke tests (`WKMCP_TEST_QUESTPHASE` / `WKMCP_TEST_COMMUNITY`).
+
+- **`inspect_questphase`** — a `.questphase` (questQuestPhaseResource): nodes with a per-type
+  histogram, the **node→node edges reconstructed from the CR2W socket-handle graph** (each
+  connection references its sockets by `HandleId`/`HandleRefId`; sockets are mapped to their
+  owning node), entry/exit nodes (`questInput`/`questOutput`), and the `.scene` files and
+  external sub-phases it triggers.
+- **`inspect_community`** — a `.community` (communityCommunityTemplate): each spawn entry with
+  its `Character.*` record, appearances, spawn phases and per-phase time periods (Day/Night
+  quantities), plus voice-tag initializers; rolls up distinct characters.
+
+(`clone_tweak_record` was deferred at this point, then implemented in the entry above.)
+
+## Unreleased — Asset-inspection coverage (materials / UI / rig / diff / Nexus)
+
+Fills the tool-surface gaps for asset families that had no dedicated tooling. Gap analysis
+was cross-checked with two local models (Kimi-K2.7, GLM-5.2 via Ollama) and verified against
+the code. New `AssetInspectionTools.cs` (a second partial of `ModdingTools`) adds **10 tools**;
+each accepts a binary CR2W (converted via the daemon) or its `.json`. The pure analysis cores
+are unit-tested against synthetic CR2W-JSON fixtures (no live game install required).
+**139 → 149 tools** (103 → 113 offline). +14 tests (204 → 218).
+
+### Materials
+- **`inspect_material`** — a `.mi` (CMaterialInstance): `baseMaterial` + every parameter with
+  its kind (color/scalar/texture/vector) and value; textures expose their DepotPath. Handles
+  both the "single-key wrapper" and `{Key,Value}` value shapes.
+- **`inspect_mlsetup`** — a `.mlsetup` (Multilayer_Setup): per-layer material/microblend refs +
+  `colorScale`, `opacity`, `normalStrength`, tiling.
+- **`edit_material_instance`** — sets ONE named parameter (texture/color/scalar/string) of a
+  `.mi` and writes edited JSON (→ `json_to_cr2w` / `write_game_file`). Pure JSON in→out.
+- **`trace_material_chain`** — follows resource refs from a `.mesh`/`.app`/`.ent`/`.mi`/`.mlsetup`
+  down to the textures it uses, resolving across a `depotRoot` folder and/or the base game.
+
+### UI / rig
+- **`inspect_inkatlas`** / **`resolve_inkatlas_part`** — `.inkatlas` sprites: textures + named
+  parts with UV/pixel clipping rects; targeted lookup of one part by name.
+- **`inspect_inkwidget`** — `.inkwidget` library: named items + widget-type histogram.
+- **`inspect_rig`** — `.rig` (animRig): bone count, roots, depth, each bone → parent (cycle-guarded).
+
+### Diff / packaging
+- **`diff_cr2w`** — generic field-level diff of any two CR2W files (or their JSON), with JSON
+  paths; generalizes `diff_mod_vs_base`.
+- **`package_for_nexus`** — Nexus pre-flight (auto-quarantine binary guard, layout check,
+  dependency report) then a `/`-separated `.zip`; `allowBinaries` for RED4ext/CET mods.
+
 ## Unreleased — Scene (.scene / scnSceneResource) support
 
 First-class support for `.scene` files (the quest/dialogue scene system), which had no

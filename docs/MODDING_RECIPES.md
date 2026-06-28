@@ -46,7 +46,7 @@ Lexington) without touching the game files, via a `.tweak` hot-loaded by TweakXL
    `{"newId":"MyMod.SuperLexington","baseId":"Items.Preset_Lexington_Default","overrides":"{\"magazineCapacity\":48}"}`.
 
 2. **`validate_tweak`** — verify that each key actually exists in the TweakDB (except
-   `$instanceOf`).
+   new records declaring `$base` or `$type`).
    - `tweakFile`: `C:\mods\lexington_mag\lexington.tweak`
    - `tweakdbBin`: `<GAME>\r6\cache\tweakdb.bin`
 

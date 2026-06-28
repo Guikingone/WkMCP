@@ -179,14 +179,16 @@ public static class WolvenKitResources
         sb.AppendLine("- Read/edit a game file: read_game_file / write_game_file (JSON in one call), cr2w_to_json / json_to_cr2w");
         sb.AppendLine("- Extract: extract_files / uncook (mesh -> glTF, textures -> image; flags meshExportType, meshExporterType, meshExportLodFilter), extract_audio (opus voice-over)");
         sb.AppendLine("- Pack/install: pack_archive, install_mod, build_project, package_mod, scaffold_mod / scaffold_archivexl");
-        sb.AppendLine("- TweakDB: tweakdb_query / tweakdb_resolve / describe_tweak_record / dump_records + read_tweak / write_tweak / validate_tweak / install_tweak / lint_tweak");
+        sb.AppendLine("- TweakDB: tweakdb_query / tweakdb_resolve / describe_tweak_record / clone_tweak_record (faithful $base clone) / dump_records + read_tweak / write_tweak / validate_tweak / install_tweak / lint_tweak");
         sb.AppendLine("- REDscript scripts: read_script / lint_script (line:column syntax validation), generate_redscript_template");
         sb.AppendLine("- Diagnose: mod_doctor, diagnose_logs (6 logs + known-error database), analyze_conflicts, analyze_dependencies / check_requirements, migration_check");
         sb.AppendLine("- Validate: validate_xl, validate_item_mod (full ArchiveXL chain), validate_appearance (.app -> .mesh), lint_mod");
         sb.AppendLine("- Appearances: list_entity_appearances, resolve_dynamic_appearance; export_entity stays experimental (headless refusal on NPCs)");
         sb.AppendLine("- Safety: backup_mods / restore_mods, toggle_mods (bisection), uninstall_mod / uninstall_redmod / uninstall_tweak");
         sb.AppendLine("- In-game (offline): launch_game, tail_game_logs");
+        sb.AppendLine("- Assets: inspect_material (.mi) / inspect_mlsetup / edit_material_instance / trace_material_chain (mesh→.mi→.mlsetup→textures), inspect_inkatlas / resolve_inkatlas_part / inspect_inkwidget (UI), inspect_rig (skeleton), diff_cr2w (any two files), package_for_nexus (release pre-flight)");
         sb.AppendLine("- Scenes (.scene): inspect_scene (structure), scene_graph (flow), find_in_scene (locate node/dialogue), validate_scene (graph + dialogue integrity), scene_dependencies / scene_events, scene_set_actor / scene_replace_resource (editing), extract_scene_localization / apply_scene_localization (dialogue translation), scaffold_scene");
+        sb.AppendLine("- Gameplay logic: inspect_questphase (.questphase node/edge graph + scene & sub-phase refs, entry/exit nodes), inspect_community (.community spawn entries, characters, phases & Day/Night quantities)");
         sb.AppendLine("- Live (game running + CETBridge mod): live_status first, then the live_* tools (player state, inventory, teleport, live TweakDB, quest facts, event observation)");
         sb.AppendLine();
         sb.AppendLine($"### Full list — archives/CR2W/TweakDB/projects tools ({offline.Count})");

@@ -569,6 +569,95 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         return 0;
     }
 
+    // tweakdb-clone: emits a TweakXL .tweak that clones an existing record under a new id.
+    // Uses the documented `$base` attribute (TweakXL copies every property value of the source
+    // record at load — a faithful clone), then appends a COMMENTED inventory of the base flats
+    // with their current values (resolved TweakDBIDs, invariant-culture floats, array contents)
+    // so the author sees exactly what is inherited and uncomments only what they want to override.
+    // Optional overrides JSON (field → value) is emitted as active keys.
+    if (verb == "tweakdb-clone")
+    {
+        var rest = argv[1..];
+        if (rest.Length < 4)
+        {
+            logger.Error("tweakdb-clone: tweakdbBin, baseId, newId and outputTweakFile required");
+            return -1;
+        }
+        var tdb = provider.GetRequiredService<ITweakDBService>();
+        await EnsureTweakDbAsync(tdb, rest[0]);
+        if (!tdb.IsLoaded)
+        {
+            logger.Error($"failed to load TweakDB: {rest[0]}");
+            return -1;
+        }
+
+        var baseId = rest[1];
+        var newId = rest[2];
+        var outputTweakFile = rest[3];
+        var overridesJsonFile = rest.Length > 4 ? rest[4] : null;
+
+        EnsureTweakDbIndex();
+        if (DaemonState.RecordsByName is null
+            || !DaemonState.RecordsByName.TryGetValue(baseId, out var baseTdbId))
+        {
+            logger.Error($"unknown base record in TweakDB: {baseId} " +
+                         "(check the id with tweakdb_query / find_record_by_name)");
+            return 1;
+        }
+        string? baseType = null;
+        if (TweakDBService.TryGetType(baseTdbId, out var bt)) baseType = bt?.Name;
+
+        // Parse optional overrides (field → scalar value) emitted as active YAML keys.
+        var overrides = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!string.IsNullOrEmpty(overridesJsonFile) && File.Exists(overridesJsonFile))
+        {
+            try
+            {
+                using var od = JsonDocument.Parse(await File.ReadAllTextAsync(overridesJsonFile));
+                if (od.RootElement.ValueKind == JsonValueKind.Object)
+                    foreach (var p in od.RootElement.EnumerateObject())
+                        overrides[p.Name] = p.Value.ValueKind == JsonValueKind.String
+                            ? p.Value.GetString() ?? "" : p.Value.GetRawText();
+            }
+            catch (Exception ex) { logger.Warning($"ignoring invalid overrides JSON: {ex.Message}"); }
+        }
+
+        var prefix = baseId + ".";
+        var recordFlats = DaemonState.FlatsByRecord is not null
+            && DaemonState.FlatsByRecord.TryGetValue(baseId, out var rf)
+            ? rf : new List<WolvenKit.RED4.Types.TweakDBID>();
+
+        var sb = new StringBuilder();
+        sb.Append(newId).AppendLine(":");
+        sb.Append("  $base: ").AppendLine(baseId);   // faithful clone: TweakXL copies all base flats
+        foreach (var kv in overrides.OrderBy(k => k.Key, StringComparer.Ordinal))
+            sb.Append("  ").Append(kv.Key).Append(": ").AppendLine(kv.Value);
+
+        // Commented inventory of inherited flats with their current values.
+        var inventory = new List<string>();
+        foreach (var flat in recordFlats)
+        {
+            var text = flat.GetResolvedText();
+            if (text is null || !text.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            var field = text.Substring(prefix.Length);
+            if (overrides.ContainsKey(field)) continue; // already an active override
+            var value = TweakDBService.GetFlat(flat);
+            inventory.Add($"{field}: {RenderTweakFlatValue(value)}");
+        }
+        inventory.Sort(StringComparer.Ordinal);
+        if (inventory.Count > 0)
+        {
+            sb.AppendLine("  # ── inherited from base via $base (uncomment + edit to override) ──");
+            foreach (var line in inventory) sb.Append("  # ").AppendLine(line);
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(outputTweakFile) ?? ".");
+        await File.WriteAllTextAsync(outputTweakFile, sb.ToString());
+        logger.Info($"tweakdb-clone: {newId} $base {baseId} ({baseType ?? "?"}) → {outputTweakFile} " +
+                    $"({inventory.Count} inherited flat(s) inventoried, {overrides.Count} override(s))");
+        return 0;
+    }
+
     // tweakdb-extract-localization: extracts all "displayName" and
     // "localizedDescription" (and variant) flats known to the TweakDB, indexed by
     // recordId. JSON output, ready to serve as a base for a translation mod.
@@ -928,6 +1017,44 @@ static string EscapeCsv(string v)
     return v;
 }
 
+// Renders a TweakDB flat value as a TweakXL-flavoured token for the tweakdb-clone inventory:
+// CName/TweakDBID as their resolved identifier, floats with InvariantCulture (the engine values
+// use '.'; the default ToString() would emit ',' on a fr-FR host), arrays as [a, b], Vector3 as
+// { x:, y:, z: }. Unhandled types (LocKey wrapper, resource refs) fall back to a <TypeName> tag —
+// harmless because these are emitted as YAML comments, never active keys.
+static string RenderTweakFlatValue(WolvenKit.RED4.Types.IRedType? v)
+{
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    switch (v)
+    {
+        case null: return "null";
+        case WolvenKit.RED4.Types.CString s: { var str = (string?)s ?? ""; return str.Length == 0 ? "\"\"" : str; }
+        case WolvenKit.RED4.Types.CName n: { var str = (string?)n; return string.IsNullOrEmpty(str) ? "None" : str; }
+        case WolvenKit.RED4.Types.CBool b: return (bool)b ? "true" : "false";
+        case WolvenKit.RED4.Types.CFloat f: return ((float)f).ToString("0.################", inv);
+        case WolvenKit.RED4.Types.CDouble d: return ((double)d).ToString("0.################", inv);
+        case WolvenKit.RED4.Types.CInt32 i: return ((int)i).ToString(inv);
+        case WolvenKit.RED4.Types.CUInt32 u: return ((uint)u).ToString(inv);
+        case WolvenKit.RED4.Types.CInt64 i64: return ((long)i64).ToString(inv);
+        case WolvenKit.RED4.Types.CUInt64 u64: return ((ulong)u64).ToString(inv);
+        case WolvenKit.RED4.Types.CInt16 i16: return ((short)i16).ToString(inv);
+        case WolvenKit.RED4.Types.CUInt16 u16: return ((ushort)u16).ToString(inv);
+        case WolvenKit.RED4.Types.CInt8 i8: return ((sbyte)i8).ToString(inv);
+        case WolvenKit.RED4.Types.CUInt8 u8: return ((byte)u8).ToString(inv);
+        case WolvenKit.RED4.Types.TweakDBID id: { var t = id.GetResolvedText(); return string.IsNullOrEmpty(t) ? "null" : t; }
+        case WolvenKit.RED4.Types.Vector3 vec:
+            return $"{{ x: {RenderTweakFlatValue(vec.X)}, y: {RenderTweakFlatValue(vec.Y)}, z: {RenderTweakFlatValue(vec.Z)} }}";
+        case WolvenKit.RED4.Types.IRedArray arr:
+        {
+            var items = new List<string>();
+            foreach (var el in arr) items.Add(RenderTweakFlatValue(el as WolvenKit.RED4.Types.IRedType));
+            return "[" + string.Join(", ", items) + "]";
+        }
+        default:
+            return $"<{v.GetType().Name}>";
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // TweakXL — structured editing of .tweak files (YAML).
 // ────────────────────────────────────────────────────────────────────────
@@ -1006,12 +1133,15 @@ static async Task<int> TweakValidate(IServiceProvider provider, CapturingLoggerS
         var key = kvp.Key?.ToString() ?? "";
         if (string.IsNullOrEmpty(key)) continue;
         total++;
-        var hasInstanceOf = kvp.Value is Dictionary<object, object> body &&
-                            body.Keys.Any(k => k?.ToString() == "$instanceOf");
-        if (hasInstanceOf)
+        // A new/derived record is declared with $base (clone an existing record) or $type
+        // (a fresh record of a given type) — TweakXL's attributes. ($instanceOf is tolerated
+        // for legacy hand-written tweaks but is not a real TweakXL key.)
+        var isNewRecord = kvp.Value is Dictionary<object, object> body &&
+                          body.Keys.Any(k => k?.ToString() is "$base" or "$type" or "$instanceOf");
+        if (isNewRecord)
         {
             instances++;
-            logger.Info($"  + {key} ($instanceOf: new record)");
+            logger.Info($"  + {key} ($base/$type: new record)");
             continue;
         }
         // Hash the name via the official TweakDBID function, then check
@@ -1027,10 +1157,10 @@ static async Task<int> TweakValidate(IServiceProvider provider, CapturingLoggerS
         {
             missing++;
             logger.Warning(
-                $"  - {key}: unknown in TweakDB (add $instanceOf if it's a new record)");
+                $"  - {key}: unknown in TweakDB (add $base or $type if it's a new record)");
         }
     }
-    logger.Info($"tweak validate: {total} key(s); {ok} OK + {instances} instanceOf + {missing} unknown");
+    logger.Info($"tweak validate: {total} key(s); {ok} OK + {instances} new record(s) + {missing} unknown");
     return missing > 0 ? 1 : 0;
 }
 
