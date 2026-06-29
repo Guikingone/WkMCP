@@ -2,6 +2,33 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — Coverage gaps: rig/garment import, loose Redscript & CET install (165 -> 168 tools)
+
+Closes the verified capability gaps from a 3-way audit (reflected WolvenKit 8.18.0 `ModTools`
+surface vs the exposed tools, cross-checked by GLM-5.2 + Kimi-K2.7-code and a source read of
+the daemon). **3 new tools** (all in `WolvenKitTools.cs`, base category) + **3 enhancements**.
+
+- **`import_rig`** — glTF → REDengine `.rig`, the reimport counterpart of exporting a rig
+  (Modkit `ImportRig`). Thin wrapper over the generic `import --keep`; the cooked type is
+  detected from the existing `.rig` (name the file `foo.rig.glb`).
+- **`install_redscript`** — installs a **loose** Redscript mod (`.reds` file or folder) into
+  `<game>/r6/scripts/<modName>/`. This was the real Redscript gap: `install_mod` only handles
+  `.archive`, `install_redmod` only REDmod modules — neither installed plain `.reds`.
+- **`install_cet_mod`** — installs a Cyber Engine Tweaks Lua mod (folder with `init.lua`) into
+  `bin/x64/plugins/cyber_engine_tweaks/mods/<modName>/`.
+- **enhancement** `import_mesh` gains a **`garmentSupport`** flag → daemon `import --garment`
+  sets `GltfImportArgs.ImportGarmentSupport` (off by default in the stock import path) so
+  apparel meshes get their cloth/garment parameters. Covers Modkit `WriteGarmentParametersToMesh`.
+- **enhancement** `scaffold_mod` gains a **`cet`** kind (init.lua starter), pairing with `install_cet_mod`.
+- **enhancement** `inspect_mesh` now reports per-LOD switch distances (`lodDistances`), not just the count.
+
+Audited but **deliberately not added** (verified redundant or not a real capability):
+`import_folder` (the generic `import` on a folder already calls `ModTools.ImportFolder`);
+`export_opus_by_hash` (`extract_audio` already targets opus by hash via `--opus-hashes`);
+`get_opus_info` (opus is already served by `extract_audio` bulk + by-hash);
+`wwise_import` (Modkit has no Wwise import — custom sounds go through REDmod `customSounds`);
+`export_mesh` (the generic `export_files` / `uncook WithRig` already exports mesh + rig).
+
 ## Unreleased — game_probe (unified debug probe) (164 -> 165 tools)
 
 One read-only tool **`game_probe`** (new `ProbeTools.cs`, its own *diagnostic probe*

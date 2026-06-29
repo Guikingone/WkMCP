@@ -898,13 +898,15 @@ public static partial class ModdingTools
     [McpServerTool(Name = "scaffold_mod", ReadOnly = false, Destructive = false, Idempotent = false)]
     [Description("Creates, in ONE call, a working mod skeleton according to its type: archive " +
                  "(.cpmodproj project + folders), redscript (.reds starter with @wrapMethod), tweak " +
-                 "(.tweak starter), redmod (info.json + folders). Also writes a MOD_MANIFEST.json " +
-                 "summarizing the type, declared dependencies and structure. Shortcut " +
-                 "over create_mod_project / generate_* to get started quickly.")]
+                 "(.tweak starter), redmod (info.json + folders), cet (init.lua starter for a Cyber " +
+                 "Engine Tweaks Lua mod). Also writes a MOD_MANIFEST.json summarizing the type, " +
+                 "declared dependencies and structure. Shortcut over create_mod_project / generate_* " +
+                 "to get started quickly. Install with install_mod / install_redscript / install_tweak " +
+                 "/ install_redmod / install_cet_mod respectively.")]
     public static string ScaffoldMod(
         [Description("Parent folder where to create the mod.")] string parentFolder,
         [Description("Mod name.")] string modName,
-        [Description("Type: archive | redscript | tweak | redmod.")] string kind = "archive",
+        [Description("Type: archive | redscript | tweak | redmod | cet.")] string kind = "archive",
         [Description("Author (optional).")] string? author = null,
         [Description("Version (optional, e.g. 1.0.0).")] string? version = null,
         [Description("Declared dependencies, comma-separated (e.g. Codeware,ArchiveXL).")] string? dependencies = null)
@@ -950,6 +952,18 @@ public static partial class ModdingTools
                     description = "",
                     customSounds = Array.Empty<object>(),
                 }, JsonOpts));
+                break;
+            case "cet":
+                // Cyber Engine Tweaks Lua mod: a folder with init.lua at its root, installed to
+                // bin/x64/plugins/cyber_engine_tweaks/mods/<modName>/ (see install_cet_mod).
+                Write("init.lua",
+                    $"-- {modName} — Cyber Engine Tweaks mod\n" +
+                    "registerForEvent('onInit', function()\n" +
+                    $"  print('[{modName}] loaded')\n" +
+                    "end)\n\n" +
+                    "registerForEvent('onDraw', function()\n" +
+                    "  -- ImGui drawing goes here (guard with a visibility toggle)\n" +
+                    "end)\n");
                 break;
             default: // archive
                 k = "archive";

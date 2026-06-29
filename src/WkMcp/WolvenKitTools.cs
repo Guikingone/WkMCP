@@ -1533,12 +1533,15 @@ public static class WolvenKitTools
                  "re-imported against the original (keep=true, default): the rig/bones, LODs and " +
                  "material slots come from the existing .mesh in outputPath, so export it first " +
                  "(export_files / uncook with WithRig), edit in Blender keeping the bone names, then " +
-                 "import_mesh here. Set keep=false only for a brand-new mesh.")]
+                 "import_mesh here. Set keep=false only for a brand-new mesh. Set garmentSupport=true " +
+                 "for clothing meshes that carry GarmentSupport data (cloth/garment parameters) — off " +
+                 "by default, so enable it when re-importing apparel that must drape/hide correctly.")]
     public static async Task<string> ImportMesh(
         Cp77ToolsRunner runner,
         [Description("Path to a .glb/.gltf file (or a folder).")] string glbPath,
         [Description("Destination folder (for keep, the folder holding the original .mesh).")] string outputPath,
         [Description("Append to the existing .mesh (default true — preserves rig/LODs/materials).")] bool keep = true,
+        [Description("Import GarmentSupport (cloth/garment parameters) from the glTF — for apparel meshes.")] bool garmentSupport = false,
         [Description("If true, returns the full log (no truncation).")] bool verbose = false,
         CancellationToken ct = default)
     {
@@ -1546,8 +1549,10 @@ public static class WolvenKitTools
         if (BadExt(glbPath, new(StringComparer.OrdinalIgnoreCase) { ".glb", ".gltf" }, "glTF mesh") is { } e) return Err(e);
         var args = new List<string> { "import", glbPath, "--outpath", outputPath };
         if (keep) args.Add("--keep");
+        if (garmentSupport) args.Add("--garment");
         return await WithSnapshot(outputPath,
-            $"Mesh import → .mesh: {glbPath} → {outputPath}" + (keep ? " (keep)" : ""),
+            $"Mesh import → .mesh: {glbPath} → {outputPath}"
+                + (keep ? " (keep)" : "") + (garmentSupport ? " (garment)" : ""),
             () => runner.RunAsync(args, ct), verbose);
     }
 
@@ -1633,6 +1638,29 @@ public static class WolvenKitTools
         if (keep) args.Add("--keep");
         return await WithSnapshot(outputPath,
             $"Material import → mesh: {rawPath} → {outputPath}" + (keep ? " (keep)" : ""),
+            () => runner.RunAsync(args, ct), verbose);
+    }
+
+    [McpServerTool(Name = "import_rig", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Imports a glTF (.glb/.gltf) skeleton into a REDengine .rig — the reimport " +
+                 "counterpart of exporting a rig (export_files / uncook WithRig). Re-import against " +
+                 "the original (keep=true, default): export the .rig first, edit the skeleton/bone " +
+                 "transforms in Blender keeping the bone names, then import_rig here. The cooked type " +
+                 "is detected from the existing .rig in outputPath (name your file foo.rig.glb).")]
+    public static async Task<string> ImportRig(
+        Cp77ToolsRunner runner,
+        [Description("Path to a .glb/.gltf file (or a folder).")] string glbPath,
+        [Description("Destination folder (for keep, the folder holding the original .rig).")] string outputPath,
+        [Description("Append to the existing .rig (default true — preserves the bind pose/bone IDs).")] bool keep = true,
+        [Description("If true, returns the full log (no truncation).")] bool verbose = false,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(glbPath) && !Directory.Exists(glbPath)) return Err($"Path not found: {glbPath}");
+        if (BadExt(glbPath, new(StringComparer.OrdinalIgnoreCase) { ".glb", ".gltf" }, "glTF rig") is { } e) return Err(e);
+        var args = new List<string> { "import", glbPath, "--outpath", outputPath };
+        if (keep) args.Add("--keep");
+        return await WithSnapshot(outputPath,
+            $"Rig import → .rig: {glbPath} → {outputPath}" + (keep ? " (keep)" : ""),
             () => runner.RunAsync(args, ct), verbose);
     }
 
@@ -1894,6 +1922,7 @@ public static class WolvenKitTools
                 errors = LogLines(r.Stdout + r.Stderr, "Error"),
                 meshFile,
                 lodCount = stats.LodCount,
+                lodDistances = stats.LodDistances,
                 subMeshCount = stats.SubMeshCount,
                 materialCount = stats.MaterialCount,
                 boneCount = stats.BoneCount,
@@ -2674,6 +2703,122 @@ public static class WolvenKitTools
             warnings = existed
                 ? new[] { "A .tweak with the same name already existed; it has been replaced." }
                 : Array.Empty<string>(),
+            errors = Array.Empty<string>(),
+            installedPath = dest,
+        }, JsonOpts);
+    }
+
+    [McpServerTool(Name = "install_redscript", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [Description("Installs a loose REDscript mod (not wrapped in a REDmod): copies a .reds file " +
+                 "(or a folder of .reds) into <game>/r6/scripts/<modName>/. This is how a plain " +
+                 "Redscript mod ships — the scc compiler picks it up at the next launch, no rebuild " +
+                 "or redeploy. For REDmod-wrapped scripts use install_redmod instead.")]
+    public static string InstallRedscript(
+        [Description("Path to a .reds file, or a folder containing .reds files.")] string scriptPath,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        [Description("Sub-folder name under r6/scripts (default: the file/folder name).")] string? modName = null)
+    {
+        var isDir = Directory.Exists(scriptPath);
+        if (!File.Exists(scriptPath) && !isDir)
+            return Err($"Script path not found: {scriptPath}");
+        if (!isDir && !scriptPath.EndsWith(".reds", StringComparison.OrdinalIgnoreCase))
+            return Err($"Not a .reds file: {scriptPath}");
+        if (!gamePath.Contains(Path.DirectorySeparatorChar)
+            && !gamePath.Contains(Path.AltDirectorySeparatorChar))
+            return Err("gamePath must be a folder path (not a plain name).");
+        if (!Directory.Exists(gamePath))
+            return Err($"Game folder not found: {gamePath}");
+
+        var name = modName;
+        if (string.IsNullOrWhiteSpace(name))
+            name = isDir
+                ? Path.GetFileName(scriptPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                : Path.GetFileNameWithoutExtension(scriptPath);
+        if (string.IsNullOrWhiteSpace(name) || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            return Err("Invalid modName.");
+
+        var destDir = Path.Combine(gamePath, "r6", "scripts", name);
+        var existed = Directory.Exists(destDir);
+        Directory.CreateDirectory(destDir);
+
+        var produced = new List<string>();
+        if (isDir)
+        {
+            var reds = Directory.GetFiles(scriptPath, "*.reds", SearchOption.AllDirectories);
+            if (reds.Length == 0) return Err($"No .reds file found in: {scriptPath}");
+            foreach (var src in reds)
+            {
+                var rel = Path.GetRelativePath(scriptPath, src);
+                var dst = Path.Combine(destDir, rel);
+                Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
+                File.Copy(src, dst, overwrite: true);
+                produced.Add(dst);
+            }
+        }
+        else
+        {
+            var dst = Path.Combine(destDir, Path.GetFileName(scriptPath));
+            File.Copy(scriptPath, dst, overwrite: true);
+            produced.Add(dst);
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            status = "success",
+            summary = (existed ? "REDscript reinstalled: " : "REDscript installed: ")
+                + $"{produced.Count} file(s) → {destDir}",
+            produced = produced.ToArray(),
+            warnings = existed
+                ? new[] { "A scripts folder of the same name already existed; files have been replaced." }
+                : Array.Empty<string>(),
+            errors = Array.Empty<string>(),
+            installedPath = destDir,
+        }, JsonOpts);
+    }
+
+    [McpServerTool(Name = "install_cet_mod", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [Description("Installs a Cyber Engine Tweaks (CET) Lua mod: copies the mod folder (with its " +
+                 "init.lua at the root) into <game>/bin/x64/plugins/cyber_engine_tweaks/mods/<modName>/. " +
+                 "CET loads it at the next launch (or via its in-game reload). Requires CET installed. " +
+                 "Scaffold a starter with scaffold_mod kind=cet.")]
+    public static string InstallCetMod(
+        [Description("Source folder of the CET mod (with init.lua at its root).")] string modSourceFolder,
+        [Description("Root folder of the Cyberpunk 2077 installation.")] string gamePath,
+        [Description("Mod folder name under .../mods (default: the source folder name).")] string? modName = null)
+    {
+        if (!Directory.Exists(modSourceFolder))
+            return Err($"CET mod folder not found: {modSourceFolder}");
+        if (!Directory.Exists(gamePath))
+            return Err($"Game folder not found: {gamePath}");
+        var init = Path.Combine(modSourceFolder, "init.lua");
+        if (!File.Exists(init))
+            return Err($"init.lua missing at the root: {init}");
+
+        var name = string.IsNullOrWhiteSpace(modName)
+            ? Path.GetFileName(modSourceFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            : modName;
+        if (string.IsNullOrWhiteSpace(name) || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            return Err("Invalid modName.");
+
+        var modsRoot = Path.Combine(gamePath, "bin", "x64", "plugins", "cyber_engine_tweaks", "mods");
+        var warnings = new List<string>();
+        if (!Directory.Exists(modsRoot))
+            warnings.Add("CET mods folder does not exist yet — is Cyber Engine Tweaks installed? Creating it.");
+        var dest = Path.Combine(modsRoot, name);
+        var existed = Directory.Exists(dest);
+
+        CopyDirectoryRecursive(modSourceFolder, dest);
+
+        if (existed)
+            warnings.Add("A CET mod with the same name already existed; its files have been replaced.");
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            status = "success",
+            summary = (existed ? "CET mod reinstalled: " : "CET mod installed: ") + dest,
+            produced = new[] { dest },
+            warnings = warnings.ToArray(),
             errors = Array.Empty<string>(),
             installedPath = dest,
         }, JsonOpts);
@@ -3981,7 +4126,7 @@ public static class WolvenKitTools
 
     private sealed record MeshStats(
         int LodCount, int SubMeshCount, int MaterialCount, int BoneCount,
-        List<string> MaterialNames, List<string> BoneNames);
+        List<string> MaterialNames, List<string> BoneNames, List<double> LodDistances);
 
     /// <summary>Extracts the aggregates of a CR2W mesh serialized to JSON. Traverses
     /// the tree recursively looking for <c>renderLODs</c>, <c>chunkMaterials</c>,
@@ -3991,6 +4136,7 @@ public static class WolvenKitTools
         int lods = 0, subMeshes = 0, materials = 0, bones = 0;
         var matNames = new List<string>();
         var boneNames = new List<string>();
+        var lodDistances = new List<double>();
 
         WalkJson(root, (name, el) =>
         {
@@ -3998,7 +4144,14 @@ public static class WolvenKitTools
             {
                 case "renderLODs":
                     if (el.ValueKind == JsonValueKind.Array && lods == 0)
+                    {
                         lods = el.GetArrayLength();
+                        // renderLODs holds the LOD switch distances (floats); capture them
+                        // so inspect_mesh reports where each LOD kicks in, not just the count.
+                        foreach (var d in el.EnumerateArray())
+                            if (d.ValueKind == JsonValueKind.Number && d.TryGetDouble(out var dist))
+                                lodDistances.Add(dist);
+                    }
                     break;
                 case "materialEntries":
                     if (el.ValueKind == JsonValueKind.Array && materials == 0)
@@ -4028,7 +4181,7 @@ public static class WolvenKitTools
                     break;
             }
         });
-        return new MeshStats(lods, subMeshes, materials, bones, matNames, boneNames);
+        return new MeshStats(lods, subMeshes, materials, bones, matNames, boneNames, lodDistances);
     }
 
     private sealed record TextureProps(

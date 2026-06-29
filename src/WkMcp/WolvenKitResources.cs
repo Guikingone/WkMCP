@@ -179,9 +179,10 @@ public static class WolvenKitResources
         sb.AppendLine("- Explore: find_in_archives / archive_info (LRU cache), find_in_cr2w / inspect_cr2w (any CR2W file), inspect_journal / find_journal_entry (.journal)");
         sb.AppendLine("- Read/edit a game file: read_game_file / write_game_file (JSON in one call), cr2w_to_json / json_to_cr2w");
         sb.AppendLine("- Extract: extract_files / uncook (mesh -> glTF, textures -> image; flags meshExportType, meshExporterType, meshExportLodFilter), extract_audio (opus voice-over)");
-        sb.AppendLine("- Pack/install: pack_archive, install_mod, build_project, package_mod, scaffold_mod / scaffold_archivexl");
+        sb.AppendLine("- Import (raw -> CR2W): import_texture / import_mesh (garmentSupport flag for apparel) / import_anim / import_rig / import_morphtarget / import_mlmask / import_material, import_raw, find_and_extract");
+        sb.AppendLine("- Pack/install: pack_archive, install_mod, build_project, package_mod, scaffold_mod (archive|redscript|tweak|redmod|cet) / scaffold_archivexl; install_redscript (loose .reds -> r6/scripts), install_cet_mod (CET Lua mod)");
         sb.AppendLine("- TweakDB: tweakdb_query / tweakdb_resolve / describe_tweak_record / clone_tweak_record (faithful $base clone) / dump_records + read_tweak / write_tweak / validate_tweak / install_tweak / lint_tweak");
-        sb.AppendLine("- REDscript scripts: read_script / lint_script (line:column syntax validation), generate_redscript_template");
+        sb.AppendLine("- REDscript scripts: read_script / lint_script (line:column syntax validation), generate_redscript_template, type_check_scripts (scc), install_redscript (deploy loose .reds)");
         sb.AppendLine("- Diagnose: game_probe (one-call: liveness + logs + setup + crash + live verdict), mod_doctor, diagnose_logs (6 logs + known-error database), analyze_conflicts, analyze_dependencies / check_requirements, migration_check");
         sb.AppendLine("- Validate: validate_xl, validate_item_mod (full ArchiveXL chain), validate_appearance (.app -> .mesh), lint_mod");
         sb.AppendLine("- Appearances: list_entity_appearances, resolve_dynamic_appearance; export_entity stays experimental (headless refusal on NPCs)");

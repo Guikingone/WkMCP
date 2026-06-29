@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WkMCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **129 offline tools**, **11 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **165 tools** in total.
+> **Counts.** The server exposes **132 offline tools**, **11 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **168 tools** in total.
 
 ## Contents
 
@@ -281,7 +281,7 @@ Writes an edited game file: converts a JSON (from `read_game_file`) into binary 
 ## 6. Quick inspection (summaries without heavy conversion)
 
 ### `inspect_mesh`
-Inspects a `.mesh` and returns a compact summary: LODs, sub-meshes, materials, bones. Much lighter than a full `uncook`.
+Inspects a `.mesh` and returns a compact summary: LOD count + their switch distances (`lodDistances`), sub-meshes, materials, bones. Much lighter than a full `uncook`.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -599,6 +599,17 @@ Imports a glTF (`.glb`/`.gltf`) mesh into a REDengine `.mesh`. `keep` defaults *
 | `glbPath` | string | yes | `.glb`/`.gltf` file (or a folder). |
 | `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.mesh`). |
 | `keep` | bool | no (default `true`) | Append to the existing `.mesh` (preserves rig/LODs/materials). |
+| `garmentSupport` | bool | no (default `false`) | Import GarmentSupport (cloth/garment parameters) from the glTF — for apparel meshes that must drape/hide correctly. Off by default. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
+
+### `import_rig`
+Imports a glTF (`.glb`/`.gltf`) skeleton into a REDengine `.rig` — the reimport counterpart of exporting a rig (`export_files` / `uncook` `WithRig`). `keep` defaults **true**: export the `.rig` first, edit the skeleton/bone transforms in Blender keeping the bone names, then import here. The cooked type is detected from the existing `.rig` in `outputPath` (name your file `foo.rig.glb`).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `glbPath` | string | yes | `.glb`/`.gltf` file (or a folder). |
+| `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.rig`). |
+| `keep` | bool | no (default `true`) | Append to the existing `.rig` (preserves bind pose/bone IDs). |
 | `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `import_anim`
@@ -741,6 +752,24 @@ Installs a mod: copies a `.archive` into `<game>/archive/pc/mod/`.
 |---|---|---|---|
 | `archivePath` | string | yes | Mod `.archive`. |
 | `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+
+### `install_redscript`
+Installs a **loose** REDscript mod (not wrapped in a REDmod): copies a `.reds` file (or a folder of `.reds`) into `<game>/r6/scripts/<modName>/`. The scc compiler picks it up at the next launch — no rebuild or redeploy. For REDmod-wrapped scripts use `install_redmod`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `scriptPath` | string | yes | `.reds` file, or a folder of `.reds`. |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+| `modName` | string | no | Sub-folder under `r6/scripts` (default: the file/folder name). |
+
+### `install_cet_mod`
+Installs a Cyber Engine Tweaks (CET) Lua mod: copies the mod folder (with `init.lua` at its root) into `<game>/bin/x64/plugins/cyber_engine_tweaks/mods/<modName>/`. CET loads it at the next launch (or in-game reload). Scaffold a starter with `scaffold_mod kind=cet`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `modSourceFolder` | string | yes | Source folder of the CET mod (with `init.lua`). |
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+| `modName` | string | no | Folder name under `.../mods` (default: the source folder name). |
 
 ### `uninstall_mod`
 Uninstalls a mod: removes a `.archive` from `<game>/archive/pc/mod/`. Safeguard: refuses outside the mod folder.
@@ -904,13 +933,13 @@ Semantic diff of ONE game file overridden by a mod, against its base version: ex
 | `baseArchive` | string? | no | Specific base archive (short-circuits the search). |
 
 ### `scaffold_mod`
-Creates a functional mod skeleton in one call depending on its type: `archive`, `redscript`, `tweak`, `redmod`. Also writes a `MOD_MANIFEST.json`.
+Creates a functional mod skeleton in one call depending on its type: `archive`, `redscript`, `tweak`, `redmod`, `cet` (init.lua starter for a Cyber Engine Tweaks Lua mod). Also writes a `MOD_MANIFEST.json`. Install with `install_mod` / `install_redscript` / `install_tweak` / `install_redmod` / `install_cet_mod` respectively.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `parentFolder` | string | yes | Parent folder. |
 | `modName` | string | yes | Mod name. |
-| `kind` | string | no (default `archive`) | `archive` \| `redscript` \| `tweak` \| `redmod`. |
+| `kind` | string | no (default `archive`) | `archive` \| `redscript` \| `tweak` \| `redmod` \| `cet`. |
 | `author` | string? | no | Author. |
 | `version` | string? | no | Version (e.g. 1.0.0). |
 | `dependencies` | string? | no | Declared dependencies, comma-separated. |
