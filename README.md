@@ -1,7 +1,7 @@
 # WkMCP — an MCP server for Cyberpunk 2077 modding
 
 An **MCP (Model Context Protocol)** server that exposes WolvenKit's modding CLI
-(`cp77tools`) as **157 tools** an agent (Claude) can call — so you steer Cyberpunk
+(`cp77tools`) as **165 tools** an agent (Claude) can call — so you steer Cyberpunk
 2077 modding from a chat window without writing code: read and edit game files,
 query and patch the TweakDB, create/pack/install mods, export meshes and textures,
 lint REDscript, diagnose a broken install, and even drive a **running** game live.
@@ -106,14 +106,15 @@ Optional environment variables go in the `"env"` block (Desktop) or via `-e VAR=
 
 ## Tools, prompts, resources
 
-The server exposes **157 tools** (121 offline + 36 `live_*`), **10 prompts** and **4 resources**.
+The server exposes **165 tools** (129 offline + 36 `live_*`), **11 prompts** and **4 resources**.
 
 **Tools by category** (full parameter reference: [docs/TOOLS.md](docs/TOOLS.md)):
 
-- *Diagnostics* — `wk_status`, `clear_cache`, `compute_hash`, `resolve_hash`, `tweakdb_resolve`, `tweakdb_query`, `find_record_by_name`.
-- *Archives* — `archive_info`, `archive_stats`, `find_in_archives`, `diff_archives`, `diff_against_installed`, `extract_files`, `uncook`.
+- *Diagnostics* — `game_probe` (one-call health probe: process liveness + log diagnosis + setup health + crash signals + in-game canaries → one prioritized verdict), `wk_status`, `clear_cache`, `compute_hash`, `resolve_hash`, `tweakdb_resolve`, `tweakdb_query`, `find_record_by_name`.
+- *Archives* — `archive_info`, `archive_stats`, `find_in_archives`, `find_and_extract` (locate + extract across all archives in a folder), `diff_archives`, `diff_against_installed`, `extract_files`, `uncook`.
 - *Conversion / export* — `cr2w_to_json`, `json_to_cr2w`, `export_files`, `export_animation`, `export_morphtarget`, `export_mlmask`, `export_entity`, `export_materials`, `set_texture_format`.
 - *Read / write game files* — `read_game_file`, `write_game_file`, `inspect_mesh`, `inspect_texture`, `inspect_app`.
+- *Import (raw → cooked, round-trip)* — `import_texture` (png/dds → .xbm), `import_mesh` (glTF → .mesh), `import_anim` (glTF → .anims), `import_morphtarget` (glTF → .morphtarget), `import_mlmask` (→ .mlmask), `import_material` (→ .mi), `import_raw` (generic); all support `keep` for the export → edit → reimport flow (mirror the `export_*` family).
 - *TweakDB* — `describe_tweak_record`, `clone_tweak_record` (faithful `$base` clone of an existing record + commented value inventory), `read_tweak`, `write_tweak`, `validate_tweak`, `preview_tweak`, `install_tweak`, `dump_records`, `generate_tweak_template`.
 - *REDscript* — `read_script`, `lint_script`, `script_api_index`, `type_check_scripts`, `generate_redscript_template`.
 - *Audio / compression* — `wwise_export`, `extract_audio`, `import_audio`, `loc_resolve`, `oodle_compress`, `oodle_decompress`.
@@ -130,7 +131,7 @@ The server exposes **157 tools** (121 offline + 36 `live_*`), **10 prompts** and
 - *Appearance authoring* (3) — `add_appearance` (add an appearance to a `.app`), `set_mesh_material` (set a component's `meshAppearance` material selector + optional mesh swap), `scaffold_appearance_mod` (ArchiveXL appearance-swap mod skeleton).
 - *Live in-game* (36 `live_*`) — drive a running game via the CETBridge mod; see [docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md).
 
-### MCP prompts (10)
+### MCP prompts (11)
 
 Ready-to-use recipes an agent can invoke to kick off a workflow.
 
@@ -146,6 +147,7 @@ Ready-to-use recipes an agent can invoke to kick off a workflow.
 | `inspect_mesh` | Export a mesh to glTF for inspection |
 | `translate_scene` | Extract, edit and write back a `.scene`'s dialogue (headless translation) |
 | `audit_scene` | Audit a `.scene`: structure, integrity, dependencies, and what it plays |
+| `import_art` | The export → edit → reimport round-trip for textures / meshes / animations |
 
 ### MCP resources (4)
 
@@ -204,7 +206,7 @@ WolvenKit is licensed GPL-3.0; that license is itself the permission to build on
 ## Documentation
 
 - **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)** — modder's guide: install, wire up to Claude, step-by-step workflows (read a file, edit a tweak, create/pack/install a mod, check dependencies, package).
-- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 157 tools + 10 prompts + 4 resources (parameters included).
+- **[docs/TOOLS.md](docs/TOOLS.md)** — exhaustive reference of the 165 tools + 11 prompts + 4 resources (parameters included).
 - **[docs/MODDING_RECIPES.md](docs/MODDING_RECIPES.md)** — copy-paste recipes by mod type (tweak, redscript, ArchiveXL, REDmod, localization, texture, analysis).
 - **[docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md)** — the 36 `live_*` tools to drive a running game (CETBridge / Cyber Engine Tweaks). Optional, separate prerequisites.
 - **[docs/HTTP_TRANSPORT.md](docs/HTTP_TRANSPORT.md)** — remote access over HTTP/Streamable (instead of stdio); secure by default.
@@ -231,10 +233,10 @@ More in [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (§10 troubleshooting) and [doc
 
 ```
 wkmcp/
-├── src/WkMcp/         C# / .NET 8 MCP server (157 tools, 10 prompts, 4 resources)
+├── src/WkMcp/         C# / .NET 8 MCP server (165 tools, 11 prompts, 4 resources)
 │   ├── Program.cs            Host + stdio/http transport + DI + daemon warmup
 │   ├── Cp77ToolsRunner.cs    Drives the daemon (pipelined IPC, LRU cache, cp77tools fallback)
-│   ├── WolvenKitTools.cs     70 base MCP tools + helpers
+│   ├── WolvenKitTools.cs     77 base MCP tools + helpers
 │   ├── ModdingTools.cs       28 workflow tools (deps, health, scaffolding, refs, diff, appearance)
 │   ├── AssetInspectionTools.cs 10 asset-inspection tools (materials / UI / rig / diff / Nexus) — partial of ModdingTools
 │   ├── GameplayInspectionTools.cs 2 gameplay-logic tools (.questphase / .community) — partial of ModdingTools
@@ -243,9 +245,10 @@ wkmcp/
 │   ├── CetBridge.cs          TCP/file bridge to the CETBridge Lua mod
 │   ├── RedscriptParser.cs    REDscript grammar parser (lint_script, script_api_index)
 │   ├── ScriptApi.cs          REDscript symbol index (script_api_index)
+│   ├── ProbeTools.cs         1 diagnostic probe tool (game_probe — liveness/logs/setup/crash/live verdict)
 │   ├── SccDiagnostics.cs     scc output parser (type_check_scripts)
 │   ├── TweakValidation.cs    TweakXL typed-validation / preview core (validate_tweak, preview_tweak)
-│   ├── WolvenKitPrompts.cs   10 MCP prompts (recipes)
+│   ├── WolvenKitPrompts.cs   11 MCP prompts (recipes)
 │   └── WolvenKitResources.cs 4 MCP resources (reference generated by reflection)
 ├── src/WkDaemon/      Persistent daemon — links the WolvenKit GPL-3.0 libraries
 ├── src/WkMcp.Tests/   xUnit tests (incl. ConsistencyTests anti-drift guard)

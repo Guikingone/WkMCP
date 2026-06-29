@@ -188,13 +188,18 @@ public static class WolvenKitPrompts
         return $$"""
             Diagnostic procedure ({{symptom}}) on "{{gamePath}}":
 
-            1. One-call overview: `mod_doctor` — missing frameworks, unmet
-               dependencies, conflicts, inventory. Many cases stop here
-               (missing framework = #1 cause of a crash).
+            1. Start with the probe: `game_probe` — one call that correlates
+               process liveness, crash signals (logs + minidumps), log diagnosis,
+               setup health (frameworks/conflicts/deps) and, if the game is running
+               with the CETBridge mod, in-game runtime canaries — into a single
+               prioritized verdict. Many cases are fully answered here; the steps
+               below drill into whatever it flags.
 
-            2. Read the game logs: `diagnose_logs` — analyzes the 6 logs (redscript,
-               RED4ext, ArchiveXL, TweakXL…) against a known-error database that
-               maps each error to its cause and its fix.
+            2. Setup detail: `mod_doctor` — missing frameworks, unmet
+               dependencies, conflicts, inventory (missing framework = #1 cause of
+               a crash). Then `diagnose_logs` for the full per-log error breakdown
+               (redscript, RED4ext, ArchiveXL, TweakXL…) against the known-error
+               database that maps each error to its cause and its fix.
 
             3. If the symptom is "one mod overrides another": `analyze_conflicts`
                — archive overlaps (alphabetical first-wins) and TweakDB records
@@ -302,6 +307,34 @@ public static class WolvenKitPrompts
 
             5. Re-check with `validate_scene` on the output, then pack/install the .scene like any
                asset (pack_archive → install_mod).
+            """;
+    }
+
+    [McpServerPrompt(Name = "import_art")]
+    [Description("Recipe: the export → edit externally → reimport round-trip for custom art " +
+                 "(textures, meshes, animations) — how to push edited assets back into the game.")]
+    public static string ImportArt(
+        [Description("Depot path or extracted file you want to edit (e.g. a .xbm or .mesh).")] string assetPath,
+        [Description("Working/mod folder holding the cooked files.")] string workFolder)
+    {
+        return $$"""
+            Round-trip to replace custom art ({{assetPath}} in {{workFolder}}):
+
+            1. Get the cooked file out: `extract_files` (from an archive) or you already have it.
+            2. Export to a raw, editable format: `export_files` (or `uncook` with WithRig for meshes)
+               → .xbm→png/dds, .mesh→glb, .anims→glb.
+            3. Edit the raw file (Photoshop/GIMP for textures, Blender for meshes/anims). For meshes
+               and anims, keep the original bone/skeleton names — the rig comes from the cooked file.
+            4. Reimport, keeping the original cooked file (this is the key step):
+               - textures → `import_texture` (keep=true)
+               - meshes   → `import_mesh` (keep=true, the default)
+               - anims    → `import_anim` (keep=true, the default)
+               outputPath = "{{workFolder}}" (the folder holding the original cooked file).
+            5. Textures only: verify the group/compression with `inspect_texture`; fix with
+               `set_texture_format` if alpha/normal/mipmaps look wrong (the #1 retexture failure).
+            6. Pack & install: `pack_archive` → `install_mod`.
+
+            To listen to game audio, `wwise_export` turns a .wem into .ogg.
             """;
     }
 

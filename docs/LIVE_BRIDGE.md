@@ -138,6 +138,18 @@ Everything goes through the same three protocol verbs (`exec` / `eval` / `query`
 the tools above are ergonomic shortcuts on top of named Lua handlers. Anything
 else is doable via `live_execute_lua` / `live_eval`.
 
+### Used by `game_probe` — the `probe` handler
+
+The offline diagnostic tool **`game_probe`** (in the Diagnostics group) calls a
+dedicated in-game handler, `probe`, in one round trip when the bridge is
+connected. It returns RTTI **canary checks** (`player_present`, `stats_system`,
+`scriptable_systems`, `tweakdb_lookup`) that prove the script runtime is intact —
+a half-compiled / broken redscript runtime that on-disk logs can miss — plus a
+runtime snapshot (reusing `game_state` / `player_info`) and CET-mod liveness.
+Canary failures are expected at the main menu (no save loaded), so `game_probe`
+only escalates them to a *broken* verdict when a save is actually loaded
+(`playerLoaded`). See the `game_probe` entry in [TOOLS.md](TOOLS.md).
+
 ## Security & limits
 
 > ⚠️ **Threat model — local code execution.** The bridge runs **arbitrary Lua inside

@@ -2,6 +2,43 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — game_probe (unified debug probe) (164 -> 165 tools)
+
+One read-only tool **`game_probe`** (new `ProbeTools.cs`, its own *diagnostic probe*
+category) that correlates, in a single call, **process liveness** (game + bridge),
+**crash signals** (logs + minidumps), **log diagnosis**, **setup health**
+(frameworks/conflicts/deps) and — when the game is running with the CETBridge mod —
+**in-game runtime canaries** (RTTI checks that on-disk logs can't see) into one
+**prioritized verdict**. Start here to debug "why is my game/mod broken" instead of
+chaining `mod_doctor` + `diagnose_logs` + `live_status` by hand.
+
+- `ModDoctorCore` / `DiagnoseLogsCore` were **extracted** from `mod_doctor` /
+  `diagnose_logs` (pure refactor, identical JSON output) so `game_probe` reuses them.
+- New CET-side `probe` handler (best-effort, every check `pcall`-wrapped); canary
+  failures only escalate to *broken* when a save is actually loaded (no false alarm
+  at the main menu). See [docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md).
+
+## Unreleased — Import coverage (round-trip art + find_and_extract) (157 -> 164 tools, +1 prompt)
+
+Closes the import half of the asset pipeline: every `export_*` now has an `import_*`
+counterpart, and a single tool locates + extracts a file when you don't know which archive
+holds it. **7 new tools** (all in `WolvenKitTools.cs`) + **1 prompt**.
+
+- **`import_texture`** — png/dds/tga/bmp/jpg/tiff/cube → `.xbm`; `keep` for the edit→reimport
+  round-trip; reminds to verify the texture group/compression (the #1 retexture failure).
+- **`import_mesh`** — glTF → `.mesh`; `keep` defaults true (rig/LODs/materials come from the
+  original; export with WithRig, edit in Blender keeping bone names, reimport).
+- **`import_anim`** — glTF → `.anims`; `keep` defaults true.
+- **`import_morphtarget`** — glTF → `.morphtarget`.
+- **`import_mlmask`** — `.masklist` + layer images → `.mlmask`.
+- **`import_material`** — `*.Material.json` → `.mi`.
+- **`import_raw`** gains a `keep` parameter (the generic engine for any type; already counted).
+- **`find_and_extract`** — searches a glob/regex across ALL `.archive` files in a folder and
+  extracts the matches in one step. Complements `find_in_archives` (search only) and
+  `extract_files` (single archive). Refuses to run without a filter (no wholesale extraction).
+- New prompt **`import_art`** (export → edit → reimport → pack → install).
+- (Audio export already existed as `wwise_export` — no duplicate added.)
+
 ## Unreleased — Appearance authoring (set_mesh_material + scaffold_appearance_mod)
 
 Closes the offline appearance-authoring loop (`add_appearance` already wrote `.app` files).

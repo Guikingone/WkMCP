@@ -284,19 +284,23 @@ public static partial class ModdingTools
     // ════════════════════════════════════════════════════════════════════════
     // mod_doctor
     // ════════════════════════════════════════════════════════════════════════
-    [McpServerTool(Name = "mod_doctor", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Health diagnostic of a modded Cyberpunk 2077 installation, in one call: " +
-                 "installed/missing frameworks, dependencies required by installed mods but " +
-                 "absent (crash cause #1), conflicts between archives, and mod inventory. " +
-                 "Returns a structured report with recommendations.")]
-    public static async Task<string> ModDoctor(
-        Cp77ToolsRunner runner,
-        [Description("Cyberpunk 2077 installation root folder.")] string gamePath,
-        CancellationToken ct = default)
-    {
-        if (!Directory.Exists(gamePath))
-            return Err($"Game folder not found: {gamePath}");
+    /// <summary>Structured setup-health report — shared by mod_doctor and game_probe.</summary>
+    internal sealed record DoctorReport(
+        IReadOnlyList<string> InstalledFrameworks,
+        IReadOnlyList<string> RequiredFrameworks,
+        IReadOnlyList<string> MissingDependencies,
+        int? ConflictCount, string ConflictNote,
+        int ArchiveMods, int RedMods,
+        IReadOnlyList<string> Recommendations);
 
+    /// <summary>Total number of frameworks in the knowledge base (for summaries).</summary>
+    internal static int FrameworkCount => Frameworks.Length;
+
+    /// <summary>Core of mod_doctor (no JSON, no validation): installed/missing frameworks,
+    /// archive conflicts, mod inventory, recommendations. Reused by game_probe.</summary>
+    internal static async Task<DoctorReport> ModDoctorCore(
+        string gamePath, Cp77ToolsRunner runner, CancellationToken ct)
+    {
         // 1) installed frameworks
         var installedFw = Frameworks.Where(f => IsInstalled(gamePath, f).installed)
                                     .Select(f => f.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -350,25 +354,46 @@ public static partial class ModdingTools
         if (conflictCount is > 0)
             recommendations.Add($"{conflictCount} archive conflict(s) detected: check load order/priority (detect_conflicts for the details).");
 
-        var status = missingDeps.Count > 0 || conflictCount is > 0 ? "partial" : "success";
+        return new DoctorReport(
+            installedFw.OrderBy(x => x).ToList(),
+            required.Keys.OrderBy(x => x).ToList(),
+            missingDeps, conflictCount, conflictNote,
+            archiveMods, redMods, recommendations);
+    }
+
+    [McpServerTool(Name = "mod_doctor", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Health diagnostic of a modded Cyberpunk 2077 installation, in one call: " +
+                 "installed/missing frameworks, dependencies required by installed mods but " +
+                 "absent (crash cause #1), conflicts between archives, and mod inventory. " +
+                 "Returns a structured report with recommendations.")]
+    public static async Task<string> ModDoctor(
+        Cp77ToolsRunner runner,
+        [Description("Cyberpunk 2077 installation root folder.")] string gamePath,
+        CancellationToken ct = default)
+    {
+        if (!Directory.Exists(gamePath))
+            return Err($"Game folder not found: {gamePath}");
+
+        var d = await ModDoctorCore(gamePath, runner, ct);
+        var status = d.MissingDependencies.Count > 0 || d.ConflictCount is > 0 ? "partial" : "success";
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status,
-            summary = $"Setup health: {archiveMods} .archive mods + {redMods} REDmods · " +
-                      $"{installedFw.Count}/{Frameworks.Length} frameworks · " +
-                      $"{missingDeps.Count} missing dependency(ies)" +
-                      (conflictCount is { } c ? $" · {c} conflict(s)" : ""),
+            summary = $"Setup health: {d.ArchiveMods} .archive mods + {d.RedMods} REDmods · " +
+                      $"{d.InstalledFrameworks.Count}/{Frameworks.Length} frameworks · " +
+                      $"{d.MissingDependencies.Count} missing dependency(ies)" +
+                      (d.ConflictCount is { } c ? $" · {c} conflict(s)" : ""),
             gamePath,
-            installedFrameworks = installedFw.OrderBy(x => x).ToList(),
-            requiredFrameworks = required.Keys.OrderBy(x => x).ToList(),
-            missingDependencies = missingDeps,
-            conflictCount,
-            conflictNote,
-            mods = new { archiveMods, redMods },
-            recommendations,
-            warnings = missingDeps.Count > 0
-                ? new[] { $"Missing dependencies: {string.Join(", ", missingDeps)}" }
+            installedFrameworks = d.InstalledFrameworks,
+            requiredFrameworks = d.RequiredFrameworks,
+            missingDependencies = d.MissingDependencies,
+            conflictCount = d.ConflictCount,
+            conflictNote = d.ConflictNote,
+            mods = new { archiveMods = d.ArchiveMods, redMods = d.RedMods },
+            recommendations = d.Recommendations,
+            warnings = d.MissingDependencies.Count > 0
+                ? new[] { $"Missing dependencies: {string.Join(", ", d.MissingDependencies)}" }
                 : Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
@@ -1427,19 +1452,19 @@ public static partial class ModdingTools
             "Clear r6/cache/, verify the game files, reinstall an up-to-date Codeware."),
     };
 
-    [McpServerTool(Name = "diagnose_logs", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Reads and DIAGNOSES the modding logs of a Cyberpunk 2077 install (redscript, " +
-                 "RED4ext, ArchiveXL, TweakXL, Codeware, CET, REDmod): extracts the errors, " +
-                 "classifies them by source, maps known errors to a fix, and attempts to attribute " +
-                 "them to the offending mod. Much more useful than tail_game_logs (which only does a raw tail).")]
-    public static string DiagnoseLogs(
-        [Description("Cyberpunk 2077 installation root folder.")] string gamePath,
-        [Description("Max number of error lines reported per source (default 30).")] int maxPerSource = 30)
-    {
-        if (!Directory.Exists(gamePath))
-            return Err($"Game folder not found: {gamePath}");
+    /// <summary>Structured log diagnosis — shared by diagnose_logs and game_probe.</summary>
+    internal sealed record LogSourceResult(
+        string Source, string LogPath, int ErrorCount, string LastModified, IReadOnlyList<string> Errors);
+    internal sealed record LogDiagnosis(
+        int LogsFound, int TotalErrors,
+        IReadOnlyList<LogSourceResult> Sources,
+        IReadOnlyList<(string Problem, string Fix)> Diagnoses);
 
-        var perSource = new List<object>();
+    /// <summary>Core of diagnose_logs (no JSON, no validation): reads each known log,
+    /// extracts the trailing error lines and matches the knowledge base. Reused by game_probe.</summary>
+    internal static LogDiagnosis DiagnoseLogsCore(string gamePath, int maxPerSource = 30)
+    {
+        var sources = new List<LogSourceResult>();
         var allFixes = new Dictionary<string, string>(StringComparer.Ordinal);
         int totalErrors = 0, logsFound = 0;
         var errRe = new System.Text.RegularExpressions.Regex(
@@ -1466,30 +1491,47 @@ public static partial class ModdingTools
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                     allFixes.TryAdd(k.Problem, k.Fix);
 
-            perSource.Add(new
-            {
-                source = src.Name,
-                logPath = path,
-                errorCount = errs.Count,
-                lastModified = File.GetLastWriteTime(path).ToString("u"),
-                errors = errs,
-            });
+            sources.Add(new LogSourceResult(
+                src.Name, path, errs.Count, File.GetLastWriteTime(path).ToString("u"), errs));
         }
 
-        var diagnoses = allFixes.Select(kv => new { problem = kv.Key, fix = kv.Value }).ToList();
-        var status = totalErrors > 0 ? "partial" : "success";
+        var diagnoses = allFixes.Select(kv => (kv.Key, kv.Value)).ToList();
+        return new LogDiagnosis(logsFound, totalErrors, sources, diagnoses);
+    }
+
+    [McpServerTool(Name = "diagnose_logs", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [Description("Reads and DIAGNOSES the modding logs of a Cyberpunk 2077 install (redscript, " +
+                 "RED4ext, ArchiveXL, TweakXL, Codeware, CET, REDmod): extracts the errors, " +
+                 "classifies them by source, maps known errors to a fix, and attempts to attribute " +
+                 "them to the offending mod. Much more useful than tail_game_logs (which only does a raw tail).")]
+    public static string DiagnoseLogs(
+        [Description("Cyberpunk 2077 installation root folder.")] string gamePath,
+        [Description("Max number of error lines reported per source (default 30).")] int maxPerSource = 30)
+    {
+        if (!Directory.Exists(gamePath))
+            return Err($"Game folder not found: {gamePath}");
+
+        var d = DiagnoseLogsCore(gamePath, maxPerSource);
+        var status = d.TotalErrors > 0 ? "partial" : "success";
         return JsonSerializer.Serialize(new
         {
             ok = true,
             status,
-            summary = logsFound == 0
+            summary = d.LogsFound == 0
                 ? "No log found (the game may never have run modded)."
-                : $"{logsFound} log(s) analyzed, {totalErrors} error line(s), {diagnoses.Count} known diagnostic(s)",
+                : $"{d.LogsFound} log(s) analyzed, {d.TotalErrors} error line(s), {d.Diagnoses.Count} known diagnostic(s)",
             gamePath,
-            logsFound,
-            totalErrors,
-            sources = perSource,
-            diagnoses,
+            logsFound = d.LogsFound,
+            totalErrors = d.TotalErrors,
+            sources = d.Sources.Select(s => new
+            {
+                source = s.Source,
+                logPath = s.LogPath,
+                errorCount = s.ErrorCount,
+                lastModified = s.LastModified,
+                errors = s.Errors,
+            }),
+            diagnoses = d.Diagnoses.Select(x => new { problem = x.Problem, fix = x.Fix }),
             warnings = Array.Empty<string>(),
             errors = Array.Empty<string>(),
         }, JsonOpts);
