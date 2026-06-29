@@ -742,6 +742,34 @@ public static class WolvenKitTools
             () => runner.RunAsync(args, ct, progress is null ? null : Relay(progress)), verbose);
     }
 
+    [McpServerTool(Name = "find_and_extract", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Finds files matching a glob/regex across ALL .archive files in a folder and " +
+                 "extracts them in one step — when you don't know which archive holds the file " +
+                 "(e.g. point at <game>/archive/pc/content). Combines find_in_archives + " +
+                 "extract_files. For a single known .archive, use extract_files.")]
+    public static async Task<string> FindAndExtract(
+        Cp77ToolsRunner runner,
+        [Description("Folder containing .archive files (e.g. <game>/archive/pc/content).")] string archivesFolder,
+        [Description("Destination folder for the extracted files.")] string outputPath,
+        [Description("Glob filter, e.g. *.mesh or *v_player*.ent.")] string? pattern = null,
+        [Description("Regex filter (alternative to glob).")] string? regex = null,
+        [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
+        IProgress<ProgressNotificationValue>? progress = null,
+        CancellationToken ct = default)
+    {
+        if (!Directory.Exists(archivesFolder)) return Err($"Archives folder not found: {archivesFolder}");
+        if (string.IsNullOrWhiteSpace(pattern) && string.IsNullOrWhiteSpace(regex))
+            return Err("Provide a pattern or regex (refusing to extract every archive wholesale).");
+
+        var args = new List<string> { "unbundle", archivesFolder, "--outpath", outputPath };
+        if (!string.IsNullOrWhiteSpace(pattern)) { args.Add("--pattern"); args.Add(pattern); }
+        if (!string.IsNullOrWhiteSpace(regex)) { args.Add("--regex"); args.Add(regex); }
+
+        return await WithSnapshot(outputPath,
+            $"Find+extract '{pattern ?? regex}' across {archivesFolder} → {outputPath}",
+            () => runner.RunAsync(args, ct, progress is null ? null : Relay(progress)), verbose);
+    }
+
     [McpServerTool(Name = "uncook", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Extracts and converts in a single pass the files of an archive to " +
                  "usable formats (mesh → glTF, textures → image). Combines extraction and " +
@@ -1443,22 +1471,171 @@ public static class WolvenKitTools
 
     [McpServerTool(Name = "import_raw", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Imports raw files (textures, glTF meshes...) into REDengine CR2W files, " +
-                 "ready to be packed into a mod.")]
+                 "ready to be packed into a mod. WolvenKit picks the cooked type from the raw file. " +
+                 "Set keep=true to re-import edited art into an EXISTING cooked file in outputPath " +
+                 "(appends the new buffer, preserving the original CR2W) — the export→edit→reimport " +
+                 "round-trip. Typed wrappers exist: import_texture / import_mesh / import_anim.")]
     public static async Task<string> ImportRaw(
         Cp77ToolsRunner runner,
         [Description("Path to a raw file, or a folder containing some.")] string path,
         [Description("Destination folder for the REDengine files.")] string outputPath,
+        [Description("Keep the existing cooked file and only append the new buffer (edit→reimport).")] bool keep = false,
         [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
             return Err($"Path not found: {path}");
 
+        var args = new List<string> { "import", path, "--outpath", outputPath };
+        if (keep) args.Add("--keep");
         return await WithSnapshot(outputPath,
-            $"Raw → REDengine import: {path} → {outputPath}",
-            () => runner.RunAsync(
-                new[] { "import", path, "--outpath", outputPath }, ct), verbose);
+            $"Raw → REDengine import: {path} → {outputPath}" + (keep ? " (keep)" : ""),
+            () => runner.RunAsync(args, ct), verbose);
     }
+
+    /// <summary>Raw input extensions WolvenKit imports as a texture (.xbm).</summary>
+    internal static readonly HashSet<string> TextureRawExt = new(StringComparer.OrdinalIgnoreCase)
+    { ".png", ".dds", ".tga", ".bmp", ".jpg", ".jpeg", ".tiff", ".cube" };
+
+    internal static string? BadExt(string path, HashSet<string> allowed, string kind)
+    {
+        if (Directory.Exists(path)) return null; // a folder: import filters by type itself
+        var ext = Path.GetExtension(path);
+        return allowed.Contains(ext) ? null
+            : $"Not a {kind} raw file: '{ext}' (expected one of {string.Join(", ", allowed)}).";
+    }
+
+    [McpServerTool(Name = "import_texture", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Imports a raw image (png/dds/tga/bmp/jpg/tiff/cube) into a REDengine .xbm. For the " +
+                 "edit→reimport round-trip of an existing texture, set keep=true (appends the new " +
+                 "buffer to the original .xbm in outputPath). ⚠ After import, verify the texture " +
+                 "group/compression with inspect_texture / set_texture_format — a wrong group " +
+                 "silently breaks alpha, normal maps or mipmaps (the #1 retexture failure).")]
+    public static async Task<string> ImportTexture(
+        Cp77ToolsRunner runner,
+        [Description("Path to a raw image file (or a folder of images).")] string rawPath,
+        [Description("Destination folder (for keep, the folder holding the original .xbm).")] string outputPath,
+        [Description("Append to the existing .xbm instead of creating a fresh one (edit→reimport).")] bool keep = false,
+        [Description("If true, returns the full log (no truncation).")] bool verbose = false,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(rawPath) && !Directory.Exists(rawPath)) return Err($"Path not found: {rawPath}");
+        if (BadExt(rawPath, TextureRawExt, "texture") is { } e) return Err(e);
+        var args = new List<string> { "import", rawPath, "--outpath", outputPath };
+        if (keep) args.Add("--keep");
+        return await WithSnapshot(outputPath,
+            $"Texture import → .xbm: {rawPath} → {outputPath}" + (keep ? " (keep)" : ""),
+            () => runner.RunAsync(args, ct), verbose);
+    }
+
+    [McpServerTool(Name = "import_mesh", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Imports a glTF (.glb/.gltf) mesh into a REDengine .mesh. Meshes are normally " +
+                 "re-imported against the original (keep=true, default): the rig/bones, LODs and " +
+                 "material slots come from the existing .mesh in outputPath, so export it first " +
+                 "(export_files / uncook with WithRig), edit in Blender keeping the bone names, then " +
+                 "import_mesh here. Set keep=false only for a brand-new mesh.")]
+    public static async Task<string> ImportMesh(
+        Cp77ToolsRunner runner,
+        [Description("Path to a .glb/.gltf file (or a folder).")] string glbPath,
+        [Description("Destination folder (for keep, the folder holding the original .mesh).")] string outputPath,
+        [Description("Append to the existing .mesh (default true — preserves rig/LODs/materials).")] bool keep = true,
+        [Description("If true, returns the full log (no truncation).")] bool verbose = false,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(glbPath) && !Directory.Exists(glbPath)) return Err($"Path not found: {glbPath}");
+        if (BadExt(glbPath, new(StringComparer.OrdinalIgnoreCase) { ".glb", ".gltf" }, "glTF mesh") is { } e) return Err(e);
+        var args = new List<string> { "import", glbPath, "--outpath", outputPath };
+        if (keep) args.Add("--keep");
+        return await WithSnapshot(outputPath,
+            $"Mesh import → .mesh: {glbPath} → {outputPath}" + (keep ? " (keep)" : ""),
+            () => runner.RunAsync(args, ct), verbose);
+    }
+
+    [McpServerTool(Name = "import_anim", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Imports a glTF (.glb/.gltf) animation into a REDengine .anims. Re-import against " +
+                 "the original (keep=true, default): export the .anims (with its .rig) first, edit in " +
+                 "Blender keeping the skeleton, then import_anim here.")]
+    public static async Task<string> ImportAnim(
+        Cp77ToolsRunner runner,
+        [Description("Path to a .glb/.gltf file (or a folder).")] string glbPath,
+        [Description("Destination folder (for keep, the folder holding the original .anims).")] string outputPath,
+        [Description("Append to the existing .anims (default true — preserves the skeleton binding).")] bool keep = true,
+        [Description("If true, returns the full log (no truncation).")] bool verbose = false,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(glbPath) && !Directory.Exists(glbPath)) return Err($"Path not found: {glbPath}");
+        if (BadExt(glbPath, new(StringComparer.OrdinalIgnoreCase) { ".glb", ".gltf" }, "glTF animation") is { } e) return Err(e);
+        var args = new List<string> { "import", glbPath, "--outpath", outputPath };
+        if (keep) args.Add("--keep");
+        return await WithSnapshot(outputPath,
+            $"Animation import → .anims: {glbPath} → {outputPath}" + (keep ? " (keep)" : ""),
+            () => runner.RunAsync(args, ct), verbose);
+    }
+
+    [McpServerTool(Name = "import_morphtarget", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Imports a glTF (.glb/.gltf) with blendshapes into a REDengine .morphtarget — the " +
+                 "reimport counterpart of export_morphtarget. Re-import against the original " +
+                 "(keep=true, default): export the .morphtarget first, edit the blendshapes, reimport.")]
+    public static async Task<string> ImportMorphtarget(
+        Cp77ToolsRunner runner,
+        [Description("Path to a .glb/.gltf file (or a folder).")] string glbPath,
+        [Description("Destination folder (for keep, the folder holding the original .morphtarget).")] string outputPath,
+        [Description("Append to the existing .morphtarget (default true).")] bool keep = true,
+        [Description("If true, returns the full log (no truncation).")] bool verbose = false,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(glbPath) && !Directory.Exists(glbPath)) return Err($"Path not found: {glbPath}");
+        if (BadExt(glbPath, new(StringComparer.OrdinalIgnoreCase) { ".glb", ".gltf" }, "glTF morphtarget") is { } e) return Err(e);
+        var args = new List<string> { "import", glbPath, "--outpath", outputPath };
+        if (keep) args.Add("--keep");
+        return await WithSnapshot(outputPath,
+            $"Morphtarget import → .morphtarget: {glbPath} → {outputPath}" + (keep ? " (keep)" : ""),
+            () => runner.RunAsync(args, ct), verbose);
+    }
+
+    [McpServerTool(Name = "import_mlmask", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Imports multilayer-mask layers (a .masklist referencing png/dds layer images, as " +
+                 "produced by export_mlmask) back into a REDengine .mlmask. Re-import against the " +
+                 "original (keep=true, default). Point rawPath at the .masklist (or its folder).")]
+    public static async Task<string> ImportMlmask(
+        Cp77ToolsRunner runner,
+        [Description("Path to the .masklist (or the folder holding it + the layer images).")] string rawPath,
+        [Description("Destination folder (for keep, the folder holding the original .mlmask).")] string outputPath,
+        [Description("Append to the existing .mlmask (default true).")] bool keep = true,
+        [Description("If true, returns the full log (no truncation).")] bool verbose = false,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(rawPath) && !Directory.Exists(rawPath)) return Err($"Path not found: {rawPath}");
+        if (BadExt(rawPath, new(StringComparer.OrdinalIgnoreCase) { ".masklist" }, "mlmask (.masklist)") is { } e) return Err(e);
+        var args = new List<string> { "import", rawPath, "--outpath", outputPath };
+        if (keep) args.Add("--keep");
+        return await WithSnapshot(outputPath,
+            $"Mlmask import → .mlmask: {rawPath} → {outputPath}" + (keep ? " (keep)" : ""),
+            () => runner.RunAsync(args, ct), verbose);
+    }
+
+    [McpServerTool(Name = "import_material", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Imports an edited material JSON (a *.Material.json from export_materials) back into " +
+                 "its mesh. Re-import against the original mesh (keep=true, default): export_materials " +
+                 "first, edit the JSON, reimport here. Point rawPath at the .Material.json.")]
+    public static async Task<string> ImportMaterial(
+        Cp77ToolsRunner runner,
+        [Description("Path to the material JSON (e.g. foo.Material.json).")] string rawPath,
+        [Description("Destination folder (the folder holding the original .mesh).")] string outputPath,
+        [Description("Append to the existing mesh material (default true).")] bool keep = true,
+        [Description("If true, returns the full log (no truncation).")] bool verbose = false,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(rawPath) && !Directory.Exists(rawPath)) return Err($"Path not found: {rawPath}");
+        if (!Directory.Exists(rawPath) && !rawPath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            return Err("Expected a material JSON (e.g. *.Material.json).");
+        var args = new List<string> { "import", rawPath, "--outpath", outputPath };
+        if (keep) args.Add("--keep");
+        return await WithSnapshot(outputPath,
+            $"Material import → mesh: {rawPath} → {outputPath}" + (keep ? " (keep)" : ""),
+            () => runner.RunAsync(args, ct), verbose);
+    }
+
 
     [McpServerTool(Name = "build_project", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Compiles the WolvenKit projects (.cpmodproj) found in the given folder, " +

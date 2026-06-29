@@ -305,6 +305,34 @@ public static class WolvenKitPrompts
             """;
     }
 
+    [McpServerPrompt(Name = "import_art")]
+    [Description("Recipe: the export → edit externally → reimport round-trip for custom art " +
+                 "(textures, meshes, animations) — how to push edited assets back into the game.")]
+    public static string ImportArt(
+        [Description("Depot path or extracted file you want to edit (e.g. a .xbm or .mesh).")] string assetPath,
+        [Description("Working/mod folder holding the cooked files.")] string workFolder)
+    {
+        return $$"""
+            Round-trip to replace custom art ({{assetPath}} in {{workFolder}}):
+
+            1. Get the cooked file out: `extract_files` (from an archive) or you already have it.
+            2. Export to a raw, editable format: `export_files` (or `uncook` with WithRig for meshes)
+               → .xbm→png/dds, .mesh→glb, .anims→glb.
+            3. Edit the raw file (Photoshop/GIMP for textures, Blender for meshes/anims). For meshes
+               and anims, keep the original bone/skeleton names — the rig comes from the cooked file.
+            4. Reimport, keeping the original cooked file (this is the key step):
+               - textures → `import_texture` (keep=true)
+               - meshes   → `import_mesh` (keep=true, the default)
+               - anims    → `import_anim` (keep=true, the default)
+               outputPath = "{{workFolder}}" (the folder holding the original cooked file).
+            5. Textures only: verify the group/compression with `inspect_texture`; fix with
+               `set_texture_format` if alpha/normal/mipmaps look wrong (the #1 retexture failure).
+            6. Pack & install: `pack_archive` → `install_mod`.
+
+            To listen to game audio, `wwise_export` turns a .wem into .ogg.
+            """;
+    }
+
     [McpServerPrompt(Name = "audit_scene")]
     [Description("Recipe: fully audit a .scene — structure, integrity, external dependencies and " +
                  "what it plays — before shipping it.")]
