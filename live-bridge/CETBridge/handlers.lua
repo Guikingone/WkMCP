@@ -1244,4 +1244,90 @@ function handlers.get_scanner_info()
     return info
 end
 
+-- ── Diagnostic probe ───────────────────────────────────────────────────────
+-- One round-trip health probe of the live script runtime, consumed by the
+-- game_probe MCP tool. Every check is wrapped in pcall so a single failure never
+-- aborts the probe: the point is to REPORT what is broken, not to raise. None of
+-- these signals is observable from a log file — they require a live script VM, so
+-- they catch a broken/half-compiled runtime that on-disk logs can miss.
+function handlers.probe(args)
+    args = args or {}
+
+    local function canary(name, fn)
+        local ok, detail = pcall(fn)
+        return { name = name, ok = ok, detail = tostring(detail == nil and "ok" or detail) }
+    end
+
+    -- Is a save actually loaded (vs. sitting at the main menu)? Player-dependent
+    -- canaries are EXPECTED to fail at the menu; the server uses this flag so it
+    -- never reports a healthy menu as a broken runtime.
+    local playerLoaded = false
+    pcall(function() playerLoaded = Game.GetPlayer() ~= nil end)
+
+    local canaries = {}
+    table.insert(canaries, canary("player_present", function()
+        if not Game.GetPlayer() then error("Game.GetPlayer() == nil (main menu / loading)") end
+        return "player entity present"
+    end))
+    table.insert(canaries, canary("stats_system", function()
+        if not Game.GetStatsSystem() then error("GetStatsSystem() == nil") end
+        return "stats system available"
+    end))
+    table.insert(canaries, canary("scriptable_systems", function()
+        if not Game.GetScriptableSystemsContainer() then error("GetScriptableSystemsContainer() == nil") end
+        return "scriptable systems container available"
+    end))
+    table.insert(canaries, canary("tweakdb_lookup", function()
+        -- The binding must exist and the query must not throw; a missing sample
+        -- record is reported in the detail but is NOT a failure (record ids can
+        -- change between game versions, and a false fail would flip the verdict).
+        if not TweakDB then error("TweakDB interface absent") end
+        local rec = TweakDB:GetRecord("Items.Preset_Lexington")
+        return rec and "TweakDB resolves records"
+            or "TweakDB present (sample record not found — id may have changed)"
+    end))
+
+    -- Runtime snapshot — reuse existing handlers so the probe stays one round-trip.
+    local snapshot = {}
+    do
+        local ok, gs = pcall(handlers.game_state)
+        if ok and type(gs) == "table" then snapshot.gameState = gs end
+        if playerLoaded then
+            local okp, pi = pcall(handlers.player_info)
+            if okp and type(pi) == "table" then snapshot.player = pi end
+        end
+    end
+
+    -- Liveness of known CET-side mods (loaded? version if it exposes one).
+    local frameworks = {}
+    local known = {
+        "AppearanceMenuMod", "nativeInteractions", "entSpawner",
+        "Codeware", "RedSocket", "CETBridge",
+    }
+    for _, name in ipairs(known) do
+        local loaded, version = false, nil
+        pcall(function()
+            local m = GetMod(name)
+            if m then
+                loaded = true
+                local v = type(m) == "table" and m.version or nil
+                if type(v) == "string" or type(v) == "number" then version = tostring(v) end
+            end
+        end)
+        table.insert(frameworks, { name = name, loaded = loaded, version = version })
+    end
+
+    local okCount = 0
+    for _, c in ipairs(canaries) do if c.ok then okCount = okCount + 1 end end
+
+    return {
+        canaries = canaries,
+        canariesOk = okCount,
+        canariesTotal = #canaries,
+        playerLoaded = playerLoaded,
+        snapshot = snapshot,
+        frameworks = frameworks,
+    }
+end
+
 return handlers

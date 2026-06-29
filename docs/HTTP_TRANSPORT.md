@@ -27,7 +27,7 @@ locked down by default — loopback bind, bearer token, and a fail-closed start 
 | `WKMCP_HTTP_URL` | `http://127.0.0.1:3001` | Bind address of the HTTP server. |
 | `WKMCP_HTTP_TOKEN` | — | Bearer token required on requests (strongly recommended). |
 
-MCP endpoint: **`/`** (Streamable HTTP, *stateless* mode). The WolvenKit daemon, the 157 tools
+MCP endpoint: **`/`** (Streamable HTTP, *stateless* mode). The WolvenKit daemon, the 165 tools
 and the `CetBridge` live bridge are identical in stdio and in HTTP.
 
 ## Launch over HTTP (local)

@@ -2,6 +2,22 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — game_probe (unified debug probe) (164 -> 165 tools)
+
+One read-only tool **`game_probe`** (new `ProbeTools.cs`, its own *diagnostic probe*
+category) that correlates, in a single call, **process liveness** (game + bridge),
+**crash signals** (logs + minidumps), **log diagnosis**, **setup health**
+(frameworks/conflicts/deps) and — when the game is running with the CETBridge mod —
+**in-game runtime canaries** (RTTI checks that on-disk logs can't see) into one
+**prioritized verdict**. Start here to debug "why is my game/mod broken" instead of
+chaining `mod_doctor` + `diagnose_logs` + `live_status` by hand.
+
+- `ModDoctorCore` / `DiagnoseLogsCore` were **extracted** from `mod_doctor` /
+  `diagnose_logs` (pure refactor, identical JSON output) so `game_probe` reuses them.
+- New CET-side `probe` handler (best-effort, every check `pcall`-wrapped); canary
+  failures only escalate to *broken* when a save is actually loaded (no false alarm
+  at the main menu). See [docs/LIVE_BRIDGE.md](docs/LIVE_BRIDGE.md).
+
 ## Unreleased — Import coverage (round-trip art + find_and_extract) (157 -> 164 tools, +1 prompt)
 
 Closes the import half of the asset pipeline: every `export_*` now has an `import_*`

@@ -188,13 +188,18 @@ public static class WolvenKitPrompts
         return $$"""
             Diagnostic procedure ({{symptom}}) on "{{gamePath}}":
 
-            1. One-call overview: `mod_doctor` — missing frameworks, unmet
-               dependencies, conflicts, inventory. Many cases stop here
-               (missing framework = #1 cause of a crash).
+            1. Start with the probe: `game_probe` — one call that correlates
+               process liveness, crash signals (logs + minidumps), log diagnosis,
+               setup health (frameworks/conflicts/deps) and, if the game is running
+               with the CETBridge mod, in-game runtime canaries — into a single
+               prioritized verdict. Many cases are fully answered here; the steps
+               below drill into whatever it flags.
 
-            2. Read the game logs: `diagnose_logs` — analyzes the 6 logs (redscript,
-               RED4ext, ArchiveXL, TweakXL…) against a known-error database that
-               maps each error to its cause and its fix.
+            2. Setup detail: `mod_doctor` — missing frameworks, unmet
+               dependencies, conflicts, inventory (missing framework = #1 cause of
+               a crash). Then `diagnose_logs` for the full per-log error breakdown
+               (redscript, RED4ext, ArchiveXL, TweakXL…) against the known-error
+               database that maps each error to its cause and its fix.
 
             3. If the symptom is "one mod overrides another": `analyze_conflicts`
                — archive overlaps (alphabetical first-wins) and TweakDB records

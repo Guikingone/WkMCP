@@ -165,9 +165,10 @@ public static class WolvenKitResources
         var offline = ToolNames(typeof(WolvenKitTools));
         var modding = ToolNames(typeof(ModdingTools));
         var scene = ToolNames(typeof(SceneTools));
+        var probe = ToolNames(typeof(ProbeTools));
         var live = ToolNames(typeof(LiveTools));
         var prompts = PromptInfos();
-        var total = offline.Count + modding.Count + scene.Count + live.Count;
+        var total = offline.Count + modding.Count + scene.Count + probe.Count + live.Count;
 
         var sb = new StringBuilder();
         sb.AppendLine("# WolvenKit / Cyberpunk 2077 — cheat sheet");
@@ -181,7 +182,7 @@ public static class WolvenKitResources
         sb.AppendLine("- Pack/install: pack_archive, install_mod, build_project, package_mod, scaffold_mod / scaffold_archivexl");
         sb.AppendLine("- TweakDB: tweakdb_query / tweakdb_resolve / describe_tweak_record / clone_tweak_record (faithful $base clone) / dump_records + read_tweak / write_tweak / validate_tweak / install_tweak / lint_tweak");
         sb.AppendLine("- REDscript scripts: read_script / lint_script (line:column syntax validation), generate_redscript_template");
-        sb.AppendLine("- Diagnose: mod_doctor, diagnose_logs (6 logs + known-error database), analyze_conflicts, analyze_dependencies / check_requirements, migration_check");
+        sb.AppendLine("- Diagnose: game_probe (one-call: liveness + logs + setup + crash + live verdict), mod_doctor, diagnose_logs (6 logs + known-error database), analyze_conflicts, analyze_dependencies / check_requirements, migration_check");
         sb.AppendLine("- Validate: validate_xl, validate_item_mod (full ArchiveXL chain), validate_appearance (.app -> .mesh), lint_mod");
         sb.AppendLine("- Appearances: list_entity_appearances, resolve_dynamic_appearance; export_entity stays experimental (headless refusal on NPCs)");
         sb.AppendLine("- Safety: backup_mods / restore_mods, toggle_mods (bisection), uninstall_mod / uninstall_redmod / uninstall_tweak");
@@ -199,6 +200,9 @@ public static class WolvenKitResources
         sb.AppendLine();
         sb.AppendLine($"### Full list — scene tools ({scene.Count})");
         sb.AppendLine(string.Join(", ", scene));
+        sb.AppendLine();
+        sb.AppendLine($"### Full list — diagnostic probe tools ({probe.Count})");
+        sb.AppendLine(string.Join(", ", probe));
         sb.AppendLine();
         sb.AppendLine($"### Full list — live in-game tools ({live.Count})");
         sb.AppendLine(string.Join(", ", live));

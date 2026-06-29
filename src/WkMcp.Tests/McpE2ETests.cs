@@ -116,7 +116,7 @@ public class McpE2ETests : IDisposable
         } while (!string.IsNullOrEmpty(cursor));
 
         // The expected count comes from the code itself (reflection), not a constant.
-        var expected = new[] { typeof(WolvenKitTools), typeof(ModdingTools), typeof(LiveTools) }
+        var expected = new[] { typeof(WolvenKitTools), typeof(ModdingTools), typeof(ProbeTools), typeof(LiveTools) }
             .SelectMany(WolvenKitResources.ToolNames).ToHashSet(StringComparer.Ordinal);
         Assert.True(expected.Count >= 123, $"suspicious tool count: {expected.Count}");
         var missing = expected.Where(n => !tools.ContainsKey(n)).ToList();

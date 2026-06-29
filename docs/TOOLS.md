@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WkMCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **121 offline tools**, **10 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **157 tools** in total.
+> **Counts.** The server exposes **129 offline tools**, **11 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **165 tools** in total.
 
 ## Contents
 
@@ -126,6 +126,19 @@ Searches for files across all the `.archive` files of a folder. Indicates which 
 | `regex` | string? | no* | Regular expression (alternative to the glob). |
 
 \* At least one of the two (`pattern` or `regex`) is required.
+
+### `find_and_extract`
+Finds files matching a glob/regex across **all** `.archive` files in a folder and extracts them in one step — for when you don't know which archive holds the file. Combines `find_in_archives` + `extract_files`. Refuses to run without a filter (no wholesale extraction). For a single known `.archive`, use `extract_files`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `archivesFolder` | string | yes | Folder containing `.archive` files (e.g. `<game>/archive/pc/content`). |
+| `outputPath` | string | yes | Destination folder for the extracted files. |
+| `pattern` | string? | no* | Glob filter, e.g. `*.mesh` or `*v_player*.ent`. |
+| `regex` | string? | no* | Regex filter (alternative to the glob). |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
+
+\* At least one of `pattern` or `regex` is required.
 
 ### `diff_archives`
 Compares two `.archive` files and lists the added files (present in B only) and removed files (present in A only). Computes a real diff by cross-referencing the two listings.
@@ -559,12 +572,73 @@ Packs a folder of REDengine resources into a `.archive` (Kraken compression).
 | `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `import_raw`
-Imports raw files (textures, glTF meshes...) into REDengine CR2W, ready to be packed.
+Imports raw files (textures, glTF meshes...) into REDengine CR2W, ready to be packed. The generic engine behind the typed `import_*` wrappers below.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `path` | string | yes | Raw file or folder containing them. |
 | `outputPath` | string | yes | Destination folder for the REDengine files. |
+| `keep` | bool | no (default `false`) | Keep the existing cooked file and only append the new buffer (edit → reimport round-trip). |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
+
+### `import_texture`
+Imports a raw image (png/dds/tga/bmp/jpg/tiff/cube) into a REDengine `.xbm`. ⚠ After import, verify the texture group/compression with `inspect_texture` / `set_texture_format` — a wrong group silently breaks alpha, normal maps or mipmaps (the #1 retexture failure).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `rawPath` | string | yes | Raw image file (or a folder of images). |
+| `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.xbm`). |
+| `keep` | bool | no (default `false`) | Append to the existing `.xbm` instead of creating a fresh one (edit → reimport). |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
+
+### `import_mesh`
+Imports a glTF (`.glb`/`.gltf`) mesh into a REDengine `.mesh`. `keep` defaults **true**: the rig/bones, LODs and material slots come from the existing `.mesh` in `outputPath` — export it first (`export_files` / `uncook` with `WithRig`), edit in Blender keeping the bone names, then import here.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `glbPath` | string | yes | `.glb`/`.gltf` file (or a folder). |
+| `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.mesh`). |
+| `keep` | bool | no (default `true`) | Append to the existing `.mesh` (preserves rig/LODs/materials). |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
+
+### `import_anim`
+Imports a glTF (`.glb`/`.gltf`) animation into a REDengine `.anims`. `keep` defaults **true** (preserves the skeleton binding): export the `.anims` (with its `.rig`) first, edit in Blender keeping the skeleton, then import here.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `glbPath` | string | yes | `.glb`/`.gltf` file (or a folder). |
+| `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.anims`). |
+| `keep` | bool | no (default `true`) | Append to the existing `.anims`. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
+
+### `import_morphtarget`
+Imports a glTF (`.glb`/`.gltf`) into a REDengine `.morphtarget`. The `import_*` counterpart of `export_morphtarget`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `glbPath` | string | yes | `.glb`/`.gltf` file (or a folder). |
+| `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.morphtarget`). |
+| `keep` | bool | no (default `true`) | Append to the existing `.morphtarget`. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
+
+### `import_mlmask`
+Imports a `.masklist` + its layer images (as produced by `export_mlmask`) into a REDengine `.mlmask`. The `import_*` counterpart of `export_mlmask`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `rawPath` | string | yes | `.masklist` file (or the folder holding it + the layer images). |
+| `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.mlmask`). |
+| `keep` | bool | no (default `true`) | Append to the existing `.mlmask`. |
+| `verbose` | bool | no (default `false`) | Returns the full log (debug). |
+
+### `import_material`
+Imports an edited `*.Material.json` (from `export_materials`) back into its mesh. The `import_*` counterpart of `export_materials`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `rawPath` | string | yes | Material JSON (e.g. `foo.Material.json`). |
+| `outputPath` | string | yes | Destination folder (the folder holding the original `.mesh`). |
+| `keep` | bool | no (default `true`) | Append to the existing mesh material. |
 | `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `build_project`
@@ -776,6 +850,22 @@ Health diagnostic of a modded installation in one call: installed/missing framew
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+
+### `game_probe`
+One-call liveness + readiness probe for a modded install. Correlates, into a single prioritized **verdict** (`healthy` / `degraded` / `broken`) with next actions:
+- **liveness** — is `Cyberpunk2077.exe` running (PID + start time), and is the CETBridge live bridge connected (transport, heartbeat)?
+- **logs** — reuses `diagnose_logs` (the 6 modding logs + known-error database).
+- **setup** — reuses `mod_doctor` (frameworks, missing dependencies, archive conflicts, inventory).
+- **crash** — scans the crash-prone logs + `*.dmp` minidumps for crash markers (`EXCEPTION_ACCESS_VIOLATION`, unhandled/fatal exceptions); flags those modified within `recentWindowMinutes` as a *recent* crash.
+- **live** (when the bridge is connected and `includeLive`) — runs the in-game `probe` handler: RTTI **canary checks** (player / stats system / scriptable systems / TweakDB resolve) that prove the script runtime is intact (something no log file can show), a runtime snapshot, CET-mod liveness, and the round-trip latency. Canary failures only escalate the verdict when a save is loaded (they are expected at the main menu).
+
+Start here to debug "why is my game/mod broken" instead of chaining `mod_doctor` + `diagnose_logs` + `live_status` by hand. Works whether the game is off (offline correlation) or running (adds the live section).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `gamePath` | string | yes | Root folder of Cyberpunk 2077. |
+| `includeLive` | bool | no (default `true`) | Also run the in-game live probe when the bridge is connected. |
+| `recentWindowMinutes` | int | no (default `60`) | Crash signals from files modified within this many minutes are flagged `recent`. |
 
 ### `validate_xl`
 Validates an ArchiveXL `.xl` file (YAML): well-formed YAML + recognized top-level sections (`customSounds`, `resource`, `factories`, `localization`, `animations`).
