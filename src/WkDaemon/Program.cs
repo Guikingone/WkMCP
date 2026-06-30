@@ -6,6 +6,7 @@ using CP77Tools.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using WolvenKit.Common;
 using WolvenKit.Common.Interfaces;
+using WolvenKit.Common.Model;
 using WolvenKit.Common.Model.Arguments;
 using WolvenKit.Common.Services;
 using WolvenKit.Core.Compression;
@@ -964,8 +965,15 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         case "import":
         {
             var (pos, o) = ParseArgs(argv, 1);
-            return await f.ImportTask(pos.Select(Fs).ToArray(),
-                Dir(o, "--outpath") ?? new DirectoryInfo("."), o.ContainsKey("--keep"));
+            var importOut = Dir(o, "--outpath") ?? new DirectoryInfo(".");
+            var importKeep = o.ContainsKey("--keep");
+            // --garment forces ImportGarmentSupport on the glTF importer (off by default
+            // in ImportTask): reads the GarmentSupport mesh data so clothing meshes get
+            // their cloth/garment parameters. Routed around ConsoleFunctions.ImportTask
+            // because that builds GltfImportArgs internally from defaults.
+            if (o.ContainsKey("--garment"))
+                return await ImportGarment(provider, logger, pos.Select(Fs).ToArray(), importOut, importKeep);
+            return await f.ImportTask(pos.Select(Fs).ToArray(), importOut, importKeep);
         }
 
         case "pack":
@@ -1035,6 +1043,41 @@ static string EscapeCsv(string v)
     if (v.Contains(',') || v.Contains('"') || v.Contains('\n'))
         return "\"" + v.Replace("\"", "\"\"") + "\"";
     return v;
+}
+
+// Imports glTF mesh(es) with ImportGarmentSupport enabled. Mirrors the file branch of
+// ConsoleFunctions.ImportTaskInner but with a custom GltfImportArgs (the stock ImportTask
+// leaves garment support off). Each path is imported against its existing cooked file in
+// outDir (keep), the only mode where garment data has a target to merge into.
+static async Task<int> ImportGarment(IServiceProvider provider, CapturingLoggerService logger,
+    FileSystemInfo[] paths, DirectoryInfo outDir, bool keep)
+{
+    if (paths.Length == 0) { logger.Error("import --garment: no input path"); return -1; }
+    using var scope = provider.CreateScope();
+    var mt = scope.ServiceProvider.GetRequiredService<IModTools>();
+    int errors = 0;
+    foreach (var fsi in paths)
+    {
+        if (fsi is not FileInfo file || !file.Exists)
+        {
+            logger.Warning($"import --garment skips (not a file): {fsi.FullName}");
+            errors++;
+            continue;
+        }
+        var baseDir = file.Directory ?? new DirectoryInfo(".");
+        var rel = new RedRelativePath(baseDir, file.Name);
+        var args = new GlobalImportArgs()
+            .Register(new CommonImportArgs(), new XbmImportArgs(), new GltfImportArgs());
+        args.Get<CommonImportArgs>().Keep = keep;
+        args.Get<XbmImportArgs>().Keep = keep;
+        var gltf = args.Get<GltfImportArgs>();
+        gltf.Keep = keep;
+        gltf.ImportGarmentSupport = true;
+        if (await mt.Import(rel, args, outDir))
+            logger.Success($"Successfully imported (garment) {file.Name}");
+        else { logger.Error($"Failed to import {file.Name}"); errors++; }
+    }
+    return errors > 0 ? 1 : 0;
 }
 
 // Renders a TweakDB flat value as a TweakXL-flavoured token for the tweakdb-clone inventory:
