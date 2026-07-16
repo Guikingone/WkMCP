@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "project_dir": "C:\\Users\\Guillaume\\Downloads\\wolvenkit-mcp",
+  "branch": "main",
+  "head": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+  "merge_base": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+  "changed_files": [
+    ".agent_memory/packets/code_explanation-audit-2026-des-outils-mcp-wolvenkit-38abee16.md",
+    ".agent_memory/packets/repo_map-wolvenkit-mcp-repo-overview-1039748b.md",
+    ".agent_memory/packets/repo_map-wolvenkit-mcp-repo-structure-6de60d90.md",
+    ".agent_memory/packets/workflow-change-memory-main-070d94aa.md",
+    ".gitattributes",
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/AUDIT-WOLVENKIT-MCP.md"
+  ],
+  "pending_packet_ids": [],
+  "generated_at": "2026-07-15T20:45:16.886Z"
+}

@@ -30,16 +30,23 @@ public static class LiveTools
     };
 
     /// <summary>Wraps a bridge response into stable structured JSON for the agent.</summary>
-    internal static string Wrap(string summary, BridgeResponse r) => JsonSerializer.Serialize(new
+    internal static string Wrap(string summary, BridgeResponse r)
     {
-        ok = r.Ok,
-        status = r.Ok ? "success" : "error",
-        summary,
-        transport = r.Transport,
-        result = r.Ok ? r.Result : null,
-        error = r.Ok ? null : (r.Error ?? "unknown error"),
-        timedOut = r.TimedOut,
-    }, JsonOpts);
+        var error = r.Ok ? null : (r.Error ?? "unknown error");
+        return ToolResult.Create(
+            r.Ok,
+            r.Ok ? "success" : r.TimedOut ? "timeout" : "error",
+            summary,
+            errors: error is null ? [] : [error],
+            extra: new Dictionary<string, object?>
+            {
+                ["transport"] = r.Transport,
+                ["result"] = r.Ok ? r.Result : null,
+                ["error"] = error,
+                ["timedOut"] = r.TimedOut,
+            },
+            options: JsonOpts);
+    }
 
     private const string GamePathDesc =
         "Root folder of the Cyberpunk 2077 installation. Optional: not needed with TCP transport " +
@@ -65,6 +72,10 @@ public static class LiveTools
             summary = s.Connected
                 ? $"Bridge connected via {s.Transport}."
                 : "Bridge NOT connected — launch the game with CET + the CETBridge mod (and RedSocket for TCP).",
+            produced = Array.Empty<string>(),
+            warnings = s.Connected ? Array.Empty<string>() : new[] { "The live bridge is not connected." },
+            errors = Array.Empty<string>(),
+            log = "",
             connected = s.Connected,
             transport = s.Transport,
             tcpListening = s.TcpListening,

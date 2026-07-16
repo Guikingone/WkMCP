@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "compact": true,
+  "project_dir": "C:\\Users\\Guillaume\\Downloads\\wolvenkit-mcp",
+  "repo_key": "https-github-com-guikingone-wolvenkitmcp",
+  "generated_from_updated_at": "2026-07-16T21:30:27.366Z",
+  "repo_state": {
+    "branch": "feat/implement-wolvenkit-audit",
+    "head": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "merge_base": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "tree": "40635e8b1df9e60183a204a00a367c5b093bd536",
+    "input_hash": "9e108ec7f6a5e128b58f9e7777dd339f350c43f84118ed4f38b2ecff7d39b526"
+  },
+  "refs": {
+    "episodes": "episodes.json",
+    "entities": "entities.json",
+    "edges": "edges.json"
+  }
+}

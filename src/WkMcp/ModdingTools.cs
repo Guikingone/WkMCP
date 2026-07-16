@@ -27,17 +27,7 @@ public static partial class ModdingTools
 
     // Same shape as WolvenKitTools.Err (incl. exitCode/log) so error JSON is
     // identical across both tool classes — the agent parses one consistent schema.
-    private static string Err(string summary) => JsonSerializer.Serialize(new
-    {
-        ok = false,
-        status = "error",
-        summary,
-        produced = Array.Empty<string>(),
-        warnings = Array.Empty<string>(),
-        errors = new[] { summary },
-        exitCode = -1,
-        log = "",
-    }, JsonOpts);
+    private static string Err(string summary) => ToolResult.Error(summary, JsonOpts);
 
     // ── Modding frameworks knowledge base ───────────────────────────────────
     // Each framework: how we detect that a MOD needs it (REDscript import roots,

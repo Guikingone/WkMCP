@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "project_dir": ".",
+  "branch": "main",
+  "head": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+  "merge_base": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+  "changed_files": [
+    ".agent_memory/packets/repo_map-wolvenkit-mcp-repo-overview-1039748b.md",
+    ".agent_memory/packets/repo_map-wolvenkit-mcp-repo-structure-6de60d90.md",
+    ".gitattributes",
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md"
+  ],
+  "diff_stat": ".gitignore |   2 ++\n CLAUDE.md  | 104 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n 2 files changed, 106 insertions(+)\n.agent_memory/packets/repo_map-wolvenkit-mcp-repo-overview-1039748b.md | untracked\n.agent_memory/packets/repo_map-wolvenkit-mcp-repo-structure-6de60d90.md | untracked\n.gitattributes | untracked\nAGENTS.md | untracked",
+  "generated_at": "2026-07-15T20:29:25.074Z",
+  "source": "git_diff",
+  "repo_memory_written": true,
+  "promotion_review_required": true
+}

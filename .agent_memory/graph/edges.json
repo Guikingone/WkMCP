@@ -1,0 +1,1052 @@
+[
+  {
+    "id": "0157650161fa03bd",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "tag:semantic-inspection",
+    "relation": "mentions_tag",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" is tagged semantic-inspection.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "017d9eb09b1a494c",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-gameplayinspectiontools-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/GameplayInspectionTools.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "0b661e890dd2657e",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:readme-md",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to README.md.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "0b90c8ad2e4fec88",
+    "from": "repo:https-github-com-guikingone-wolvenkitmcp",
+    "to": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-overvi",
+    "relation": "contains_memory",
+    "fact": "https-github-com-guikingone-wolvenkitmcp contains memory \"wolvenkit-mcp repo overview\".",
+    "confidence": 1,
+    "valid_from": "2026-07-16T21:29:57.112Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:1039748bb5c52755"
+    ]
+  },
+  {
+    "id": "0f98a477c43b8840",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "path:agents-md",
+    "relation": "affects_path",
+    "fact": "\"wolvenkit-mcp repo structure\" applies to AGENTS.md.",
+    "confidence": 0.65,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "189ebec4ee396f8f",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "tag:branch-feat-implement-wolvenkit-audit",
+    "relation": "mentions_tag",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" is tagged branch:feat-implement-wolvenkit-audit.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "22d23672c7723e9f",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "path:src-wkmcp-semanticinspectiontools-cs",
+    "relation": "affects_path",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" applies to src/WkMcp/SemanticInspectionTools.cs.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "24a303e564b8e97c",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-scenetools-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/SceneTools.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "338bf7e023d1dafc",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "path:docs-audit-wolvenkit-mcp-md",
+    "relation": "affects_path",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" applies to docs/AUDIT-WOLVENKIT-MCP.md.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "36335f29f6b5c152",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "path:github-workflows",
+    "relation": "affects_path",
+    "fact": "\"wolvenkit-mcp repo structure\" applies to .github/workflows.",
+    "confidence": 0.65,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "3a19394509c7bc65",
+    "from": "repo:https-github-com-guikingone-wolvenkitmcp",
+    "to": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "relation": "contains_memory",
+    "fact": "https-github-com-guikingone-wolvenkitmcp contains memory \"Audit WolvenKit 8.19 intégralement implémenté\".",
+    "confidence": 1,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "3c7f48c9051d3ee0",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "package:wolvenkit-modkit-8-19-0",
+    "relation": "uses_package",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" references package WolvenKit.Modkit 8.19.0.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "43f2bf7bcb7f9d76",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "command:generated-from-git-diff-and-refreshed-by-kage-pr-summarize-or-kage-propose-from-",
+    "relation": "verified_by",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" is verified by \"Generated from git diff and refreshed by kage pr summarize or kage propose --from-diff\".",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "4635d45098eaebb7",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:changelog-md",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to CHANGELOG.md.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "4a8d30fa144a27e9",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-probetools-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/ProbeTools.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "4dbf982aaacd40f8",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-moddingtools-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/ModdingTools.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "52a1bae07a840f7b",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-semanticinspectiontools-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/SemanticInspectionTools.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "56226964698e00ae",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "path:readme-md",
+    "relation": "affects_path",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" applies to README.md.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "5f367a316748df9e",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:docs-http-transport-md",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to docs/HTTP_TRANSPORT.md.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "636af93f4300de3a",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "path:src-wkdaemon-wkdaemon-csproj",
+    "relation": "affects_path",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" applies to src/WkDaemon/WkDaemon.csproj.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "66806a12b4ea4bcb",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "tag:change-memory",
+    "relation": "mentions_tag",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" is tagged change-memory.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "684c9bf191393e26",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "tag:repo",
+    "relation": "mentions_tag",
+    "fact": "\"wolvenkit-mcp repo structure\" is tagged repo.",
+    "confidence": 0.65,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "6a133be4347f55f4",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-livetools-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/LiveTools.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "6a2a1c54db1354b0",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "path:src-wkmcp-toolresult-cs",
+    "relation": "affects_path",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" applies to src/WkMcp/ToolResult.cs.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "6e782427490a9632",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-overvi",
+    "to": "path:readme-md",
+    "relation": "affects_path",
+    "fact": "\"wolvenkit-mcp repo overview\" applies to README.md.",
+    "confidence": 0.75,
+    "valid_from": "2026-07-16T21:29:57.112Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:1039748bb5c52755"
+    ]
+  },
+  {
+    "id": "6f6d3bae374b51ca",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "package:model-context-protocol",
+    "relation": "uses_package",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" references package Model Context Protocol.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "711e62681b59d223",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "memory_type:workflow",
+    "relation": "has_type",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" is a workflow memory.",
+    "confidence": 1,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "71db5b369747d009",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-overvi",
+    "to": "command:generated-from-package-json-and-readme-md-when-present",
+    "relation": "verified_by",
+    "fact": "\"wolvenkit-mcp repo overview\" is verified by \"Generated from package.json and README.md when present\".",
+    "confidence": 0.75,
+    "valid_from": "2026-07-16T21:29:57.112Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:1039748bb5c52755"
+    ]
+  },
+  {
+    "id": "72825f4ba4e5b01d",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-overvi",
+    "to": "tag:repo",
+    "relation": "mentions_tag",
+    "fact": "\"wolvenkit-mcp repo overview\" is tagged repo.",
+    "confidence": 0.75,
+    "valid_from": "2026-07-16T21:29:57.112Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:1039748bb5c52755"
+    ]
+  },
+  {
+    "id": "76615a85ba0de13b",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "tag:tool-contract",
+    "relation": "mentions_tag",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" is tagged tool-contract.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "77ff82533a0b2092",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:manifest-json",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to manifest.json.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "7dc9151e337f50f1",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "tag:session-learning",
+    "relation": "mentions_tag",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" is tagged session-learning.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "7f32252fc3f2120e",
+    "from": "repo:https-github-com-guikingone-wolvenkitmcp",
+    "to": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "relation": "contains_memory",
+    "fact": "https-github-com-guikingone-wolvenkitmcp contains memory \"wolvenkit-mcp repo structure\".",
+    "confidence": 1,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "837cdcca097126c0",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-tests-auditimplementationtests-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp.Tests/AuditImplementationTests.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "85061d1e48981280",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "path:src-wkdaemon-program-cs",
+    "relation": "affects_path",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" applies to src/WkDaemon/Program.cs.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "889493d3973f54da",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "tag:inkatlas",
+    "relation": "mentions_tag",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" is tagged inkatlas.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "9948541d0abbb0d5",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "command:generated-from-files-present-in-the-repository",
+    "relation": "verified_by",
+    "fact": "\"wolvenkit-mcp repo structure\" is verified by \"Generated from files present in the repository\".",
+    "confidence": 0.65,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "9b1d774b6fa8683f",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "tag:project-validation",
+    "relation": "mentions_tag",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" is tagged project-validation.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "9f6fc0f14b6b1a4c",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-toolresult-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/ToolResult.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "a4591dbc7151aadd",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-wolvenkittools-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/WolvenKitTools.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "a5061c750cc18424",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-wolvenkitresources-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/WolvenKitResources.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "a92d30a7891b0bc7",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "path:docs-tools-md",
+    "relation": "affects_path",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" applies to docs/TOOLS.md.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "a92e03d46c1d1da1",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-program-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp/Program.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "b039bf79b552f36a",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "package:system-drawing-common",
+    "relation": "uses_package",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" references package System.Drawing.Common.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "b3a6a485ae26838a",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "tag:audit-implementation",
+    "relation": "mentions_tag",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" is tagged audit-implementation.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "b74ccdadc640c7f4",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "path:readme-md",
+    "relation": "affects_path",
+    "fact": "\"wolvenkit-mcp repo structure\" applies to README.md.",
+    "confidence": 0.65,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "b76ca8edf2cc2e4d",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:docs-tools-md",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to docs/TOOLS.md.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "bcd1bfd8d48efb55",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-overvi",
+    "to": "memory_type:repo-map",
+    "relation": "has_type",
+    "fact": "\"wolvenkit-mcp repo overview\" is a repo_map memory.",
+    "confidence": 1,
+    "valid_from": "2026-07-16T21:29:57.112Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:1039748bb5c52755"
+    ]
+  },
+  {
+    "id": "bd78801a5a5965ae",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:agent-md",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to AGENT.md.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "c0beca3000a6b19e",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:docs-audit-wolvenkit-mcp-md",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to docs/AUDIT-WOLVENKIT-MCP.md.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "c1ec601f42346167",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "path:src",
+    "relation": "affects_path",
+    "fact": "\"wolvenkit-mcp repo structure\" applies to src.",
+    "confidence": 0.65,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "c3f39769406a2c5b",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "tag:diff-proposal",
+    "relation": "mentions_tag",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" is tagged diff-proposal.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "c81426a3273b6660",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "command:wkdaemon-et-wkmcp-compilent-sans-avertissement-erreur-vers-c-tmp-364-tests-non-e",
+    "relation": "verified_by",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" is verified by \"WkDaemon et WkMcp compilent sans avertissement/erreur vers C:\\tmp; 364 tests non-E2E réussissent; le daemon répond WolvenKit.Modkit 8.19.0.0; generate-inkatlas a produit un CR2W de 2 parts ensuite sérialisé en JSON avec succès; kage check depuis main: 0 dérive confirmée\".",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "cc1d95e6380dc1a4",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "path:claude-md",
+    "relation": "affects_path",
+    "fact": "\"wolvenkit-mcp repo structure\" applies to CLAUDE.md.",
+    "confidence": 0.65,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "ce9b9db4f4b97081",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkdaemon-wkdaemon-csproj",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkDaemon/WkDaemon.csproj.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "d0cec7c702d4e25b",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "tag:index",
+    "relation": "mentions_tag",
+    "fact": "\"wolvenkit-mcp repo structure\" is tagged index.",
+    "confidence": 0.65,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "d0d2e04faa9bf8a6",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "tag:repo-local",
+    "relation": "mentions_tag",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" is tagged repo-local.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "d61230a462feb991",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkmcp-tests-consistencytests-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkMcp.Tests/ConsistencyTests.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "d7258728db63981d",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "memory_type:decision",
+    "relation": "has_type",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" is a decision memory.",
+    "confidence": 1,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "d9148f798e51fb52",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "path:src-wkmcp-wolvenkittools-cs",
+    "relation": "affects_path",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" applies to src/WkMcp/WolvenKitTools.cs.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "da4f464da33f7e74",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "tag:structure",
+    "relation": "mentions_tag",
+    "fact": "\"wolvenkit-mcp repo structure\" is tagged structure.",
+    "confidence": 0.65,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "e488f863242b8ce0",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:gitignore",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to .gitignore.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "e7ada6ca3dc5fb40",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:src-wkdaemon-program-cs",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to src/WkDaemon/Program.cs.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "e88323cb57a7561f",
+    "from": "repo:https-github-com-guikingone-wolvenkitmcp",
+    "to": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "relation": "contains_memory",
+    "fact": "https-github-com-guikingone-wolvenkitmcp contains memory \"Change memory: feat/implement-wolvenkit-audit\".",
+    "confidence": 1,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "edae50b7f984eab6",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "path:src-wkmcp-tests-auditimplementationtests-cs",
+    "relation": "affects_path",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" applies to src/WkMcp.Tests/AuditImplementationTests.cs.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "f0833e0d106e878e",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "tag:wolvenkit-8-19",
+    "relation": "mentions_tag",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" is tagged wolvenkit-8.19.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "f59f65fbfe594b8e",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-overvi",
+    "to": "tag:overview",
+    "relation": "mentions_tag",
+    "fact": "\"wolvenkit-mcp repo overview\" is tagged overview.",
+    "confidence": 0.75,
+    "valid_from": "2026-07-16T21:29:57.112Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:1039748bb5c52755"
+    ]
+  },
+  {
+    "id": "f6ce554415b8904e",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "to": "path:docs-architecture-md",
+    "relation": "affects_path",
+    "fact": "\"Change memory: feat/implement-wolvenkit-audit\" applies to docs/ARCHITECTURE.md.",
+    "confidence": 0.62,
+    "valid_from": "2026-07-16T21:30:27.366Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "fb21646705440031",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "to": "package:net-8",
+    "relation": "uses_package",
+    "fact": "\"Audit WolvenKit 8.19 intégralement implémenté\" references package .NET 8.",
+    "confidence": 0.7,
+    "valid_from": "2026-07-16T21:29:48.739Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "ff62386996cbccb6",
+    "from": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "to": "memory_type:repo-map",
+    "relation": "has_type",
+    "fact": "\"wolvenkit-mcp repo structure\" is a repo_map memory.",
+    "confidence": 1,
+    "valid_from": "2026-07-16T21:16:38.221Z",
+    "invalidated_at": null,
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  }
+]

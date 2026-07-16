@@ -8,11 +8,11 @@ Engineering guide for AI agents (and humans) working in this repo. Vendor-neutra
 ## What this is
 
 **WkMCP** is an [MCP](https://modelcontextprotocol.io) server that exposes the
-WolvenKit 8.18.0 modding toolkit for **Cyberpunk 2077** as tools an LLM agent can call
+WolvenKit 8.19.0 modding toolkit for **Cyberpunk 2077** as tools an LLM agent can call
 (read/write game files, TweakDB, pack/install mods, export/import art, lint REDscript,
 diagnose installs, and drive a *running* game live). C# / .NET 8, Windows-first.
 
-**Current surface: 168 tools (132 offline + 36 `live_*`), 11 prompts, 4 resources.**
+**Current surface: 173 tools (137 offline + 36 `live_*`), 11 prompts, 4 resources.**
 These numbers are computed by reflection (see *Tool-count discipline*) — never trust a
 hardcoded number you remember; recompute.
 
@@ -56,8 +56,9 @@ All five auto-register via `mcp.WithToolsFromAssembly()` in `Program.cs` — **a
 
 - `WolvenKitTools.cs` — base/offline tools (archives, CR2W, TweakDB, import/export, install, projects).
 - `ModdingTools.cs` — high-level workflow/intelligence tools. **`partial class ModdingTools`**, split across:
-  - `AssetInspectionTools.cs` and `GameplayInspectionTools.cs` (also `partial ModdingTools`).
-  - All three count as `ModdingTools` in reflection.
+  - `AssetInspectionTools.cs`, `GameplayInspectionTools.cs` and `SemanticInspectionTools.cs`
+    (also `partial ModdingTools`).
+  - All four count as `ModdingTools` in reflection.
 - `SceneTools.cs` — `.scene` tools.
 - `ProbeTools.cs` — `game_probe` (its own "diagnostic probe" category).
 - `LiveTools.cs` — the 36 `live_*` tools.
@@ -137,14 +138,14 @@ changes, grep the **old** number and update every hit:
 
 - `README.md` — `**N tools**`, `(N offline + 36 live_*)`, the directory-tree comment, the docs link.
 - `docs/TOOLS.md` — the `> **Counts.**` header (`N offline tools` … `N tools in total`).
-- `docs/ARCHITECTURE.md` — `**N tools** (X base + 51 workflow/inspection + 1 probe + 36 live)`.
+- `docs/ARCHITECTURE.md` — `**N tools** (X base + 55 workflow/inspection + 1 probe + 36 live)`.
 - `docs/HTTP_TRANSPORT.md` — `the N tools`.
 - `manifest.json` — `long_description` (`N tools: …`).
 - `src/WkMcp/Program.cs` — the `// The N tools …` comment.
 - `WolvenKitResources.cs` — the total is **computed** (`offline+modding+scene+probe+live`); the
   "Full list" blocks are reflection-based and auto-update, but the "Key tools by task" lines are hand-written.
 
-"offline" = all non-`live_*` tools (currently 132); "live" = 36; total = 168.
+"offline" = all non-`live_*` tools (currently 137); "live" = 36; total = 173.
 A base-category tool lives in `WolvenKitTools.cs`; the ARCHITECTURE breakdown's "X base" tracks that class.
 
 ## Daemon — adding a verb
@@ -161,8 +162,8 @@ The daemon dispatches `verb + argv`. Two kinds:
 
 The typed `import_*` tools are **thin ergonomic wrappers** over the single daemon `import` verb
 (`+ --keep`); `ModTools.ImportGltf` dispatches mesh/rig/anim/morphtarget by the **type embedded in
-the exported file name** (`foo.rig.glb` → `TypeFromFileExt`). Garment support is **off by default**
-(`GltfImportArgs.ImportGarmentSupport`) — `import --garment` turns it on.
+the exported file name** (`foo.rig.glb` → `TypeFromFileExt`). Garment support follows
+WolvenKit 8.19 and is **on by default**; the configured import path transmits both values explicitly.
 
 ### Discovering the WolvenKit API (reflection / decompilation)
 

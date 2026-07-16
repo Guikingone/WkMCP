@@ -1,0 +1,733 @@
+{
+  "schema_version": 1,
+  "project_dir": "C:\\Users\\Guillaume\\Downloads\\wolvenkit-mcp",
+  "repo_key": "https-github-com-guikingone-wolvenkitmcp",
+  "generated_at": "2026-07-16T21:30:39.291Z",
+  "provider": "kage-structural",
+  "limits": {
+    "max_extract_file_bytes": 524288,
+    "max_workers": 8,
+    "min_parallel_files": 64
+  },
+  "files": {
+    "total": 99,
+    "indexed": 99,
+    "metadata_only": 0,
+    "ignored": 1045
+  },
+  "cache": {
+    "hits": 99,
+    "misses": 0
+  },
+  "symbols": 1089,
+  "imports": 355,
+  "edges": 1444,
+  "languages": {
+    "cpp": 33,
+    "csharp": 59,
+    "markdown": 1,
+    "python": 6
+  },
+  "worker_count": 8,
+  "ignored_summary": {
+    "generated_vendor_or_cache": 9,
+    "unsupported_file_type": 1036
+  },
+  "deleted_files": [],
+  "fingerprint": "8bf0ecbeebc610844fa6bf1842b6f02637f702085f8c9c7c2d8e4eedc8b53a31",
+  "file_entries": {
+    "README.md": {
+      "path": "README.md",
+      "size_bytes": 20281,
+      "mtime_ms": 1784236937621.4463,
+      "hash": "a23eba51d0b4fca5372ec7dc96545de005e26906801f9a807a68f37882ff4ad9",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_leviathan.h": {
+      "path": "native/ooz-rarten/compr_leviathan.h",
+      "size_bytes": 521,
+      "mtime_ms": 1779217527583.046,
+      "hash": "3782b5daa3a8d417f4152753021dab17bcc70a79c4cb33462ac1c69e0020715c",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compress.cpp": {
+      "path": "native/ooz-rarten/compress.cpp",
+      "size_bytes": 15396,
+      "mtime_ms": 1779217527682.0464,
+      "hash": "f4814edceb853d2572798dba39198398c84dad1e1577828a85afac9bedd6624f",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/sse2neon.h": {
+      "path": "native/ooz-rarten/sse2neon.h",
+      "size_bytes": 502185,
+      "mtime_ms": 1779217527598.045,
+      "hash": "fab5e1be095ce8db9d2ab0c1fe0b2c6f2a34657b43ce83688e8c84224806df38",
+      "extraction": "structural"
+    },
+    "native/ooz/stdafx.h": {
+      "path": "native/ooz/stdafx.h",
+      "size_bytes": 732,
+      "mtime_ms": 1779217527827.8718,
+      "hash": "92b798615ee1ac90ed53a2685fc62dfbe7133d5ba69e567733d8081d420cf701",
+      "extraction": "structural"
+    },
+    "src/WkDaemon/Program.cs": {
+      "path": "src/WkDaemon/Program.cs",
+      "size_bytes": 88273,
+      "mtime_ms": 1784236779122.0703,
+      "hash": "fabfc1e15e3ec67e8ecf8e51a69a632ecdf245fd4361fbf9e83c580739873940",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/HelpersTests.cs": {
+      "path": "src/WkMcp.Tests/HelpersTests.cs",
+      "size_bytes": 22016,
+      "mtime_ms": 1782681628812.1924,
+      "hash": "3937b8f7345a13f9b5707465cfe2e6c7f3136df7f3a47e188088189a1c8866c4",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/obj/Debug/net8.0/WkMcp.Tests.GlobalUsings.g.cs": {
+      "path": "src/WkMcp.Tests/obj/Debug/net8.0/WkMcp.Tests.GlobalUsings.g.cs",
+      "size_bytes": 295,
+      "mtime_ms": 1782036710185.6262,
+      "hash": "f3f134e9e825e3e7268090f58b1af2bda2de513f61a09c56f48b9b8d08612abc",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/SceneTests.cs": {
+      "path": "src/WkMcp.Tests/SceneTests.cs",
+      "size_bytes": 14375,
+      "mtime_ms": 1782248261197.0852,
+      "hash": "8d9c94589ee77194d6c527bd73b69a9c3a908dba02bdeab79800b768909a5f92",
+      "extraction": "structural"
+    },
+    "src/WkMcp/LiveTools.cs": {
+      "path": "src/WkMcp/LiveTools.cs",
+      "size_bytes": 32681,
+      "mtime_ms": 1784235617444.9111,
+      "hash": "cdc16e55a6f58608ef593e079659503785b43810a934ba0025933e823ca8f50a",
+      "extraction": "structural"
+    },
+    "src/WkMcp/PathSafety.cs": {
+      "path": "src/WkMcp/PathSafety.cs",
+      "size_bytes": 2519,
+      "mtime_ms": 1781948234873.8064,
+      "hash": "f4510ba31838d7ddc8462b8f8ef6de3d0858d26494ed437090aad9cdde6426a1",
+      "extraction": "structural"
+    },
+    "src/WkMcp/ToolResult.cs": {
+      "path": "src/WkMcp/ToolResult.cs",
+      "size_bytes": 2301,
+      "mtime_ms": 1784235538550.7898,
+      "hash": "697cc0f950bb6e0ef85aa094bf9f2fd9175a8668c3b0980e2509d11682b06e65",
+      "extraction": "structural"
+    },
+    "test-new-tools.py": {
+      "path": "test-new-tools.py",
+      "size_bytes": 11234,
+      "mtime_ms": 1781948234903.9438,
+      "hash": "ff1a6bacfa07605ebfc4c7227c47eda8af30c61a63ef2b9f53b1d567fd18fe0a",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/bitknit.cpp": {
+      "path": "native/ooz-rarten/bitknit.cpp",
+      "size_bytes": 10263,
+      "mtime_ms": 1779217527560.0454,
+      "hash": "dc2cc2447c8a3a06e125678ee98a829025a8653f7e055f96e7005e29e0ed368c",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_match_finder.cpp": {
+      "path": "native/ooz-rarten/compr_match_finder.cpp",
+      "size_bytes": 32933,
+      "mtime_ms": 1779217527570.0469,
+      "hash": "ffffb5a237973811d810cb099af3fd6709c9eff4fc4df43786345304e106304c",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compress.h": {
+      "path": "native/ooz-rarten/compress.h",
+      "size_bytes": 4219,
+      "mtime_ms": 1779217527636.045,
+      "hash": "820fb5b016078a2f3c23c02d537791a828cd1e3177ed66d37ee1fc8723d4b478",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/stdafx.cpp": {
+      "path": "native/ooz-rarten/stdafx.cpp",
+      "size_bytes": 285,
+      "mtime_ms": 1779217527659.0537,
+      "hash": "93b51ae7c66495eb5c44e9858921fc7b86076d19080969a2c7dfbcd65bf9d9a0",
+      "extraction": "structural"
+    },
+    "native/ooz/targetver.h": {
+      "path": "native/ooz/targetver.h",
+      "size_bytes": 306,
+      "mtime_ms": 1779217527837.883,
+      "hash": "7f988ed4cd4fe1acdede1f014931a08c508cc82f9407bc2b869ec2195c10c9c9",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/AssetInspectionTests.cs": {
+      "path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+      "size_bytes": 15736,
+      "mtime_ms": 1782681628811.1926,
+      "hash": "72743e97d4368dbb9855394f5ff8588266ae8aa94ca2658fd3d4225208eb30d9",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/HttpBridgeSecurityTests.cs": {
+      "path": "src/WkMcp.Tests/HttpBridgeSecurityTests.cs",
+      "size_bytes": 3799,
+      "mtime_ms": 1781948234852.8132,
+      "hash": "7865bbddf7f2baabc89f9bb45aafbd208568273500f52079e1c0f14836b3844f",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs": {
+      "path": "src/WkMcp.Tests/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+      "size_bytes": 198,
+      "mtime_ms": 1781947243520.6172,
+      "hash": "f7a5d9789c863625e139ff99e1113a503830f6b85a88f6129916df83ac76b49e",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/ScriptApiTests.cs": {
+      "path": "src/WkMcp.Tests/ScriptApiTests.cs",
+      "size_bytes": 4662,
+      "mtime_ms": 1782681628813.1924,
+      "hash": "aed4be9696331ddb960e497e135b36086cb33d6b7f26b9ee760aa0f2b489a790",
+      "extraction": "structural"
+    },
+    "src/WkMcp/ModdingTools.cs": {
+      "path": "src/WkMcp/ModdingTools.cs",
+      "size_bytes": 173777,
+      "mtime_ms": 1784235510866.9023,
+      "hash": "5e5b85d603bb99bc6c8b444ee4cc13a371074a91556a719311b510015c365f34",
+      "extraction": "structural"
+    },
+    "src/WkMcp/ProbeTools.cs": {
+      "path": "src/WkMcp/ProbeTools.cs",
+      "size_bytes": 19852,
+      "mtime_ms": 1784235617447.122,
+      "hash": "596007fff776f967ef8cd137dd5a03416457ef052021ee5fad6ea1d7b33fad67",
+      "extraction": "structural"
+    },
+    "src/WkMcp/TweakValidation.cs": {
+      "path": "src/WkMcp/TweakValidation.cs",
+      "size_bytes": 17398,
+      "mtime_ms": 1782681628816.1926,
+      "hash": "8a7f9e5729f261805b43c83b7b07776b913f0daab4835c374a35b7bd553162c5",
+      "extraction": "structural"
+    },
+    "tools/annotate_tools.py": {
+      "path": "tools/annotate_tools.py",
+      "size_bytes": 7869,
+      "mtime_ms": 1781948234908.948,
+      "hash": "ac6fdebfbb14747d09a4cc31bc0e8fdf1459c76f1b980dfce64b80a828d44c3c",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/bits_rev_table.h": {
+      "path": "native/ooz-rarten/bits_rev_table.h",
+      "size_bytes": 14382,
+      "mtime_ms": 1779217527648.0474,
+      "hash": "b91de8f4de48a0b7176e1e150acd8edb91bc9cba0a6841d713e9050cb1d94117",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_match_finder.h": {
+      "path": "native/ooz-rarten/compr_match_finder.h",
+      "size_bytes": 2105,
+      "mtime_ms": 1779217527655.047,
+      "hash": "8b27b016231151d311238b9dd3cc5c9a1095335995f61afd76d0fe8af63b4205",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/kraken_compress.cpp": {
+      "path": "native/ooz-rarten/kraken_compress.cpp",
+      "size_bytes": 1139,
+      "mtime_ms": 1779217527617.0457,
+      "hash": "93acd0679e99f7cec704336dab5023be184845ad8aa640d0eeeadcb5def72774",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/stdafx.h": {
+      "path": "native/ooz-rarten/stdafx.h",
+      "size_bytes": 1444,
+      "mtime_ms": 1779217527573.0466,
+      "hash": "b7dd2072a909d84b9e0dc12b4d1b4e220182131b657161a38049fe794c79a50b",
+      "extraction": "structural"
+    },
+    "src/WkDaemon/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs": {
+      "path": "src/WkDaemon/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+      "size_bytes": 198,
+      "mtime_ms": 1782761514350.3713,
+      "hash": "f7a5d9789c863625e139ff99e1113a503830f6b85a88f6129916df83ac76b49e",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/AuditImplementationTests.cs": {
+      "path": "src/WkMcp.Tests/AuditImplementationTests.cs",
+      "size_bytes": 4590,
+      "mtime_ms": 1784236844682.4482,
+      "hash": "ded06e788f2cc1070196406dc9ee29e6d19d14948c04806b8ae2d9e6b82e74dc",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/ImportToolsTests.cs": {
+      "path": "src/WkMcp.Tests/ImportToolsTests.cs",
+      "size_bytes": 4423,
+      "mtime_ms": 1782755305218.6685,
+      "hash": "ace8f83f45c0a2cbe0fd85e2b317cc2af845c4bdc5d6f4e05447ef8e46f0dbb6",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/obj/Release/net8.0/WkMcp.Tests.AssemblyInfo.cs": {
+      "path": "src/WkMcp.Tests/obj/Release/net8.0/WkMcp.Tests.AssemblyInfo.cs",
+      "size_bytes": 1010,
+      "mtime_ms": 1782766911842.6995,
+      "hash": "b2e61923d137ad9c35586bcc90385c3f43a4666e55508294d98ddfd683770198",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/TweakValidationTests.cs": {
+      "path": "src/WkMcp.Tests/TweakValidationTests.cs",
+      "size_bytes": 10603,
+      "mtime_ms": 1782681628813.1924,
+      "hash": "c6f71ca074030b962e20b46d986fe58524d921b6b15cb1560252e7014b56a6ec",
+      "extraction": "structural"
+    },
+    "src/WkMcp/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs": {
+      "path": "src/WkMcp/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+      "size_bytes": 198,
+      "mtime_ms": 1782036637960.1877,
+      "hash": "f7a5d9789c863625e139ff99e1113a503830f6b85a88f6129916df83ac76b49e",
+      "extraction": "structural"
+    },
+    "src/WkMcp/Program.cs": {
+      "path": "src/WkMcp/Program.cs",
+      "size_bytes": 3869,
+      "mtime_ms": 1784236988383.3074,
+      "hash": "50be6b8f75f4a339c1958101985e32e4dc9c826a55f1d1ba7a7ad46975374a84",
+      "extraction": "structural"
+    },
+    "src/WkMcp/WolvenKitPrompts.cs": {
+      "path": "src/WkMcp/WolvenKitPrompts.cs",
+      "size_bytes": 19096,
+      "mtime_ms": 1782845956672.2212,
+      "hash": "465eeec2250f72415f27e7361d60680b4a2ec79da2674de7894b35ed2ece2130",
+      "extraction": "structural"
+    },
+    "validate-windows.py": {
+      "path": "validate-windows.py",
+      "size_bytes": 77786,
+      "mtime_ms": 1782681628818.193,
+      "hash": "782e3e1b5b090e8068ea05e48be8b497bdd8ff0b40e3e6796ca68165eb91bac2",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_entropy.cpp": {
+      "path": "native/ooz-rarten/compr_entropy.cpp",
+      "size_bytes": 39821,
+      "mtime_ms": 1779217527608.0469,
+      "hash": "bdd3a65da44ade7f719492e882520bdd2ac15933e5499d9f071c4ded4b330415",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_mermaid.cpp": {
+      "path": "native/ooz-rarten/compr_mermaid.cpp",
+      "size_bytes": 75076,
+      "mtime_ms": 1779217527652.0464,
+      "hash": "280495c964ac7ee6828534d635e25cf05f0083bfd0ed9266fd7be55b5c43bec7",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/kraken.cpp": {
+      "path": "native/ooz-rarten/kraken.cpp",
+      "size_bytes": 138375,
+      "mtime_ms": 1779217527679.0452,
+      "hash": "c3210470d72e83b4c187a5a6538bb09cecee18596e1188b317c7c5a84d352610",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/targetver.h": {
+      "path": "native/ooz-rarten/targetver.h",
+      "size_bytes": 306,
+      "mtime_ms": 1779217527620.0474,
+      "hash": "7f988ed4cd4fe1acdede1f014931a08c508cc82f9407bc2b869ec2195c10c9c9",
+      "extraction": "structural"
+    },
+    "src/WkDaemon/obj/Debug/net8.0/WkDaemon.AssemblyInfo.cs": {
+      "path": "src/WkDaemon/obj/Debug/net8.0/WkDaemon.AssemblyInfo.cs",
+      "size_bytes": 999,
+      "mtime_ms": 1782847060458.9844,
+      "hash": "480578e89e8d74453b08b4b192b73217f67a0d54fc9c5671207bde6f1d06ddc3",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/CetBridgeProtocolTests.cs": {
+      "path": "src/WkMcp.Tests/CetBridgeProtocolTests.cs",
+      "size_bytes": 8019,
+      "mtime_ms": 1781948234843.8047,
+      "hash": "260233719caf86d82ed5cf50b673aae1221eacdf04283faebd438d2c9f5da976",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/LiveToolsTests.cs": {
+      "path": "src/WkMcp.Tests/LiveToolsTests.cs",
+      "size_bytes": 974,
+      "mtime_ms": 1781948234854.8052,
+      "hash": "d24a685f93b53772942e62164d02d97d3c76ed50f866ecba1b08f0f3ff1055f3",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/obj/Release/net8.0/WkMcp.Tests.GlobalUsings.g.cs": {
+      "path": "src/WkMcp.Tests/obj/Release/net8.0/WkMcp.Tests.GlobalUsings.g.cs",
+      "size_bytes": 295,
+      "mtime_ms": 1781947243228.476,
+      "hash": "f3f134e9e825e3e7268090f58b1af2bda2de513f61a09c56f48b9b8d08612abc",
+      "extraction": "structural"
+    },
+    "src/WkMcp/AssetInspectionTools.cs": {
+      "path": "src/WkMcp/AssetInspectionTools.cs",
+      "size_bytes": 56864,
+      "mtime_ms": 1782681628813.1924,
+      "hash": "39b2a8ec3faffbf8672f482967ead91d24fa8ac24901699adf412ad971df1c9a",
+      "extraction": "structural"
+    },
+    "src/WkMcp/obj/Debug/net8.0/WkMcp.AssemblyInfo.cs": {
+      "path": "src/WkMcp/obj/Debug/net8.0/WkMcp.AssemblyInfo.cs",
+      "size_bytes": 1069,
+      "mtime_ms": 1782847062915.881,
+      "hash": "fc69d90883ec32e66af778fe6712f916bd3a96075f23b2452b0e17d375079909",
+      "extraction": "structural"
+    },
+    "src/WkMcp/RedscriptParser.cs": {
+      "path": "src/WkMcp/RedscriptParser.cs",
+      "size_bytes": 34915,
+      "mtime_ms": 1782681628816.1926,
+      "hash": "cf7f4516cfaceb125b76fee00ed6477aa9b5fdfd9532afe535dc1912408642ed",
+      "extraction": "structural"
+    },
+    "src/WkMcp/WolvenKitResources.cs": {
+      "path": "src/WkMcp/WolvenKitResources.cs",
+      "size_bytes": 14822,
+      "mtime_ms": 1784237105335.4976,
+      "hash": "ec0e56535296c58edb66909c433e7e7264e9d22f86c24a83cd49d51ec0a52c56",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_entropy.h": {
+      "path": "native/ooz-rarten/compr_entropy.h",
+      "size_bytes": 3462,
+      "mtime_ms": 1779217527665.0454,
+      "hash": "1396455489e5a805c381e8bdf025cc49896ed4bd1e647fef05dd7eb8e0c697a2",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_mermaid.h": {
+      "path": "native/ooz-rarten/compr_mermaid.h",
+      "size_bytes": 594,
+      "mtime_ms": 1779217527605.0457,
+      "hash": "60aba5fa8ec34d5dffb407af1ab281375e63a5512553035efa5d08be1d338ca1",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/log_lookup.h": {
+      "path": "native/ooz-rarten/log_lookup.h",
+      "size_bytes": 52036,
+      "mtime_ms": 1779217527611.046,
+      "hash": "b1f68f5ade3ba11290f365e92943c3fb37bf2f7207e56bf6040d68607ec53448",
+      "extraction": "structural"
+    },
+    "native/ooz/bitknit.cpp": {
+      "path": "native/ooz/bitknit.cpp",
+      "size_bytes": 10240,
+      "mtime_ms": 1779217527824.872,
+      "hash": "6e448d52fe485032e8b7aaf3efff2f0efd6394c776d0c6b14f91d2e1d286ed73",
+      "extraction": "structural"
+    },
+    "src/WkDaemon/obj/Debug/net8.0/WkDaemon.GlobalUsings.g.cs": {
+      "path": "src/WkDaemon/obj/Debug/net8.0/WkDaemon.GlobalUsings.g.cs",
+      "size_bytes": 295,
+      "mtime_ms": 1782761512319.641,
+      "hash": "f3f134e9e825e3e7268090f58b1af2bda2de513f61a09c56f48b9b8d08612abc",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/ConsistencyTests.cs": {
+      "path": "src/WkMcp.Tests/ConsistencyTests.cs",
+      "size_bytes": 8421,
+      "mtime_ms": 1784236216814.8816,
+      "hash": "4f4b54b457a25efb62987656c8c4e6c04fb7a7420fd2360dd893c0cf24809211",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/McpE2ETests.cs": {
+      "path": "src/WkMcp.Tests/McpE2ETests.cs",
+      "size_bytes": 6323,
+      "mtime_ms": 1782755305219.6685,
+      "hash": "7754384ed1b01d37e7153d1106c327ee14f2b942c66b9730c85bae8a39444db6",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/PathSafetyTests.cs": {
+      "path": "src/WkMcp.Tests/PathSafetyTests.cs",
+      "size_bytes": 2828,
+      "mtime_ms": 1781948234860.806,
+      "hash": "1fee6f9a53862ebd5fea4029c803e00cb1ae57ad37a439fa218a68d3a77d43e4",
+      "extraction": "structural"
+    },
+    "src/WkMcp/CetBridge.cs": {
+      "path": "src/WkMcp/CetBridge.cs",
+      "size_bytes": 23313,
+      "mtime_ms": 1781948234863.815,
+      "hash": "6c63c9d1f74131d182fd48e4293223e24675fa4e7ff9ac58d9cc5cf9b18b47ec",
+      "extraction": "structural"
+    },
+    "src/WkMcp/obj/Debug/net8.0/WkMcp.GlobalUsings.g.cs": {
+      "path": "src/WkMcp/obj/Debug/net8.0/WkMcp.GlobalUsings.g.cs",
+      "size_bytes": 295,
+      "mtime_ms": 1782036637763.378,
+      "hash": "f3f134e9e825e3e7268090f58b1af2bda2de513f61a09c56f48b9b8d08612abc",
+      "extraction": "structural"
+    },
+    "src/WkMcp/SccDiagnostics.cs": {
+      "path": "src/WkMcp/SccDiagnostics.cs",
+      "size_bytes": 5921,
+      "mtime_ms": 1782681628816.1926,
+      "hash": "edf8c8967a4d1e93726973da410c7e8a8b0bd612206cdfd3288536d83baa389a",
+      "extraction": "structural"
+    },
+    "src/WkMcp/WolvenKitTools.cs": {
+      "path": "src/WkMcp/WolvenKitTools.cs",
+      "size_bytes": 264046,
+      "mtime_ms": 1784237256370.6394,
+      "hash": "4e79300706d75ff744f24d0dc226b40a85419ccaa4724c2bb334071041879e42",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_kraken.cpp": {
+      "path": "native/ooz-rarten/compr_kraken.cpp",
+      "size_bytes": 63919,
+      "mtime_ms": 1779217527627.045,
+      "hash": "aea1c0f3289156faa85948399b09da1ddc775c80c915fcf962c52f4fd7b77cc5",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_multiarray.cpp": {
+      "path": "native/ooz-rarten/compr_multiarray.cpp",
+      "size_bytes": 39584,
+      "mtime_ms": 1779217527644.0457,
+      "hash": "55bd297b8dad7592bdbbb99b4e5be638727c9e7d2232e09a5f9be9ff48dee6c5",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/lzna.cpp": {
+      "path": "native/ooz-rarten/lzna.cpp",
+      "size_bytes": 17913,
+      "mtime_ms": 1779217527687.051,
+      "hash": "8fc3fa71d814918f4a286d076c38a155ae8d93375281d796e2feba8ab866c712",
+      "extraction": "structural"
+    },
+    "native/ooz/kraken.cpp": {
+      "path": "native/ooz/kraken.cpp",
+      "size_bytes": 137434,
+      "mtime_ms": 1779217527850.883,
+      "hash": "20c48a30db54efa7681f8c9c674f2a16f081373872d033885a6fdf244b9cff01",
+      "extraction": "structural"
+    },
+    "src/WkDaemon/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs": {
+      "path": "src/WkDaemon/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+      "size_bytes": 198,
+      "mtime_ms": 1781947228340.278,
+      "hash": "f7a5d9789c863625e139ff99e1113a503830f6b85a88f6129916df83ac76b49e",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/CoverageGapsToolsTests.cs": {
+      "path": "src/WkMcp.Tests/CoverageGapsToolsTests.cs",
+      "size_bytes": 4405,
+      "mtime_ms": 1782846156710.8147,
+      "hash": "1856d840c76126e56c44e45ab70fbdb2c74ed15cc66edbddb6c0f72ca965e50e",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/NewToolsTests.cs": {
+      "path": "src/WkMcp.Tests/NewToolsTests.cs",
+      "size_bytes": 24111,
+      "mtime_ms": 1782681628812.1924,
+      "hash": "c3fd3839f679a1eba56e57477f2c21c9f1855c5d1b8d34606ba3c25fa4c747b0",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/ProbeToolsTests.cs": {
+      "path": "src/WkMcp.Tests/ProbeToolsTests.cs",
+      "size_bytes": 7547,
+      "mtime_ms": 1782755305219.6685,
+      "hash": "3ff904e8b518a12b868899686367e2aafb51b75da7e6781b22da3fc8b9ba7714",
+      "extraction": "structural"
+    },
+    "src/WkMcp/Cp77ToolsRunner.cs": {
+      "path": "src/WkMcp/Cp77ToolsRunner.cs",
+      "size_bytes": 31450,
+      "mtime_ms": 1781948234865.807,
+      "hash": "765631ee54fffbc49303aa898bb69287ed6a104a523fbcb27ed8c3d1699d4997",
+      "extraction": "structural"
+    },
+    "src/WkMcp/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs": {
+      "path": "src/WkMcp/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+      "size_bytes": 198,
+      "mtime_ms": 1781947231572.6384,
+      "hash": "f7a5d9789c863625e139ff99e1113a503830f6b85a88f6129916df83ac76b49e",
+      "extraction": "structural"
+    },
+    "src/WkMcp/SceneTools.cs": {
+      "path": "src/WkMcp/SceneTools.cs",
+      "size_bytes": 62152,
+      "mtime_ms": 1784235510867.9087,
+      "hash": "57fb3c3361677931249fb760707c58c57ec500dbd7c5fcaedadd7e66630a5916",
+      "extraction": "structural"
+    },
+    "test-daemon.py": {
+      "path": "test-daemon.py",
+      "size_bytes": 2887,
+      "mtime_ms": 1781948234897.944,
+      "hash": "88cea4b2f9578f4c7cbb1cd1340bd554b1541bce16399c3d81cb7c0be5f0551b",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_kraken.h": {
+      "path": "native/ooz-rarten/compr_kraken.h",
+      "size_bytes": 507,
+      "mtime_ms": 1779217527587.046,
+      "hash": "7052eef5827b49d3ad4dfb09a8afaec942b573e9802ee2649aed45c33778fce1",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_tans.cpp": {
+      "path": "native/ooz-rarten/compr_tans.cpp",
+      "size_bytes": 16347,
+      "mtime_ms": 1779217527601.0452,
+      "hash": "b4f2cdd573e9853f22c5ce614cbcc4c23ae7fdf03df9714b96c883708a5c607b",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/match_hasher.h": {
+      "path": "native/ooz-rarten/match_hasher.h",
+      "size_bytes": 10222,
+      "mtime_ms": 1779217527669.0466,
+      "hash": "2614962325d6fd8405b4a186bfe2f8812acdbd03f3a0033d0a4a0c436f5bb77f",
+      "extraction": "structural"
+    },
+    "native/ooz/lzna.cpp": {
+      "path": "native/ooz/lzna.cpp",
+      "size_bytes": 17913,
+      "mtime_ms": 1779217527853.8796,
+      "hash": "8fc3fa71d814918f4a286d076c38a155ae8d93375281d796e2feba8ab866c712",
+      "extraction": "structural"
+    },
+    "src/WkDaemon/obj/Release/net8.0/WkDaemon.AssemblyInfo.cs": {
+      "path": "src/WkDaemon/obj/Release/net8.0/WkDaemon.AssemblyInfo.cs",
+      "size_bytes": 1001,
+      "mtime_ms": 1782846928786.4841,
+      "hash": "ed7ea25a1efac0a50ef768f17289d65dbe057a5f70898c487938c3676fa99728",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/CrossModImportTests.cs": {
+      "path": "src/WkMcp.Tests/CrossModImportTests.cs",
+      "size_bytes": 1369,
+      "mtime_ms": 1781948234847.805,
+      "hash": "995b0c19b4e036fddb0820c78fa9c540d87195d47d07940b9ec789689b848f75",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs": {
+      "path": "src/WkMcp.Tests/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+      "size_bytes": 198,
+      "mtime_ms": 1782036710534.0627,
+      "hash": "f7a5d9789c863625e139ff99e1113a503830f6b85a88f6129916df83ac76b49e",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/SccDiagnosticsTests.cs": {
+      "path": "src/WkMcp.Tests/SccDiagnosticsTests.cs",
+      "size_bytes": 3805,
+      "mtime_ms": 1782681628812.1924,
+      "hash": "64678a78f03d3ddcc1a2fde53ef298e40e86e65f1f63cfaaa8b6132b294ad62d",
+      "extraction": "structural"
+    },
+    "src/WkMcp/GameplayInspectionTools.cs": {
+      "path": "src/WkMcp/GameplayInspectionTools.cs",
+      "size_bytes": 19245,
+      "mtime_ms": 1784235617447.122,
+      "hash": "de811cdbffbad7cb6085baeb2110d6157012a67068bfb03a9da3f8c9ea78cc44",
+      "extraction": "structural"
+    },
+    "src/WkMcp/obj/Release/net8.0/WkMcp.AssemblyInfo.cs": {
+      "path": "src/WkMcp/obj/Release/net8.0/WkMcp.AssemblyInfo.cs",
+      "size_bytes": 1071,
+      "mtime_ms": 1782846935001.47,
+      "hash": "de25dde34eda3e6a870e43157d7c809f4fd9c344f95de6aee1fdb41ed4706d07",
+      "extraction": "structural"
+    },
+    "src/WkMcp/ScriptApi.cs": {
+      "path": "src/WkMcp/ScriptApi.cs",
+      "size_bytes": 3743,
+      "mtime_ms": 1782681628816.1926,
+      "hash": "d77267ddb5b4d97e642098a0caec8ed9ab25a5eea3694f0477764c64bf7347ac",
+      "extraction": "structural"
+    },
+    "test-live-bridge.py": {
+      "path": "test-live-bridge.py",
+      "size_bytes": 3140,
+      "mtime_ms": 1781947074263.2417,
+      "hash": "914a7c6e550910402466c99e23c5d889eb597af9bf5b6653e8f14a87ac69b549",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_leviathan.cpp": {
+      "path": "native/ooz-rarten/compr_leviathan.cpp",
+      "size_bytes": 83222,
+      "mtime_ms": 1779217527566.046,
+      "hash": "568b56bf1ef4519ed50f876966982d5e850b7db20afa63a077bbe7fc41be257e",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/compr_util.h": {
+      "path": "native/ooz-rarten/compr_util.h",
+      "size_bytes": 6119,
+      "mtime_ms": 1779217527640.0452,
+      "hash": "c6de9d012c8da09c942575ee07f7563738ee86c30056d05035410d998c6917be",
+      "extraction": "structural"
+    },
+    "native/ooz-rarten/qsort.h": {
+      "path": "native/ooz-rarten/qsort.h",
+      "size_bytes": 3967,
+      "mtime_ms": 1779217527662.0452,
+      "hash": "127e183e375958fac63eab91a4e5ddf3f0b5f73e83dd27c93ebeef586e47dcf4",
+      "extraction": "structural"
+    },
+    "native/ooz/stdafx.cpp": {
+      "path": "native/ooz/stdafx.cpp",
+      "size_bytes": 285,
+      "mtime_ms": 1779217527844.8718,
+      "hash": "93b51ae7c66495eb5c44e9858921fc7b86076d19080969a2c7dfbcd65bf9d9a0",
+      "extraction": "structural"
+    },
+    "src/WkDaemon/obj/Release/net8.0/WkDaemon.GlobalUsings.g.cs": {
+      "path": "src/WkDaemon/obj/Release/net8.0/WkDaemon.GlobalUsings.g.cs",
+      "size_bytes": 295,
+      "mtime_ms": 1781947226289.7083,
+      "hash": "f3f134e9e825e3e7268090f58b1af2bda2de513f61a09c56f48b9b8d08612abc",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/GameplayInspectionTests.cs": {
+      "path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+      "size_bytes": 8982,
+      "mtime_ms": 1782681628811.1926,
+      "hash": "0d6df04ae406ff519d81d901bb7848929dc84069e545c4a2f43884fd815e9ec2",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/obj/Debug/net8.0/WkMcp.Tests.AssemblyInfo.cs": {
+      "path": "src/WkMcp.Tests/obj/Debug/net8.0/WkMcp.Tests.AssemblyInfo.cs",
+      "size_bytes": 1008,
+      "mtime_ms": 1784147924859.3672,
+      "hash": "beb7b525298817effdd2956bf39b179e55acd5c5d4c71b75f6fd527fe418e432",
+      "extraction": "structural"
+    },
+    "src/WkMcp.Tests/SceneAdvancedTests.cs": {
+      "path": "src/WkMcp.Tests/SceneAdvancedTests.cs",
+      "size_bytes": 6904,
+      "mtime_ms": 1782248261197.0852,
+      "hash": "3fc223341cc69fba4414824f31d1f0702ce33f1dbde56d3671952f8cb65a7980",
+      "extraction": "structural"
+    },
+    "src/WkMcp/HttpBridgeSecurity.cs": {
+      "path": "src/WkMcp/HttpBridgeSecurity.cs",
+      "size_bytes": 6786,
+      "mtime_ms": 1781948234867.8057,
+      "hash": "97b8848e7f3dd11ca649118a221a80bcb48aa084da2d096085a32e99e6080f34",
+      "extraction": "structural"
+    },
+    "src/WkMcp/obj/Release/net8.0/WkMcp.GlobalUsings.g.cs": {
+      "path": "src/WkMcp/obj/Release/net8.0/WkMcp.GlobalUsings.g.cs",
+      "size_bytes": 295,
+      "mtime_ms": 1781947231456.206,
+      "hash": "f3f134e9e825e3e7268090f58b1af2bda2de513f61a09c56f48b9b8d08612abc",
+      "extraction": "structural"
+    },
+    "src/WkMcp/SemanticInspectionTools.cs": {
+      "path": "src/WkMcp/SemanticInspectionTools.cs",
+      "size_bytes": 20017,
+      "mtime_ms": 1784236863901.8452,
+      "hash": "4860edbdcaf9fe085548771b363c8681817f728894b04e2b8d5efaa5f3b59f95",
+      "extraction": "structural"
+    },
+    "test-mcp-server.py": {
+      "path": "test-mcp-server.py",
+      "size_bytes": 9165,
+      "mtime_ms": 1781948234900.946,
+      "hash": "419937f04ded8288c49de08147ce79420301d56f6114ab66b6ffdd3d25e466aa",
+      "extraction": "structural"
+    }
+  }
+}

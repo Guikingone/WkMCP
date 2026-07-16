@@ -5,20 +5,22 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UseSystemDrawing>true</UseSystemDrawing>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="WolvenKit.Modkit" Version="8.18.0" />
+    <PackageReference Include="WolvenKit.Modkit" Version="8.19.0" />
     <!-- WolvenKit.Core / WolvenKit.Common: transitive dependencies of Modkit,
          referenced explicitly to expose $(PkgWolvenKit_Core/_Common) —
          the DeployNativeWindows target pulls the native binaries the daemon needs
          but that are not copied reliably from a transitive dependency. -->
-    <PackageReference Include="WolvenKit.Core" Version="8.18.0" GeneratePathProperty="true" />
-    <PackageReference Include="WolvenKit.Common" Version="8.18.0" GeneratePathProperty="true" />
+    <PackageReference Include="WolvenKit.Core" Version="8.19.0" GeneratePathProperty="true" />
+    <PackageReference Include="WolvenKit.Common" Version="8.19.0" GeneratePathProperty="true" />
     <!-- YamlDotNet: parser for .tweak files (TweakXL format, YAML).
          Already pulled transitively by WolvenKit; referenced explicitly to
          guarantee availability at compile time and pin the version. -->
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.11" />
   </ItemGroup>
 
   <!-- On macOS, automatically deploys our rebuilt arm64 libkraken.dylib into the
