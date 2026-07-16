@@ -1,0 +1,3199 @@
+[
+  {
+    "from_path": "src/WkDaemon/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkDaemon/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkDaemon/obj/Debug/net8.0/WkDaemon.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 10
+  },
+  {
+    "from_path": "src/WkDaemon/obj/Debug/net8.0/WkDaemon.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 11
+  },
+  {
+    "from_path": "src/WkDaemon/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkDaemon/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkDaemon/obj/Release/net8.0/WkDaemon.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 10
+  },
+  {
+    "from_path": "src/WkDaemon/obj/Release/net8.0/WkDaemon.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 11
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "System.Drawing",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "System.Drawing.Drawing2D",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "System.Drawing.Imaging",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "System.Runtime.Versioning",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "System.Runtime.Loader",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "System.Text",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 7
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 8
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "CP77Tools.Tasks",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 9
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "Microsoft.Extensions.DependencyInjection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 10
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Common",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 11
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Common.Interfaces",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 12
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Common.Model",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 13
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Common.Model.Arguments",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 14
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Common.Services",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 15
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Core.Compression",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 16
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Core.Interfaces",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 17
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Core.Services",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 18
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Modkit.RED4",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 19
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Modkit.RED4.Opus",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 20
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.Modkit.RED4.Tools",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 21
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.RED4.CR2W",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 22
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.RED4.CR2W.Archive",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 23
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.RED4.Archive.CR2W",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 24
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.RED4.Archive.IO",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 25
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "WolvenKit.RED4.Types",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 26
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var locScope = provider.CreateScope()",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 317
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var entScope = provider.CreateScope()",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 414
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var efs = File.OpenRead(entFile)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 425
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var matScope = provider.CreateScope()",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 445
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var mfs = File.OpenRead(meshFile)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 456
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var od = JsonDocument.Parse(await File.ReadAllTextAsync(overridesJsonFile))",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 689
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var writer = new StreamWriter(outputFile)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 859
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var scope = provider.CreateScope()",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 953
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var scope = provider.CreateScope()",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1113
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var source = new Bitmap(file)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1238
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var half = new Bitmap(halfWidth, halfHeight, PixelFormat.Format32bppArgb)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1295
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var fs = new FileStream(atlasFile, FileMode.Create, FileAccess.ReadWrite)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1334
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var writer = new CR2WWriter(fs) { LoggerService = logger }",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1335
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var scope = provider.CreateScope()",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1375
+  },
+  {
+    "from_path": "src/WkDaemon/Program.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(jsonText)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1526
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "to_path": null,
+    "specifier": "System.IO",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 7
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(MiJson)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 34
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 349
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AuditImplementationTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AuditImplementationTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/AuditImplementationTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CetBridgeProtocolTests.cs",
+    "to_path": null,
+    "specifier": "System.Text",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CetBridgeProtocolTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CetBridgeProtocolTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CetBridgeProtocolTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ConsistencyTests.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ConsistencyTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.RegularExpressions",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ConsistencyTests.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ConsistencyTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ConsistencyTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CoverageGapsToolsTests.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CoverageGapsToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.IO",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CoverageGapsToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CoverageGapsToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.Threading.Tasks",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CoverageGapsToolsTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CoverageGapsToolsTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CrossModImportTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/CrossModImportTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "System.IO",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 64
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 78
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(\"\"\"{ \"Data\": { \"RootChunk\": { \"$type\":\"CMesh\" } } }\"\"\")",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 104
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 146
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 160
+  },
+  {
+    "from_path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(\"\"\"{ \"Data\": { \"RootChunk\": { \"$type\":\"CMesh\" } } }\"\"\")",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 172
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "System.Xml.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Journal)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 285
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Journal)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 299
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Journal)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 311
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(\"{\\\"Data\\\":{\\\"RootChunk\\\":{\\\"$type\\\":\\\"CMesh\\\"}}}\")",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 321
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Cr2w)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 346
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Cr2w)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 357
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HelpersTests.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(Cr2w)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 367
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HttpBridgeSecurityTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/HttpBridgeSecurityTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ImportToolsTests.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ImportToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Generic",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ImportToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.IO",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ImportToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ImportToolsTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ImportToolsTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp.Tests/LiveToolsTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/LiveToolsTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/McpE2ETests.cs",
+    "to_path": null,
+    "specifier": "System.Diagnostics",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/McpE2ETests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/McpE2ETests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/McpE2ETests.cs",
+    "to_path": null,
+    "specifier": "var page = await RequestAsync(payload, expectedId: id)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 110
+  },
+  {
+    "from_path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Generic",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.IO",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "to_path": null,
+    "specifier": "var doc = System.Text.Json.JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 197
+  },
+  {
+    "from_path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "to_path": null,
+    "specifier": "var doc = System.Text.Json.JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 211
+  },
+  {
+    "from_path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "to_path": null,
+    "specifier": "var doc = System.Text.Json.JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 229
+  },
+  {
+    "from_path": "src/WkMcp.Tests/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/obj/Debug/net8.0/WkMcp.Tests.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 10
+  },
+  {
+    "from_path": "src/WkMcp.Tests/obj/Debug/net8.0/WkMcp.Tests.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 11
+  },
+  {
+    "from_path": "src/WkMcp.Tests/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/obj/Release/net8.0/WkMcp.Tests.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 10
+  },
+  {
+    "from_path": "src/WkMcp.Tests/obj/Release/net8.0/WkMcp.Tests.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 11
+  },
+  {
+    "from_path": "src/WkMcp.Tests/PathSafetyTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/PathSafetyTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ProbeToolsTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ProbeToolsTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SccDiagnosticsTests.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SccDiagnosticsTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SccDiagnosticsTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneAdvancedTests.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneAdvancedTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneAdvancedTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneAdvancedTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneTests.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneTests.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Generic",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneTests.cs",
+    "to_path": null,
+    "specifier": "System.IO",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneTests.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneTests.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp.Tests/SceneTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 7
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ScriptApiTests.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ScriptApiTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/ScriptApiTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/TweakValidationTests.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Generic",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp.Tests/TweakValidationTests.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp.Tests/TweakValidationTests.cs",
+    "to_path": null,
+    "specifier": "Xunit",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp.Tests/TweakValidationTests.cs",
+    "to_path": null,
+    "specifier": "K = WkMcp.TweakValidation.Kind",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "System.IO.Compression",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 141
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 254
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 460
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 495
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 622
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 699
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var zs = File.Open(outputZip, FileMode.Create)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 960
+  },
+  {
+    "from_path": "src/WkMcp/AssetInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var zip = new ZipArchive(zs, ZipArchiveMode.Create)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 961
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Concurrent",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "System.Globalization",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "System.Net",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "System.Net.Sockets",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "System.Text",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "System.Text.Encodings.Web",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 7
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "Microsoft.Extensions.Logging",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 8
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 270
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(File.ReadAllText(path))",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 333
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 423
+  },
+  {
+    "from_path": "src/WkMcp/CetBridge.cs",
+    "to_path": null,
+    "specifier": "var responseReady = new SemaphoreSlim(0)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 455
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Concurrent",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "System.Diagnostics",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "System.Runtime.InteropServices",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "System.Text",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "var readyCts = CancellationTokenSource.CreateLinkedTokenSource(ct)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 386
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15))",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 422
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(line)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 488
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 566
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "var proc = new Process { StartInfo = psi }",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 627
+  },
+  {
+    "from_path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "to_path": null,
+    "specifier": "var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 645
+  },
+  {
+    "from_path": "src/WkMcp/GameplayInspectionTools.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/GameplayInspectionTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/GameplayInspectionTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/GameplayInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 71
+  },
+  {
+    "from_path": "src/WkMcp/GameplayInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 234
+  },
+  {
+    "from_path": "src/WkMcp/HttpBridgeSecurity.cs",
+    "to_path": null,
+    "specifier": "System.Net",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/HttpBridgeSecurity.cs",
+    "to_path": null,
+    "specifier": "System.Security.Cryptography",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/HttpBridgeSecurity.cs",
+    "to_path": null,
+    "specifier": "System.Text",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/HttpBridgeSecurity.cs",
+    "to_path": null,
+    "specifier": "Microsoft.AspNetCore.Builder",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/HttpBridgeSecurity.cs",
+    "to_path": null,
+    "specifier": "Microsoft.AspNetCore.Http",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/LiveTools.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Concurrent",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/LiveTools.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/LiveTools.cs",
+    "to_path": null,
+    "specifier": "System.Globalization",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/LiveTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Encodings.Web",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/LiveTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/LiveTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp/LiveTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(trimmed)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 382
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "System.IO.Compression",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "System.Text",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Encodings.Web",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 7
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "YamlDotNet.Serialization",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 8
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var zs = File.Open(outputZip, FileMode.Create)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1022
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var zip = new ZipArchive(zs, ZipArchiveMode.Create)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1023
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var fs = File.OpenRead(jsonFile)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1095
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(fs)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1096
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var fs = File.OpenRead(jsonFile)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1139
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(fs)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1140
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var fs = File.OpenRead(jsonFile)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1277
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(fs)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1278
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var fs = File.OpenRead(jsonFile)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1316
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(fs)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1317
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var fs = File.OpenRead(jsonFile)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1885
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(fs)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1886
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(entJson)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2320
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(appJson)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2877
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(appJson)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2899
+  },
+  {
+    "from_path": "src/WkMcp/ModdingTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(meshJson)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2927
+  },
+  {
+    "from_path": "src/WkMcp/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/obj/Debug/net8.0/WkMcp.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 10
+  },
+  {
+    "from_path": "src/WkMcp/obj/Debug/net8.0/WkMcp.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 11
+  },
+  {
+    "from_path": "src/WkMcp/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/obj/Release/net8.0/WkMcp.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 10
+  },
+  {
+    "from_path": "src/WkMcp/obj/Release/net8.0/WkMcp.AssemblyInfo.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 11
+  },
+  {
+    "from_path": "src/WkMcp/ProbeTools.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/ProbeTools.cs",
+    "to_path": null,
+    "specifier": "System.Diagnostics",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/ProbeTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Encodings.Web",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/ProbeTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/ProbeTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.RegularExpressions",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/ProbeTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp/ProbeTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 160
+  },
+  {
+    "from_path": "src/WkMcp/ProbeTools.cs",
+    "to_path": null,
+    "specifier": "var jd = JsonDocument.Parse(r.Result)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 295
+  },
+  {
+    "from_path": "src/WkMcp/Program.cs",
+    "to_path": null,
+    "specifier": "Microsoft.AspNetCore.Builder",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/Program.cs",
+    "to_path": null,
+    "specifier": "Microsoft.Extensions.DependencyInjection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/Program.cs",
+    "to_path": null,
+    "specifier": "Microsoft.Extensions.Hosting",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/Program.cs",
+    "to_path": null,
+    "specifier": "Microsoft.Extensions.Logging",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/Program.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/Program.cs",
+    "to_path": null,
+    "specifier": "WkMcp",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp/RedscriptParser.cs",
+    "to_path": null,
+    "specifier": "System.Text",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/SccDiagnostics.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/SccDiagnostics.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Generic",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/SccDiagnostics.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/SccDiagnostics.cs",
+    "to_path": null,
+    "specifier": "System.Text.RegularExpressions",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/SceneTools.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/SceneTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Encodings.Web",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/SceneTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/SceneTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/SceneTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/ScriptApi.cs",
+    "to_path": null,
+    "specifier": "System",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/ScriptApi.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Generic",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/ScriptApi.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/SemanticInspectionTools.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/SemanticInspectionTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/SemanticInspectionTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/SemanticInspectionTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/SemanticInspectionTools.cs",
+    "to_path": null,
+    "specifier": "YamlDotNet.Serialization",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/SemanticInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 31
+  },
+  {
+    "from_path": "src/WkMcp/SemanticInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 89
+  },
+  {
+    "from_path": "src/WkMcp/SemanticInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 144
+  },
+  {
+    "from_path": "src/WkMcp/SemanticInspectionTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(json)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 208
+  },
+  {
+    "from_path": "src/WkMcp/ToolResult.cs",
+    "to_path": null,
+    "specifier": "System.Text.Encodings.Web",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/ToolResult.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/ToolResult.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/TweakValidation.cs",
+    "to_path": null,
+    "specifier": "System.Collections",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/TweakValidation.cs",
+    "to_path": null,
+    "specifier": "System.IO",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/TweakValidation.cs",
+    "to_path": null,
+    "specifier": "System.Linq",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/TweakValidation.cs",
+    "to_path": null,
+    "specifier": "System.Text.RegularExpressions",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/TweakValidation.cs",
+    "to_path": null,
+    "specifier": "YamlDotNet.RepresentationModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitPrompts.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitPrompts.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitResources.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitResources.cs",
+    "to_path": null,
+    "specifier": "System.Reflection",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitResources.cs",
+    "to_path": null,
+    "specifier": "System.Text",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitResources.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.Collections.Concurrent",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 1
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.ComponentModel",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.Diagnostics",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.IO.Compression",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.Text",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 5
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Encodings.Web",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 6
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 7
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.Json.Nodes",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 8
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.Text.RegularExpressions",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 9
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "System.Xml",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 10
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 11
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "ModelContextProtocol.Server",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 12
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(await File.ReadAllTextAsync(tmp, ct))",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 154
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var _ = doc",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 254
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(await File.ReadAllTextAsync(jsonFile, ct))",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2136
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(await File.ReadAllTextAsync(jsonFile, ct))",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2195
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(overridesJson)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2441
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(parametersJson)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2603
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(parametersJson)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2749
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var ovDoc = JsonDocument.Parse(ovJson)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 2810
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var proc = new Process { StartInfo = psi }",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3262
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3273
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(await File.ReadAllTextAsync(infoPath, ct))",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3839
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var doc = JsonDocument.Parse(deployResult)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 3982
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var proc = new Process { StartInfo = psi }",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4234
+  },
+  {
+    "from_path": "src/WkMcp/WolvenKitTools.cs",
+    "to_path": null,
+    "specifier": "var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)",
+    "imported": [],
+    "kind": "use",
+    "parser": "generic-static",
+    "line": 4245
+  },
+  {
+    "from_path": "test-daemon.py",
+    "to_path": null,
+    "specifier": "json",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 11
+  },
+  {
+    "from_path": "test-daemon.py",
+    "to_path": null,
+    "specifier": "os",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 12
+  },
+  {
+    "from_path": "test-daemon.py",
+    "to_path": null,
+    "specifier": "shutil",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 13
+  },
+  {
+    "from_path": "test-daemon.py",
+    "to_path": null,
+    "specifier": "subprocess",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 14
+  },
+  {
+    "from_path": "test-daemon.py",
+    "to_path": null,
+    "specifier": "sys",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 15
+  },
+  {
+    "from_path": "test-daemon.py",
+    "to_path": null,
+    "specifier": "tempfile",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 16
+  },
+  {
+    "from_path": "test-daemon.py",
+    "to_path": null,
+    "specifier": "time",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 17
+  },
+  {
+    "from_path": "test-live-bridge.py",
+    "to_path": null,
+    "specifier": "json",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 14
+  },
+  {
+    "from_path": "test-live-bridge.py",
+    "to_path": null,
+    "specifier": "os",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 15
+  },
+  {
+    "from_path": "test-live-bridge.py",
+    "to_path": null,
+    "specifier": "sys",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 16
+  },
+  {
+    "from_path": "test-live-bridge.py",
+    "to_path": null,
+    "specifier": "time",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 17
+  },
+  {
+    "from_path": "test-live-bridge.py",
+    "to_path": null,
+    "specifier": "uuid",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 18
+  },
+  {
+    "from_path": "test-mcp-server.py",
+    "to_path": null,
+    "specifier": "json",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 12
+  },
+  {
+    "from_path": "test-mcp-server.py",
+    "to_path": null,
+    "specifier": "os",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 13
+  },
+  {
+    "from_path": "test-mcp-server.py",
+    "to_path": null,
+    "specifier": "shutil",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 14
+  },
+  {
+    "from_path": "test-mcp-server.py",
+    "to_path": null,
+    "specifier": "subprocess",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 15
+  },
+  {
+    "from_path": "test-mcp-server.py",
+    "to_path": null,
+    "specifier": "sys",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 16
+  },
+  {
+    "from_path": "test-mcp-server.py",
+    "to_path": null,
+    "specifier": "tempfile",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 17
+  },
+  {
+    "from_path": "test-new-tools.py",
+    "to_path": null,
+    "specifier": "json",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 22
+  },
+  {
+    "from_path": "test-new-tools.py",
+    "to_path": null,
+    "specifier": "os",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 23
+  },
+  {
+    "from_path": "test-new-tools.py",
+    "to_path": null,
+    "specifier": "shutil",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 24
+  },
+  {
+    "from_path": "test-new-tools.py",
+    "to_path": null,
+    "specifier": "subprocess",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 25
+  },
+  {
+    "from_path": "test-new-tools.py",
+    "to_path": null,
+    "specifier": "sys",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 26
+  },
+  {
+    "from_path": "test-new-tools.py",
+    "to_path": null,
+    "specifier": "tempfile",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 27
+  },
+  {
+    "from_path": "tools/annotate_tools.py",
+    "to_path": null,
+    "specifier": "re",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 8
+  },
+  {
+    "from_path": "tools/annotate_tools.py",
+    "to_path": null,
+    "specifier": "sys",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 9
+  },
+  {
+    "from_path": "tools/annotate_tools.py",
+    "to_path": null,
+    "specifier": "pathlib",
+    "imported": [
+      "Path"
+    ],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 10
+  },
+  {
+    "from_path": "validate-windows.py",
+    "to_path": null,
+    "specifier": "json",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 19
+  },
+  {
+    "from_path": "validate-windows.py",
+    "to_path": null,
+    "specifier": "os",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 20
+  },
+  {
+    "from_path": "validate-windows.py",
+    "to_path": null,
+    "specifier": "re",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 21
+  },
+  {
+    "from_path": "validate-windows.py",
+    "to_path": null,
+    "specifier": "shutil",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 22
+  },
+  {
+    "from_path": "validate-windows.py",
+    "to_path": null,
+    "specifier": "subprocess",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 23
+  },
+  {
+    "from_path": "validate-windows.py",
+    "to_path": null,
+    "specifier": "sys",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 24
+  },
+  {
+    "from_path": "validate-windows.py",
+    "to_path": null,
+    "specifier": "tempfile",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 25
+  },
+  {
+    "from_path": "validate-windows.py",
+    "to_path": null,
+    "specifier": "time",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 26
+  },
+  {
+    "from_path": "validate-windows.py",
+    "to_path": null,
+    "specifier": "glob",
+    "imported": [],
+    "kind": "import",
+    "parser": "generic-static",
+    "line": 1216
+  }
+]

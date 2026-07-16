@@ -1,0 +1,4042 @@
+[
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/bitknit.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 10263,
+    "line_count": 411,
+    "hash": "dc2cc2447c8a3a06",
+    "mtime_ms": 1779217527560.0454,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "BitknitLiteral",
+      "BitknitDistanceLsb",
+      "BitknitDistanceBits",
+      "BitknitState",
+      "BitknitCopyLongDist",
+      "BitknitCopyShortDist"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "bitknit",
+      "literal",
+      "distance",
+      "lsb",
+      "bits",
+      "state",
+      "copy",
+      "long",
+      "dist",
+      "short"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/bits_rev_table.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 14382,
+    "line_count": 130,
+    "hash": "b91de8f4de48a0b7",
+    "mtime_ms": 1779217527648.0474,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "bits",
+      "rev",
+      "table"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_entropy.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 39821,
+    "line_count": 1347,
+    "hash": "bdd3a65da44ade7f",
+    "mtime_ms": 1779217527608.0469,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "CopyBytesFastOverflow",
+      "HuffBuilder",
+      "Entry",
+      "RadixSortEnts",
+      "FindSymbolToInc",
+      "FindSymbolToDec"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "entropy",
+      "copy",
+      "bytes",
+      "fast",
+      "overflow",
+      "huff",
+      "builder",
+      "entry",
+      "radix",
+      "sort",
+      "ents",
+      "find"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_entropy.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 3462,
+    "line_count": 52,
+    "hash": "1396455489e5a805",
+    "mtime_ms": 1779217527665.0454,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "HistoU8"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "entropy",
+      "histo"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_kraken.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 63919,
+    "line_count": 1693,
+    "hash": "aea1c0f3289156fa",
+    "mtime_ms": 1779217527627.045,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "KrakenRecentOffs",
+      "KrakEncLz",
+      "KrakIsMatchLongEnough",
+      "IsRecent",
+      "Krak",
+      "Token",
+      "TokenArray",
+      "State",
+      "CostModel",
+      "Stats",
+      "RescaleOne",
+      "Rescale"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "kraken",
+      "recent",
+      "offs",
+      "krak",
+      "enc",
+      "match",
+      "long",
+      "enough",
+      "token",
+      "array",
+      "state",
+      "cost"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_kraken.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 507,
+    "line_count": 14,
+    "hash": "7052eef5827b49d3",
+    "mtime_ms": 1779217527587.046,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "LzCoder"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "kraken",
+      "coder"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_leviathan.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 83222,
+    "line_count": 2115,
+    "hash": "568b56bf1ef4519e",
+    "mtime_ms": 1779217527566.046,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "IsRecent",
+      "Levi",
+      "Token",
+      "TokenArray",
+      "State",
+      "LitStats",
+      "Update",
+      "Stats",
+      "RescaleOne",
+      "Rescale",
+      "RescaleAddOne",
+      "RescaleAdd"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "leviathan",
+      "recent",
+      "levi",
+      "token",
+      "array",
+      "state",
+      "lit",
+      "stats",
+      "update",
+      "rescale",
+      "one",
+      "add"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_leviathan.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 521,
+    "line_count": 14,
+    "hash": "3782b5daa3a8d417",
+    "mtime_ms": 1779217527583.046,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "LzCoder"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "leviathan",
+      "coder"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_match_finder.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 32933,
+    "line_count": 1028,
+    "hash": "ffffb5a237973811",
+    "mtime_ms": 1779217527570.0469,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "TrieNodeBig",
+      "TrieNodeBig_Size2",
+      "TrieNodeBig_Size8",
+      "TrieNodeBig_Size16",
+      "TrieNodeBig_Size48",
+      "TrieNodeBig_Size256",
+      "sorter"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "match",
+      "finder",
+      "trie",
+      "node",
+      "big",
+      "size2",
+      "size8",
+      "size16",
+      "size48",
+      "size256",
+      "sorter"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_match_finder.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 2105,
+    "line_count": 73,
+    "hash": "8b27b016231151d3",
+    "mtime_ms": 1779217527655.047,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "LRMEnt",
+      "LRMTable",
+      "LRMCascade",
+      "LRMScanner",
+      "LRMScannerEx",
+      "MatchLenStorage",
+      "Destroy",
+      "LRMCascade"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "match",
+      "finder",
+      "ent",
+      "table",
+      "cascade",
+      "scanner",
+      "len",
+      "storage",
+      "destroy"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_mermaid.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 75076,
+    "line_count": 2040,
+    "hash": "280495c964ac7ee6",
+    "mtime_ms": 1779217527652.0464,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "MermaidWriter",
+      "CopyBytesUnsafe",
+      "Mermaid_WriteLenValue",
+      "Mermaid_WriteOff32",
+      "Mermaid_WriteComplexOffs",
+      "Mermaid_WriteOffs",
+      "MermaidMod7",
+      "Mermaid_WriteOffsWithLit1Inner",
+      "Mermaid_WriteOffsWithLit1",
+      "MermaidHistos",
+      "GetTime_MermaidOff16",
+      "GetTime_Mermaid"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "mermaid",
+      "writer",
+      "copy",
+      "bytes",
+      "unsafe",
+      "write",
+      "len",
+      "value",
+      "off32",
+      "complex",
+      "offs",
+      "mod7"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_mermaid.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 594,
+    "line_count": 15,
+    "hash": "60aba5fa8ec34d5d",
+    "mtime_ms": 1779217527605.0457,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "LzCoder"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "mermaid",
+      "coder"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_multiarray.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 39584,
+    "line_count": 1156,
+    "hash": "55bd297b8dad7592",
+    "mtime_ms": 1779217527644.0457,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "HistoAndCount",
+      "BitProfile",
+      "SubtractHisto",
+      "MakeHistoBitProfile",
+      "GetApproxHistoBitsFrac",
+      "GetApproxHistoBits",
+      "AddHistogram",
+      "AddHistogram",
+      "GetHistoBitUsageWithBitProfile",
+      "Entry",
+      "GetMultiarrayLog2",
+      "HistoArr_RemoveAllWithEmptyCount"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "multiarray",
+      "histo",
+      "and",
+      "count",
+      "bit",
+      "profile",
+      "subtract",
+      "make",
+      "get",
+      "approx",
+      "bits",
+      "frac"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_tans.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 16347,
+    "line_count": 510,
+    "hash": "b4f2cdd573e9853f",
+    "mtime_ms": 1779217527601.0452,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "GetBitsForArraysOfRice",
+      "Tans_EncodeTable",
+      "TansEntry",
+      "Tans_GetLogFactorUp",
+      "Tans_GetLogFactorDown",
+      "DoubleToUintRoundPow2",
+      "Tans_NormalizeCounts",
+      "Entry",
+      "Tans_InitTable",
+      "Tans_GetEncodedBitCount"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "tans",
+      "get",
+      "bits",
+      "for",
+      "arrays",
+      "rice",
+      "encode",
+      "table",
+      "entry",
+      "log",
+      "factor",
+      "down"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compr_util.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 6119,
+    "line_count": 229,
+    "hash": "c6de9d012c8da09c",
+    "mtime_ms": 1779217527640.0452,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "BitWriter64",
+      "Bitwriter32",
+      "BSF",
+      "BSF64",
+      "BSR",
+      "EncodeZigZag32",
+      "DecodeZigZag32",
+      "HistoU8",
+      "CountMatchingBytes",
+      "GetMatchlengthQ",
+      "GetMatchlengthMin2",
+      "GetMatchlengthQMin3"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compr",
+      "util",
+      "bit",
+      "writer64",
+      "bitwriter32",
+      "f64",
+      "encode",
+      "zig",
+      "zag32",
+      "decode",
+      "histo",
+      "count",
+      "matching"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compress.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 15396,
+    "line_count": 428,
+    "hash": "f4814edceb853d25",
+    "mtime_ms": 1779217527682.0464,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compress"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/compress.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 4219,
+    "line_count": 136,
+    "hash": "820fb5b016078a2f",
+    "mtime_ms": 1779217527636.045,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "MatchLenStorage",
+      "LengthAndOffset",
+      "GetLazyScore",
+      "HashPos",
+      "LRMTable",
+      "LRMCascade",
+      "CompressOptions",
+      "LzScratchBlock",
+      "LzTemp",
+      "LzCoder"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "compress",
+      "match",
+      "len",
+      "storage",
+      "length",
+      "and",
+      "offset",
+      "get",
+      "lazy",
+      "score",
+      "hash",
+      "pos",
+      "table"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/kraken_compress.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 1139,
+    "line_count": 26,
+    "hash": "93acd0679e99f7ce",
+    "mtime_ms": 1779217527617.0457,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "kraken",
+      "compress"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/kraken.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 138375,
+    "line_count": 4482,
+    "hash": "c3210470d72e83b4",
+    "mtime_ms": 1779217527679.0452,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "HuffRevLut",
+      "Max",
+      "Min",
+      "HuffRange",
+      "ReverseBitsArray2048",
+      "BitReader2",
+      "HuffRange",
+      "NewHuffLut",
+      "TansData",
+      "TansLutEnt",
+      "TansDecoderParams",
+      "LeviathanLzTable"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "kraken",
+      "huff",
+      "rev",
+      "lut",
+      "max",
+      "min",
+      "range",
+      "reverse",
+      "bits",
+      "array2048",
+      "bit",
+      "reader2",
+      "new"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/log_lookup.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 52036,
+    "line_count": 516,
+    "hash": "b1f68f5ade3ba112",
+    "mtime_ms": 1779217527611.046,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "log",
+      "lookup"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/lzna.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 17913,
+    "line_count": 598,
+    "hash": "8fc3fa71d814918f",
+    "mtime_ms": 1779217527687.051,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "LznaNibbleModel",
+      "Lzna3bitModel",
+      "LznaLiteralModel",
+      "LznaFarDistModel",
+      "LznaNearDistModel",
+      "LznaLowBitsDistanceModel",
+      "LznaShortLengthRecentModel",
+      "LznaLongLengthModel",
+      "LznaState",
+      "LznaNibbleModel_Init",
+      "Lzna3bitModel_Init",
+      "LznaNibbleModel_InitN"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "lzna",
+      "nibble",
+      "model",
+      "lzna3bit",
+      "literal",
+      "far",
+      "dist",
+      "near",
+      "low",
+      "bits",
+      "distance",
+      "short",
+      "length"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/match_hasher.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 10222,
+    "line_count": 357,
+    "hash": "2614962325d6fd84",
+    "mtime_ms": 1779217527669.0466,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "MatchHasher",
+      "HashPos",
+      "MakeHashValue",
+      "InsertOne",
+      "Insert",
+      "Insert",
+      "SetHashPos",
+      "SetHashPosPrefetch",
+      "MatchHasher2",
+      "HashPos",
+      "MakeHashValue",
+      "Insert"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "match",
+      "hasher",
+      "hash",
+      "pos",
+      "make",
+      "value",
+      "insert",
+      "one",
+      "set",
+      "prefetch",
+      "hasher2",
+      "fast"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/qsort.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 3967,
+    "line_count": 173,
+    "hash": "127e183e375958fa",
+    "mtime_ms": 1779217527662.0452,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "Stack"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "qsort",
+      "stack"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/sse2neon.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 502185,
+    "line_count": 11744,
+    "hash": "fab5e1be095ce8db",
+    "mtime_ms": 1779217527598.045,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "_mm_hint",
+      "_sse2neon_vmull_p64",
+      "ALIGN_STRUCT",
+      "ALIGN_STRUCT",
+      "_sse2neon_aggregate_ranges_16x8",
+      "_sse2neon_aggregate_ranges_8x16",
+      "ALIGN_STRUCT",
+      "ALIGN_STRUCT",
+      "ALIGN_STRUCT",
+      "ALIGN_STRUCT",
+      "ALIGN_STRUCT",
+      "timeval"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "sse2neon",
+      "hint",
+      "vmull",
+      "p64",
+      "aggregate",
+      "ranges",
+      "16x8",
+      "8x16",
+      "timeval"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/stdafx.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 285,
+    "line_count": 8,
+    "hash": "93b51ae7c66495eb",
+    "mtime_ms": 1779217527659.0537,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "stdafx"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/stdafx.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 1444,
+    "line_count": 54,
+    "hash": "b7dd2072a909d84b",
+    "mtime_ms": 1779217527573.0466,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "_rotl"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "stdafx",
+      "rotl"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz-rarten/targetver.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 306,
+    "line_count": 8,
+    "hash": "7f988ed4cd4fe1ac",
+    "mtime_ms": 1779217527620.0474,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "rarten",
+      "targetver"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz/bitknit.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 10240,
+    "line_count": 409,
+    "hash": "6e448d52fe485032",
+    "mtime_ms": 1779217527824.872,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "BitknitLiteral",
+      "BitknitDistanceLsb",
+      "BitknitDistanceBits",
+      "BitknitState",
+      "BitknitCopyLongDist",
+      "BitknitCopyShortDist"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "bitknit",
+      "literal",
+      "distance",
+      "lsb",
+      "bits",
+      "state",
+      "copy",
+      "long",
+      "dist",
+      "short"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz/kraken.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 137434,
+    "line_count": 4452,
+    "hash": "20c48a30db54efa7",
+    "mtime_ms": 1779217527850.883,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "HuffRevLut",
+      "Max",
+      "Min",
+      "HuffRange",
+      "ReverseBitsArray2048",
+      "BitReader2",
+      "HuffRange",
+      "NewHuffLut",
+      "TansData",
+      "TansLutEnt",
+      "TansDecoderParams",
+      "LeviathanLzTable"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "kraken",
+      "huff",
+      "rev",
+      "lut",
+      "max",
+      "min",
+      "range",
+      "reverse",
+      "bits",
+      "array2048",
+      "bit",
+      "reader2",
+      "new",
+      "tans"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz/lzna.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 17913,
+    "line_count": 598,
+    "hash": "8fc3fa71d814918f",
+    "mtime_ms": 1779217527853.8796,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "LznaNibbleModel",
+      "Lzna3bitModel",
+      "LznaLiteralModel",
+      "LznaFarDistModel",
+      "LznaNearDistModel",
+      "LznaLowBitsDistanceModel",
+      "LznaShortLengthRecentModel",
+      "LznaLongLengthModel",
+      "LznaState",
+      "LznaNibbleModel_Init",
+      "Lzna3bitModel_Init",
+      "LznaNibbleModel_InitN"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "lzna",
+      "nibble",
+      "model",
+      "lzna3bit",
+      "literal",
+      "far",
+      "dist",
+      "near",
+      "low",
+      "bits",
+      "distance",
+      "short",
+      "length",
+      "recent"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz/stdafx.cpp",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 285,
+    "line_count": 8,
+    "hash": "93b51ae7c66495eb",
+    "mtime_ms": 1779217527844.8718,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "stdafx"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz/stdafx.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 732,
+    "line_count": 31,
+    "hash": "92b798615ee1ac90",
+    "mtime_ms": 1779217527827.8718,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "stdafx"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "native/ooz/targetver.h",
+    "language": "cpp",
+    "kind": "source",
+    "size_bytes": 306,
+    "line_count": 8,
+    "hash": "7f988ed4cd4fe1ac",
+    "mtime_ms": 1779217527837.883,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "native",
+      "ooz",
+      "targetver"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "README.md",
+    "language": "markdown",
+    "kind": "doc",
+    "size_bytes": 20281,
+    "line_count": 265,
+    "hash": "a23eba51d0b4fca5",
+    "mtime_ms": 1784236937621.4463,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "doc",
+      "readme"
+    ],
+    "concepts": []
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkDaemon/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 198,
+    "line_count": 4,
+    "hash": "f7a5d9789c863625",
+    "mtime_ms": 1782761514350.3713,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "daemon",
+      "obj",
+      "debug",
+      "net8",
+      "core",
+      "app,",
+      "version=v8",
+      "assembly",
+      "attributes"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkDaemon/obj/Debug/net8.0/WkDaemon.AssemblyInfo.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 999,
+    "line_count": 22,
+    "hash": "480578e89e8d7445",
+    "mtime_ms": 1782847060458.9844,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "daemon",
+      "obj",
+      "debug",
+      "net8",
+      "assembly",
+      "info"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkDaemon/obj/Debug/net8.0/WkDaemon.GlobalUsings.g.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 295,
+    "line_count": 8,
+    "hash": "f3f134e9e825e3e7",
+    "mtime_ms": 1782761512319.641,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "daemon",
+      "obj",
+      "debug",
+      "net8",
+      "global",
+      "usings"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkDaemon/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 198,
+    "line_count": 4,
+    "hash": "f7a5d9789c863625",
+    "mtime_ms": 1781947228340.278,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "daemon",
+      "obj",
+      "release",
+      "net8",
+      "core",
+      "app,",
+      "version=v8",
+      "assembly",
+      "attributes"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkDaemon/obj/Release/net8.0/WkDaemon.AssemblyInfo.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 1001,
+    "line_count": 22,
+    "hash": "ed7ea25a1efac0a5",
+    "mtime_ms": 1782846928786.4841,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "daemon",
+      "obj",
+      "release",
+      "net8",
+      "assembly",
+      "info"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkDaemon/obj/Release/net8.0/WkDaemon.GlobalUsings.g.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 295,
+    "line_count": 8,
+    "hash": "f3f134e9e825e3e7",
+    "mtime_ms": 1781947226289.7083,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "daemon",
+      "obj",
+      "release",
+      "net8",
+      "global",
+      "usings"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkDaemon/Program.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 88273,
+    "line_count": 1946,
+    "hash": "fabfc1e15e3ec67e",
+    "mtime_ms": 1784236779122.0703,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "HandleRequest",
+      "Dispatch",
+      "EscapeCsv",
+      "RenderTweakFlatValue",
+      "TweakRead",
+      "TweakWrite",
+      "NormalizeYamlNode",
+      "JsonElementToObject",
+      "Opt",
+      "Dir",
+      "Fs",
+      "ResolveGameExe"
+    ],
+    "imports_preview": [
+      "System.ComponentModel",
+      "System.Drawing",
+      "System.Drawing.Drawing2D",
+      "System.Drawing.Imaging",
+      "System.Runtime.Versioning",
+      "System.Runtime.Loader",
+      "System.Text",
+      "System.Text.Json",
+      "CP77Tools.Tasks",
+      "Microsoft.Extensions.DependencyInjection",
+      "WolvenKit.Common",
+      "WolvenKit.Common.Interfaces",
+      "WolvenKit.Common.Model",
+      "WolvenKit.Common.Model.Arguments",
+      "WolvenKit.Common.Services",
+      "WolvenKit.Core.Compression",
+      "WolvenKit.Core.Interfaces",
+      "WolvenKit.Core.Services",
+      "WolvenKit.Modkit.RED4",
+      "WolvenKit.Modkit.RED4.Opus"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "daemon",
+      "program",
+      "handle",
+      "request",
+      "dispatch",
+      "escape",
+      "csv",
+      "render",
+      "tweak",
+      "flat",
+      "value",
+      "read",
+      "write",
+      "normalize",
+      "yaml",
+      "node"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/AssetInspectionTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 15736,
+    "line_count": 381,
+    "hash": "72743e97d4368dbb",
+    "mtime_ms": 1782681628811.1926,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "MaterialInstanceTests",
+      "Mi",
+      "Summarize_reads_base_material_and_params",
+      "Summarize_handles_key_value_pair_shape",
+      "Edit_sets_texture_path_and_reports_previous",
+      "Edit_sets_color_components",
+      "Edit_missing_param_fails_cleanly",
+      "Edit_wrong_kind_fails_cleanly",
+      "MlSetupTests",
+      "Summarize_reads_layers_material_and_microblend",
+      "InkAtlasTests",
+      "Parse_reads_slots_parts_and_textures"
+    ],
+    "imports_preview": [
+      "System",
+      "System.IO",
+      "System.Linq",
+      "System.Text.Json",
+      "System.Text.Json.Nodes",
+      "WkMcp",
+      "Xunit",
+      "var doc = JsonDocument.Parse(MiJson)",
+      "var doc = JsonDocument.Parse(json)"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "asset",
+      "inspection",
+      "material",
+      "instance",
+      "summarize",
+      "reads",
+      "base",
+      "and",
+      "params",
+      "handles",
+      "key",
+      "value",
+      "pair",
+      "shape"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/AuditImplementationTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 4590,
+    "line_count": 102,
+    "hash": "ded06e788f2cc107",
+    "mtime_ms": 1784236844682.4482,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "AuditImplementationTests",
+      "Tool_result_contract_is_present_on_bridge_success_and_failure",
+      "Import_mesh_rejects_unsupported_direct_creation",
+      "Semantic_inspectors_summarize_json_without_a_daemon",
+      "Validate_project_reports_bad_text_files_without_a_daemon",
+      "New_pagination_and_atlas_gates_fail_before_runner_access",
+      "TempDir",
+      "WriteJson"
+    ],
+    "imports_preview": [
+      "System.Text.Json.Nodes",
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "audit",
+      "implementation",
+      "tool",
+      "result",
+      "contract",
+      "present",
+      "bridge",
+      "success",
+      "and",
+      "failure",
+      "import",
+      "mesh",
+      "rejects",
+      "unsupported"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/CetBridgeProtocolTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 8019,
+    "line_count": 232,
+    "hash": "260233719caf86d8",
+    "mtime_ms": 1781948234843.8047,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "FrameSplitterTests",
+      "B",
+      "SingleCompleteFrame",
+      "TwoFramesInOneBuffer",
+      "FragmentedFrameAcrossAppends",
+      "DelimiterSplitAcrossAppends",
+      "EmptyFramesAreSkipped",
+      "MultibyteUtf8NotSplitMidCharacter",
+      "BridgeProtocolParseTests",
+      "OkResultParsed",
+      "ErrorParsed",
+      "NotOkWithoutErrorGetsDefaultMessage"
+    ],
+    "imports_preview": [
+      "System.Text",
+      "System.Text.Json",
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "cet",
+      "bridge",
+      "protocol",
+      "frame",
+      "splitter",
+      "single",
+      "complete",
+      "two",
+      "frames",
+      "one",
+      "buffer",
+      "fragmented",
+      "across",
+      "appends"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/ConsistencyTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 8421,
+    "line_count": 187,
+    "hash": "4f4b54b457a25efb",
+    "mtime_ms": 1784236216814.8816,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "ConsistencyTests",
+      "AllToolNames",
+      "AllPromptNames",
+      "AssertCitationsExist",
+      "Every_prompt_only_cites_existing_tools",
+      "The_reference_only_cites_existing_tools",
+      "The_reference_announces_the_correct_total_tools",
+      "Tool_names_are_unique_across_classes",
+      "Every_tool_declares_its_annotations_explicitly",
+      "The_annotations_are_consistent",
+      "The_README_documents_all_prompts_and_resources",
+      "The_README_announces_the_correct_counts"
+    ],
+    "imports_preview": [
+      "System.Reflection",
+      "System.Text.RegularExpressions",
+      "ModelContextProtocol.Server",
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "consistency",
+      "all",
+      "tool",
+      "names",
+      "prompt",
+      "assert",
+      "citations",
+      "exist",
+      "every",
+      "only",
+      "cites",
+      "existing",
+      "tools",
+      "the"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/CoverageGapsToolsTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 4405,
+    "line_count": 102,
+    "hash": "1856d840c76126e5",
+    "mtime_ms": 1782846156710.8147,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "CoverageGapsToolsTests",
+      "TempDir",
+      "ImportRig_rejects_missing_and_non_glb",
+      "InstallRedscript_rejects_bad_inputs",
+      "InstallRedscript_installs_file_into_r6_scripts",
+      "InstallRedscript_installs_folder_with_custom_modName",
+      "InstallCetMod_requires_init_lua_then_installs",
+      "ScaffoldMod_cet_kind_writes_init_lua"
+    ],
+    "imports_preview": [
+      "System",
+      "System.IO",
+      "System.Text.Json.Nodes",
+      "System.Threading.Tasks",
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "coverage",
+      "gaps",
+      "tools",
+      "temp",
+      "dir",
+      "import",
+      "rig",
+      "rejects",
+      "missing",
+      "and",
+      "non",
+      "glb",
+      "install",
+      "redscript"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/CrossModImportTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 1369,
+    "line_count": 36,
+    "hash": "995b0c19b4e036fd",
+    "mtime_ms": 1781948234847.805,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "CrossModImportTests",
+      "Exact_import_is_resolved",
+      "Class_import_walks_up_to_parent_module",
+      "Prefix_import_covers_submodules",
+      "Unknown_import_returns_null"
+    ],
+    "imports_preview": [
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "cross",
+      "mod",
+      "import",
+      "exact",
+      "resolved",
+      "class",
+      "walks",
+      "parent",
+      "module",
+      "prefix",
+      "covers",
+      "submodules",
+      "unknown",
+      "returns"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/GameplayInspectionTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 8982,
+    "line_count": 212,
+    "hash": "0d6df04ae406ff51",
+    "mtime_ms": 1782681628811.1926,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "QuestPhaseTests",
+      "Summarize_reads_nodes_types_and_refs",
+      "Edges_are_reconstructed_from_socket_handles",
+      "Embedded_phase_without_resource_is_not_a_ref",
+      "Empty_or_wrong_root_degrades_gracefully",
+      "CommunityTests",
+      "Summarize_reads_entries_characters_and_phases",
+      "Phase_aggregates_appearances_and_quantity",
+      "Wrong_root_degrades_gracefully",
+      "GameplayRealFileSmokeTests",
+      "Load",
+      "Real_questphase"
+    ],
+    "imports_preview": [
+      "System",
+      "System.IO",
+      "System.Linq",
+      "System.Text.Json",
+      "WkMcp",
+      "Xunit",
+      "var doc = JsonDocument.Parse(Json)",
+      "var doc = JsonDocument.Parse(Json)",
+      "var doc = JsonDocument.Parse(\"\"\"{ \"Data\": { \"RootChunk\": { \"$type\":\"CMesh\" } } }\"\"\")",
+      "var doc = JsonDocument.Parse(Json)",
+      "var doc = JsonDocument.Parse(Json)",
+      "var doc = JsonDocument.Parse(\"\"\"{ \"Data\": { \"RootChunk\": { \"$type\":\"CMesh\" } } }\"\"\")"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "gameplay",
+      "inspection",
+      "quest",
+      "phase",
+      "summarize",
+      "reads",
+      "nodes",
+      "types",
+      "and",
+      "refs",
+      "edges",
+      "are",
+      "reconstructed",
+      "from"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/HelpersTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 22016,
+    "line_count": 575,
+    "hash": "3937b8f7345a13f9",
+    "mtime_ms": 1782681628812.1924,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "TruncateTests",
+      "ShortStringIsReturnedUnchanged",
+      "LongMultilineKeepsHeadAndTail",
+      "MidErrorsArePreserved",
+      "MatchesGlobTests",
+      "Matches",
+      "CpmodprojTests",
+      "ProducesWellFormedXmlWithRequiredName",
+      "DefaultsVersionWhenMissing",
+      "EscapesSpecialCharacters",
+      "ScriptLintTests",
+      "BalancedScriptHasNoTextualErrors"
+    ],
+    "imports_preview": [
+      "System.Linq",
+      "System.Text.Json",
+      "System.Xml.Linq",
+      "WkMcp",
+      "Xunit",
+      "var doc = JsonDocument.Parse(Journal)",
+      "var doc = JsonDocument.Parse(Journal)",
+      "var doc = JsonDocument.Parse(Journal)",
+      "var doc = JsonDocument.Parse(\"{\\\"Data\\\":{\\\"RootChunk\\\":{\\\"$type\\\":\\\"CMesh\\\"}}}\")",
+      "var doc = JsonDocument.Parse(Cr2w)",
+      "var doc = JsonDocument.Parse(Cr2w)",
+      "var doc = JsonDocument.Parse(Cr2w)"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "helpers",
+      "truncate",
+      "short",
+      "string",
+      "returned",
+      "unchanged",
+      "long",
+      "multiline",
+      "keeps",
+      "head",
+      "and",
+      "tail",
+      "mid",
+      "errors"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/HttpBridgeSecurityTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 3799,
+    "line_count": 88,
+    "hash": "7865bbddf7f2baab",
+    "mtime_ms": 1781948234852.8132,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "HttpBridgeSecurityTests",
+      "IsLoopback_classifies",
+      "CheckStartup_loopback_without_token_is_ok",
+      "CheckStartup_nonloopback_without_token_is_refused",
+      "CheckStartup_nonloopback_with_token_is_ok",
+      "TokenEquals_compares",
+      "AllowedHosts_includes_loopback_aliases",
+      "IsHostAllowed_filters",
+      "IsOriginAllowed_filters",
+      "AllowedHosts_includes_a_nonloopback_bound_host"
+    ],
+    "imports_preview": [
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "http",
+      "bridge",
+      "security",
+      "loopback",
+      "classifies",
+      "check",
+      "startup",
+      "without",
+      "token",
+      "nonloopback",
+      "refused",
+      "with",
+      "equals",
+      "compares"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/ImportToolsTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 4423,
+    "line_count": 88,
+    "hash": "ace8f83f45c0a2cb",
+    "mtime_ms": 1782755305218.6685,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "ImportToolsTests",
+      "BadExt_accepts_allowed_rejects_others_and_passes_folders"
+    ],
+    "imports_preview": [
+      "System",
+      "System.Collections.Generic",
+      "System.IO",
+      "System.Text.Json.Nodes",
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "import",
+      "tools",
+      "bad",
+      "ext",
+      "accepts",
+      "allowed",
+      "rejects",
+      "others",
+      "and",
+      "passes",
+      "folders"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/LiveToolsTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 974,
+    "line_count": 27,
+    "hash": "d24a685f93b53772",
+    "mtime_ms": 1781948234854.8052,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "LiveToolsTests",
+      "TryExtractSubscriptionId_recognizes_the_formats",
+      "TryExtractSubscriptionId_rejects_the_noise"
+    ],
+    "imports_preview": [
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "live",
+      "tools",
+      "try",
+      "extract",
+      "subscription",
+      "recognizes",
+      "the",
+      "formats",
+      "rejects",
+      "noise"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/McpE2ETests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 6323,
+    "line_count": 138,
+    "hash": "7754384ed1b01d37",
+    "mtime_ms": 1782755305219.6685,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "McpE2ETests",
+      "Dispose",
+      "RequestAsync",
+      "NotifyAsync",
+      "Handshake_then_full_tools_list"
+    ],
+    "imports_preview": [
+      "System.Diagnostics",
+      "System.Text.Json",
+      "Xunit",
+      "var page = await RequestAsync(payload, expectedId: id)"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "dispose",
+      "request",
+      "async",
+      "notify",
+      "handshake",
+      "then",
+      "full",
+      "tools",
+      "list"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/NewToolsTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 24111,
+    "line_count": 580,
+    "hash": "c3fd3839f679a1eb",
+    "mtime_ms": 1782681628812.1924,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "SetMeshMaterialTests",
+      "Fixture",
+      "MeshAppearancesOf",
+      "Sets_mesh_appearance_on_every_component_by_default",
+      "Mesh_filter_restricts_to_the_matching_component_only",
+      "New_mesh_swaps_the_depot_path_too",
+      "Unknown_appearance_fails_and_lists_available_names",
+      "No_matching_component_is_a_warning_not_an_error",
+      "Is_idempotent",
+      "ScaffoldAppearanceModTests",
+      "Emits_xl_and_readme_with_the_target_and_mod_name",
+      "Rejects_an_invalid_mod_name"
+    ],
+    "imports_preview": [
+      "System.Collections.Generic",
+      "System.IO",
+      "System.Linq",
+      "System.Text.Json.Nodes",
+      "WkMcp",
+      "Xunit",
+      "var doc = System.Text.Json.JsonDocument.Parse(json)",
+      "var doc = System.Text.Json.JsonDocument.Parse(json)",
+      "var doc = System.Text.Json.JsonDocument.Parse(json)"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "new",
+      "tools",
+      "set",
+      "mesh",
+      "material",
+      "fixture",
+      "appearances",
+      "sets",
+      "appearance",
+      "every",
+      "component",
+      "default",
+      "filter",
+      "restricts"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 198,
+    "line_count": 4,
+    "hash": "f7a5d9789c863625",
+    "mtime_ms": 1782036710534.0627,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "obj",
+      "debug",
+      "net8",
+      "core",
+      "app,",
+      "version=v8",
+      "assembly",
+      "attributes"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/obj/Debug/net8.0/WkMcp.Tests.AssemblyInfo.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 1008,
+    "line_count": 22,
+    "hash": "beb7b525298817ef",
+    "mtime_ms": 1784147924859.3672,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "obj",
+      "debug",
+      "net8",
+      "assembly",
+      "info"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/obj/Debug/net8.0/WkMcp.Tests.GlobalUsings.g.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 295,
+    "line_count": 8,
+    "hash": "f3f134e9e825e3e7",
+    "mtime_ms": 1782036710185.6262,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "obj",
+      "debug",
+      "net8",
+      "global",
+      "usings"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 198,
+    "line_count": 4,
+    "hash": "f7a5d9789c863625",
+    "mtime_ms": 1781947243520.6172,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "obj",
+      "release",
+      "net8",
+      "core",
+      "app,",
+      "version=v8",
+      "assembly",
+      "attributes"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/obj/Release/net8.0/WkMcp.Tests.AssemblyInfo.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 1010,
+    "line_count": 22,
+    "hash": "b2e61923d137ad9c",
+    "mtime_ms": 1782766911842.6995,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "obj",
+      "release",
+      "net8",
+      "assembly",
+      "info"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/obj/Release/net8.0/WkMcp.Tests.GlobalUsings.g.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 295,
+    "line_count": 8,
+    "hash": "f3f134e9e825e3e7",
+    "mtime_ms": 1781947243228.476,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "obj",
+      "release",
+      "net8",
+      "global",
+      "usings"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/PathSafetyTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 2828,
+    "line_count": 75,
+    "hash": "1fee6f9a53862ebd",
+    "mtime_ms": 1781948234860.806,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "PathSafetyTests",
+      "Relative_inside_is_accepted",
+      "Traversal_is_rejected",
+      "Rooted_relative_is_rejected",
+      "Empty_is_rejected",
+      "A_prefix_sibling_dir_does_not_count_as_inside",
+      "Bare_names_are_accepted",
+      "Names_with_separators_or_empty_are_rejected"
+    ],
+    "imports_preview": [
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "path",
+      "safety",
+      "relative",
+      "inside",
+      "accepted",
+      "traversal",
+      "rejected",
+      "rooted",
+      "empty",
+      "prefix",
+      "sibling",
+      "dir",
+      "does",
+      "not"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/ProbeToolsTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 7547,
+    "line_count": 173,
+    "hash": "3ff904e8b518a12b",
+    "mtime_ms": 1782755305219.6685,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "ProbeToolsTests",
+      "ClassifyCrashText_matches_only_real_crash_markers",
+      "ScanTextForCrash_reports_line_and_recency",
+      "ScanTextForCrash_ignores_clean_logs",
+      "Verdict_is_healthy_when_nothing_wrong",
+      "Missing_dependency_makes_it_broken",
+      "Conflicts_only_make_it_degraded",
+      "Recent_crash_signal_is_high_but_old_one_is_not_flagged",
+      "Live_canary_failure_breaks_only_when_a_save_is_loaded",
+      "Issues_are_ordered_high_before_medium",
+      "ParseLiveProbe_reads_canaries_and_frameworks",
+      "ParseLiveProbe_is_tolerant_of_garbage"
+    ],
+    "imports_preview": [
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "probe",
+      "tools",
+      "classify",
+      "crash",
+      "text",
+      "matches",
+      "only",
+      "real",
+      "markers",
+      "scan",
+      "for",
+      "reports",
+      "line",
+      "and"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/SccDiagnosticsTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 3805,
+    "line_count": 91,
+    "hash": "64678a78f03d3ddc",
+    "mtime_ms": 1782681628812.1924,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "SccDiagnosticsTests",
+      "Parses_an_error_block_with_code_spaced_path_and_message",
+      "Parses_a_warning_block_without_a_code",
+      "Captures_the_final_failure_summary_line_with_no_location",
+      "Counts_severities_across_a_mixed_log_and_skips_info_and_file_listing",
+      "Detects_a_cli_usage_error_distinct_from_script_errors"
+    ],
+    "imports_preview": [
+      "System.Linq",
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "scc",
+      "diagnostics",
+      "parses",
+      "error",
+      "block",
+      "with",
+      "code",
+      "spaced",
+      "path",
+      "and",
+      "message",
+      "warning",
+      "without",
+      "captures"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/SceneAdvancedTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 6904,
+    "line_count": 147,
+    "hash": "3fc223341cc69fba",
+    "mtime_ms": 1782248261197.0852,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "SceneDependencyTests",
+      "Rc",
+      "Extracts_anims_rid_and_actor_record",
+      "Skips_empty_and_zero_paths",
+      "SceneEventsTests",
+      "Rc",
+      "Lists_section_events_with_resolved_dialogue_and_anim_name",
+      "SceneEditTests",
+      "Rc",
+      "SetActor_updates_record_and_appearance",
+      "SetActor_returns_false_for_unknown_id",
+      "ReplaceResource_swaps_all_occurrences"
+    ],
+    "imports_preview": [
+      "System.Linq",
+      "System.Text.Json.Nodes",
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "scene",
+      "advanced",
+      "dependency",
+      "extracts",
+      "anims",
+      "rid",
+      "and",
+      "actor",
+      "record",
+      "skips",
+      "empty",
+      "zero",
+      "paths",
+      "events"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/SceneTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 14375,
+    "line_count": 296,
+    "hash": "8d9c94589ee77194",
+    "mtime_ms": 1782248261197.0852,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "SceneTestData",
+      "GoodScene",
+      "ChoiceScene",
+      "Node",
+      "Rc",
+      "SceneSummaryGraphTests",
+      "Summarize_counts_nodes_actors_and_version",
+      "Summarize_rejects_non_scene",
+      "Graph_resolves_edges_and_choice_labels",
+      "SceneValidationTests",
+      "Good_scene_is_clean",
+      "Socket_to_missing_node_is_an_error"
+    ],
+    "imports_preview": [
+      "System",
+      "System.Collections.Generic",
+      "System.IO",
+      "System.Linq",
+      "System.Text.Json.Nodes",
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "scene",
+      "data",
+      "good",
+      "choice",
+      "node",
+      "summary",
+      "graph",
+      "summarize",
+      "counts",
+      "nodes",
+      "actors",
+      "and",
+      "version",
+      "rejects"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/ScriptApiTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 4662,
+    "line_count": 124,
+    "hash": "aed4be9696331ddb",
+    "mtime_ms": 1782681628813.1924,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "ScriptApiSymbolTests",
+      "PlayerPuppet",
+      "GetMaxHealth",
+      "Reset",
+      "EColor",
+      "Captures_class_extends_and_member_signatures",
+      "Captures_wrapMethod_target_as_the_enclosing_class",
+      "A_free_function_has_no_parent_and_keeps_its_param_list",
+      "Captures_enums",
+      "ScriptApiQueryTests",
+      "Substring_name_filter_is_case_insensitive",
+      "Method_kind_is_a_func_with_a_class_global_is_a_free_func"
+    ],
+    "imports_preview": [
+      "System.Linq",
+      "WkMcp",
+      "Xunit"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "script",
+      "api",
+      "symbol",
+      "player",
+      "puppet",
+      "get",
+      "max",
+      "health",
+      "reset",
+      "color",
+      "captures",
+      "class",
+      "extends",
+      "and"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp.Tests/TweakValidationTests.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 10603,
+    "line_count": 270,
+    "hash": "c6f71ca074030b96",
+    "mtime_ms": 1782681628813.1924,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "TweakValueClassifyTests",
+      "Classifies_scalar_values",
+      "Classifies_sequence_and_mapping",
+      "TweakRedTypeToKindTests",
+      "Maps_flat_type_tokens",
+      "TweakCompatibilityTests",
+      "Compatibility_matrix",
+      "TweakDescribeParseTests",
+      "Parses_flat_lines_from_describe_output",
+      "Parses_current_values_for_the_preview_before_side",
+      "TweakPreviewHelpersTests",
+      "Scalar_strings_are_scalar"
+    ],
+    "imports_preview": [
+      "System.Collections.Generic",
+      "WkMcp",
+      "Xunit",
+      "K = WkMcp.TweakValidation.Kind"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tests",
+      "tweak",
+      "validation",
+      "value",
+      "classify",
+      "classifies",
+      "scalar",
+      "values",
+      "sequence",
+      "and",
+      "mapping",
+      "red",
+      "type",
+      "kind",
+      "maps"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/AssetInspectionTools.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 56864,
+    "line_count": 1014,
+    "hash": "39b2a8ec3faffbf8",
+    "mtime_ms": 1782681628813.1924,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "RootChunkOf",
+      "UnwrapData",
+      "TypeOf",
+      "NumProp",
+      "NameLike",
+      "MaterialParam",
+      "ReadMaterialParam",
+      "DescribeParam",
+      "SetScalarNode",
+      "NameLikeNode",
+      "InkPart",
+      "Elements"
+    ],
+    "imports_preview": [
+      "System.ComponentModel",
+      "System.IO.Compression",
+      "System.Text.Json",
+      "System.Text.Json.Nodes",
+      "ModelContextProtocol.Server",
+      "var doc = JsonDocument.Parse(json)",
+      "var doc = JsonDocument.Parse(json)",
+      "var doc = JsonDocument.Parse(json)",
+      "var doc = JsonDocument.Parse(json)",
+      "var doc = JsonDocument.Parse(json)",
+      "var doc = JsonDocument.Parse(json)",
+      "var zs = File.Open(outputZip, FileMode.Create)",
+      "var zip = new ZipArchive(zs, ZipArchiveMode.Create)"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "asset",
+      "inspection",
+      "tools",
+      "root",
+      "chunk",
+      "unwrap",
+      "data",
+      "type",
+      "num",
+      "prop",
+      "name",
+      "like",
+      "material",
+      "param",
+      "read"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/CetBridge.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 23313,
+    "line_count": 524,
+    "hash": "6c63c9d1f74131d1",
+    "mtime_ms": 1781948234863.815,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "CetBridge",
+      "EnsureStarted",
+      "AcceptLoopAsync",
+      "ReadLoopAsync",
+      "DispatchMessage",
+      "FailAllPending",
+      "ExecAsync",
+      "EvalAsync",
+      "QueryAsync",
+      "SendAsync",
+      "SendTcpAsync",
+      "WriteFrameAsync"
+    ],
+    "imports_preview": [
+      "System.Collections.Concurrent",
+      "System.Globalization",
+      "System.Net",
+      "System.Net.Sockets",
+      "System.Text",
+      "System.Text.Encodings.Web",
+      "System.Text.Json",
+      "Microsoft.Extensions.Logging",
+      "var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct)",
+      "var doc = JsonDocument.Parse(File.ReadAllText(path))",
+      "var doc = JsonDocument.Parse(json)",
+      "var responseReady = new SemaphoreSlim(0)"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "cet",
+      "bridge",
+      "ensure",
+      "started",
+      "accept",
+      "loop",
+      "async",
+      "read",
+      "dispatch",
+      "message",
+      "fail",
+      "all",
+      "pending",
+      "exec",
+      "eval"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/Cp77ToolsRunner.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 31450,
+    "line_count": 752,
+    "hash": "765631ee54fffbc4",
+    "mtime_ms": 1781948234865.807,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "CliResult",
+      "Cp77ToolsRunner",
+      "Outstanding",
+      "ArchiveListing",
+      "TimeoutFor",
+      "RunnerMetrics",
+      "Record",
+      "ResetMetrics",
+      "TryGetFresh",
+      "TrimListingCache",
+      "InvalidateArchiveCache",
+      "ExtractListingEntries"
+    ],
+    "imports_preview": [
+      "System.Collections.Concurrent",
+      "System.Diagnostics",
+      "System.Runtime.InteropServices",
+      "System.Text",
+      "System.Text.Json",
+      "var readyCts = CancellationTokenSource.CreateLinkedTokenSource(ct)",
+      "var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15))",
+      "var doc = JsonDocument.Parse(line)",
+      "var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)",
+      "var proc = new Process { StartInfo = psi }",
+      "var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct)"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "cp77",
+      "tools",
+      "runner",
+      "cli",
+      "result",
+      "outstanding",
+      "archive",
+      "listing",
+      "timeout",
+      "for",
+      "metrics",
+      "record",
+      "reset",
+      "try",
+      "get"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/GameplayInspectionTools.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 19245,
+    "line_count": 343,
+    "hash": "de811cdbffbad7cb",
+    "mtime_ms": 1784235617447.122,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "HandleKey",
+      "IntProp",
+      "QuestNode",
+      "QuestEdge",
+      "SummarizeQuestPhase",
+      "SummarizeCommunity"
+    ],
+    "imports_preview": [
+      "System.ComponentModel",
+      "System.Text.Json",
+      "ModelContextProtocol.Server",
+      "var doc = JsonDocument.Parse(json)",
+      "var doc = JsonDocument.Parse(json)"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "gameplay",
+      "inspection",
+      "tools",
+      "handle",
+      "key",
+      "int",
+      "prop",
+      "quest",
+      "node",
+      "edge",
+      "summarize",
+      "phase",
+      "community"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/HttpBridgeSecurity.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 6786,
+    "line_count": 136,
+    "hash": "97b8848e7f3dd11c",
+    "mtime_ms": 1781948234867.8057,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "HttpBridgeSecurity",
+      "IsLoopback",
+      "Norm",
+      "AllowedHosts",
+      "IsHostAllowed",
+      "IsOriginAllowed",
+      "UseWolvenKitOriginGuard",
+      "TokenEquals",
+      "UseWolvenKitBearerAuth"
+    ],
+    "imports_preview": [
+      "System.Net",
+      "System.Security.Cryptography",
+      "System.Text",
+      "Microsoft.AspNetCore.Builder",
+      "Microsoft.AspNetCore.Http"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "http",
+      "bridge",
+      "security",
+      "loopback",
+      "norm",
+      "allowed",
+      "hosts",
+      "host",
+      "origin",
+      "use",
+      "wolven",
+      "kit",
+      "guard",
+      "token",
+      "equals"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/LiveTools.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 32681,
+    "line_count": 484,
+    "hash": "cdc16e55a6f58608",
+    "mtime_ms": 1784235617444.9111,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "LiveTools",
+      "Wrap",
+      "TryExtractSubscriptionId",
+      "CoerceTweakValue"
+    ],
+    "imports_preview": [
+      "System.Collections.Concurrent",
+      "System.ComponentModel",
+      "System.Globalization",
+      "System.Text.Encodings.Web",
+      "System.Text.Json",
+      "ModelContextProtocol.Server",
+      "var doc = JsonDocument.Parse(trimmed)"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "live",
+      "tools",
+      "wrap",
+      "try",
+      "extract",
+      "subscription",
+      "coerce",
+      "tweak",
+      "value"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/ModdingTools.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 173777,
+    "line_count": 3171,
+    "hash": "5e5b85d603bb99bc",
+    "mtime_ms": 1784235510866.9023,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "Err",
+      "BuildImportRootMap",
+      "ScanInstalledScriptModules",
+      "ResolveImportProvider",
+      "LooksLikeVersion",
+      "IsPackagingNoise",
+      "JournalEntryRef",
+      "JournalRefJson",
+      "TryGetJournalRoot",
+      "SummarizeJournal",
+      "JType",
+      "JId"
+    ],
+    "imports_preview": [
+      "System.ComponentModel",
+      "System.IO.Compression",
+      "System.Text",
+      "System.Text.Encodings.Web",
+      "System.Text.Json",
+      "System.Text.Json.Nodes",
+      "ModelContextProtocol.Server",
+      "YamlDotNet.Serialization",
+      "var zs = File.Open(outputZip, FileMode.Create)",
+      "var zip = new ZipArchive(zs, ZipArchiveMode.Create)",
+      "var fs = File.OpenRead(jsonFile)",
+      "var doc = JsonDocument.Parse(fs)",
+      "var fs = File.OpenRead(jsonFile)",
+      "var doc = JsonDocument.Parse(fs)",
+      "var fs = File.OpenRead(jsonFile)",
+      "var doc = JsonDocument.Parse(fs)",
+      "var fs = File.OpenRead(jsonFile)",
+      "var doc = JsonDocument.Parse(fs)",
+      "var fs = File.OpenRead(jsonFile)",
+      "var doc = JsonDocument.Parse(fs)"
+    ],
+    "signals": [
+      "source",
+      "test-suite"
+    ],
+    "concepts": [
+      "mcp",
+      "modding",
+      "tools",
+      "err",
+      "build",
+      "import",
+      "root",
+      "map",
+      "scan",
+      "installed",
+      "script",
+      "modules",
+      "resolve",
+      "provider",
+      "looks",
+      "like"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 198,
+    "line_count": 4,
+    "hash": "f7a5d9789c863625",
+    "mtime_ms": 1782036637960.1877,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "obj",
+      "debug",
+      "net8",
+      "core",
+      "app,",
+      "version=v8",
+      "assembly",
+      "attributes"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/obj/Debug/net8.0/WkMcp.AssemblyInfo.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 1069,
+    "line_count": 23,
+    "hash": "fc69d90883ec32e6",
+    "mtime_ms": 1782847062915.881,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "obj",
+      "debug",
+      "net8",
+      "assembly",
+      "info"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/obj/Debug/net8.0/WkMcp.GlobalUsings.g.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 295,
+    "line_count": 8,
+    "hash": "f3f134e9e825e3e7",
+    "mtime_ms": 1782036637763.378,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "obj",
+      "debug",
+      "net8",
+      "global",
+      "usings"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/obj/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 198,
+    "line_count": 4,
+    "hash": "f7a5d9789c863625",
+    "mtime_ms": 1781947231572.6384,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "obj",
+      "release",
+      "net8",
+      "core",
+      "app,",
+      "version=v8",
+      "assembly",
+      "attributes"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/obj/Release/net8.0/WkMcp.AssemblyInfo.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 1071,
+    "line_count": 23,
+    "hash": "de25dde34eda3e6a",
+    "mtime_ms": 1782846935001.47,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [
+      "System",
+      "System.Reflection"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "obj",
+      "release",
+      "net8",
+      "assembly",
+      "info"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/obj/Release/net8.0/WkMcp.GlobalUsings.g.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 295,
+    "line_count": 8,
+    "hash": "f3f134e9e825e3e7",
+    "mtime_ms": 1781947231456.206,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "obj",
+      "release",
+      "net8",
+      "global",
+      "usings"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/PathSafety.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 2519,
+    "line_count": 60,
+    "hash": "f4510ba31838d7dd",
+    "mtime_ms": 1781948234873.8064,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "PathSafety",
+      "TryResolveInside",
+      "IsBareFileName"
+    ],
+    "imports_preview": [],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "path",
+      "safety",
+      "try",
+      "resolve",
+      "inside",
+      "bare",
+      "file",
+      "name"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/ProbeTools.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 19852,
+    "line_count": 392,
+    "hash": "596007fff776f967",
+    "mtime_ms": 1784235617447.122,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "ProbeTools",
+      "Err",
+      "CrashMarker",
+      "ScanCrashSignals",
+      "LiveCanary",
+      "LiveFramework",
+      "ParseLiveProbe",
+      "ProbeIssue",
+      "Verdict"
+    ],
+    "imports_preview": [
+      "System.ComponentModel",
+      "System.Diagnostics",
+      "System.Text.Encodings.Web",
+      "System.Text.Json",
+      "System.Text.RegularExpressions",
+      "ModelContextProtocol.Server",
+      "var doc = JsonDocument.Parse(json)",
+      "var jd = JsonDocument.Parse(r.Result)"
+    ],
+    "signals": [
+      "source",
+      "test-suite"
+    ],
+    "concepts": [
+      "mcp",
+      "probe",
+      "tools",
+      "err",
+      "crash",
+      "marker",
+      "scan",
+      "signals",
+      "live",
+      "canary",
+      "framework",
+      "parse",
+      "issue",
+      "verdict"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/Program.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 3869,
+    "line_count": 84,
+    "hash": "50be6b8f75f4a339",
+    "mtime_ms": 1784236988383.3074,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "RegisterMcp"
+    ],
+    "imports_preview": [
+      "Microsoft.AspNetCore.Builder",
+      "Microsoft.Extensions.DependencyInjection",
+      "Microsoft.Extensions.Hosting",
+      "Microsoft.Extensions.Logging",
+      "ModelContextProtocol.Server",
+      "WkMcp"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "program",
+      "register"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/RedscriptParser.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 34915,
+    "line_count": 750,
+    "hash": "cf7f4516cfaceb12",
+    "mtime_ms": 1782681628816.1926,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "TokKind",
+      "Tok",
+      "RedDiagnostic",
+      "ToString",
+      "RedDeclaration",
+      "RedParseResult",
+      "RedscriptParser",
+      "Parse",
+      "Lex",
+      "Impl",
+      "Off",
+      "Slice"
+    ],
+    "imports_preview": [
+      "System.Text"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "redscript",
+      "parser",
+      "tok",
+      "kind",
+      "red",
+      "diagnostic",
+      "string",
+      "declaration",
+      "parse",
+      "result",
+      "lex",
+      "impl",
+      "off",
+      "slice",
+      "ann"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/SccDiagnostics.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 5921,
+    "line_count": 123,
+    "hash": "edf8c8967a4d1e93",
+    "mtime_ms": 1782681628816.1926,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "SccDiagnostics",
+      "Diagnostic",
+      "Parse",
+      "BlockMessage",
+      "Normalize",
+      "Count",
+      "LooksLikeUsageError"
+    ],
+    "imports_preview": [
+      "System",
+      "System.Collections.Generic",
+      "System.Linq",
+      "System.Text.RegularExpressions"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "scc",
+      "diagnostics",
+      "diagnostic",
+      "parse",
+      "block",
+      "message",
+      "normalize",
+      "count",
+      "looks",
+      "like",
+      "usage",
+      "error"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/SceneTools.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 62152,
+    "line_count": 1135,
+    "hash": "57fb3c3361677931",
+    "mtime_ms": 1784235510867.9087,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "SceneTools",
+      "Err",
+      "BuildGraph",
+      "CollectResourcePaths",
+      "KindOf",
+      "LooksBaseGame",
+      "BuildEvents",
+      "SetActor",
+      "ReplaceResource",
+      "BuildSkeleton",
+      "RootChunk",
+      "Type"
+    ],
+    "imports_preview": [
+      "System.ComponentModel",
+      "System.Text.Encodings.Web",
+      "System.Text.Json",
+      "System.Text.Json.Nodes",
+      "ModelContextProtocol.Server"
+    ],
+    "signals": [
+      "source",
+      "test-suite"
+    ],
+    "concepts": [
+      "mcp",
+      "scene",
+      "tools",
+      "err",
+      "build",
+      "graph",
+      "collect",
+      "resource",
+      "paths",
+      "kind",
+      "looks",
+      "base",
+      "game",
+      "events",
+      "set",
+      "actor"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/ScriptApi.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 3743,
+    "line_count": 77,
+    "hash": "d77267ddb5b4d97e",
+    "mtime_ms": 1782681628816.1926,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "ScriptApi",
+      "SymbolsOf"
+    ],
+    "imports_preview": [
+      "System",
+      "System.Collections.Generic",
+      "System.Linq"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "script",
+      "api",
+      "symbols"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/SemanticInspectionTools.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 20017,
+    "line_count": 367,
+    "hash": "4860edbdcaf9fe08",
+    "mtime_ms": 1784236863901.8452,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "WalkObjects",
+      "WalkProperties",
+      "FirstString",
+      "NamedStrings",
+      "FirstNumber",
+      "FirstDepotPath",
+      "HasAnyProperty",
+      "BuildProjectPathIndex",
+      "NormalizeDepotPath"
+    ],
+    "imports_preview": [
+      "System.ComponentModel",
+      "System.Text.Json",
+      "ModelContextProtocol",
+      "ModelContextProtocol.Server",
+      "YamlDotNet.Serialization",
+      "var doc = JsonDocument.Parse(json)",
+      "var doc = JsonDocument.Parse(json)",
+      "var doc = JsonDocument.Parse(json)",
+      "var doc = JsonDocument.Parse(json)"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "semantic",
+      "inspection",
+      "tools",
+      "walk",
+      "objects",
+      "properties",
+      "first",
+      "string",
+      "named",
+      "strings",
+      "number",
+      "depot",
+      "path",
+      "has",
+      "any"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/ToolResult.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 2301,
+    "line_count": 64,
+    "hash": "697cc0f950bb6e0e",
+    "mtime_ms": 1784235538550.7898,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "ToolResult",
+      "Error"
+    ],
+    "imports_preview": [
+      "System.Text.Encodings.Web",
+      "System.Text.Json",
+      "System.Text.Json.Nodes"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tool",
+      "result",
+      "error"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/TweakValidation.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 17398,
+    "line_count": 348,
+    "hash": "8a7f9e5729f26180",
+    "mtime_ms": 1782681628816.1926,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "TweakValidation",
+      "Kind",
+      "Assignment",
+      "ClassifyValue",
+      "ClassifyScalar",
+      "RedTypeToKind",
+      "ParseDescribedFlats",
+      "ParseDescribedValues",
+      "IsScalarValue",
+      "RenderValue",
+      "ArrayOpKind",
+      "ArrayOp"
+    ],
+    "imports_preview": [
+      "System.Collections",
+      "System.IO",
+      "System.Linq",
+      "System.Text.RegularExpressions",
+      "YamlDotNet.RepresentationModel"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "tweak",
+      "validation",
+      "kind",
+      "assignment",
+      "classify",
+      "value",
+      "scalar",
+      "red",
+      "type",
+      "parse",
+      "described",
+      "flats",
+      "values",
+      "render",
+      "array"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/WolvenKitPrompts.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 19096,
+    "line_count": 364,
+    "hash": "465eeec2250f7241",
+    "mtime_ms": 1782845956672.2212,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "WolvenKitPrompts"
+    ],
+    "imports_preview": [
+      "System.ComponentModel",
+      "ModelContextProtocol.Server"
+    ],
+    "signals": [
+      "source",
+      "test-suite"
+    ],
+    "concepts": [
+      "mcp",
+      "wolven",
+      "kit",
+      "prompts"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/WolvenKitResources.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 14822,
+    "line_count": 243,
+    "hash": "ec0e56535296c58e",
+    "mtime_ms": 1784237105335.4976,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "WolvenKitResources",
+      "Reference",
+      "ArchiveContents",
+      "Cr2wJson",
+      "InstalledMods",
+      "ToolNames",
+      "FirstSentence",
+      "BuildReference"
+    ],
+    "imports_preview": [
+      "System.ComponentModel",
+      "System.Reflection",
+      "System.Text",
+      "ModelContextProtocol.Server"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "wolven",
+      "kit",
+      "resources",
+      "reference",
+      "archive",
+      "contents",
+      "cr2w",
+      "json",
+      "installed",
+      "mods",
+      "tool",
+      "names",
+      "first",
+      "sentence",
+      "build"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "src/WkMcp/WolvenKitTools.cs",
+    "language": "csharp",
+    "kind": "source",
+    "size_bytes": 264046,
+    "line_count": 4917,
+    "hash": "4e79300706d75ff7",
+    "mtime_ms": 1784237256370.6394,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "WolvenKitTools",
+      "ProgressRelay",
+      "Report",
+      "Relay",
+      "Status",
+      "HistogramByExtension",
+      "ExtensionCount",
+      "SetScalarOrValue",
+      "BadExt",
+      "AddOptionalBool",
+      "StableHash",
+      "Cap"
+    ],
+    "imports_preview": [
+      "System.Collections.Concurrent",
+      "System.ComponentModel",
+      "System.Diagnostics",
+      "System.IO.Compression",
+      "System.Text",
+      "System.Text.Encodings.Web",
+      "System.Text.Json",
+      "System.Text.Json.Nodes",
+      "System.Text.RegularExpressions",
+      "System.Xml",
+      "ModelContextProtocol",
+      "ModelContextProtocol.Server",
+      "var doc = JsonDocument.Parse(await File.ReadAllTextAsync(tmp, ct))",
+      "var _ = doc",
+      "var doc = JsonDocument.Parse(await File.ReadAllTextAsync(jsonFile, ct))",
+      "var doc = JsonDocument.Parse(await File.ReadAllTextAsync(jsonFile, ct))",
+      "var doc = JsonDocument.Parse(overridesJson)",
+      "var doc = JsonDocument.Parse(parametersJson)",
+      "var doc = JsonDocument.Parse(parametersJson)",
+      "var ovDoc = JsonDocument.Parse(ovJson)"
+    ],
+    "signals": [
+      "auth",
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "wolven",
+      "kit",
+      "tools",
+      "progress",
+      "relay",
+      "report",
+      "status",
+      "histogram",
+      "extension",
+      "count",
+      "set",
+      "scalar",
+      "value",
+      "bad",
+      "ext"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "test-daemon.py",
+    "language": "python",
+    "kind": "source",
+    "size_bytes": 2887,
+    "line_count": 83,
+    "hash": "88cea4b2f9578f4c",
+    "mtime_ms": 1781948234897.944,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "call"
+    ],
+    "imports_preview": [
+      "json",
+      "os",
+      "shutil",
+      "subprocess",
+      "sys",
+      "tempfile",
+      "time"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "daemon",
+      "call"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "test-live-bridge.py",
+    "language": "python",
+    "kind": "source",
+    "size_bytes": 3140,
+    "line_count": 89,
+    "hash": "914a7c6e55091040",
+    "mtime_ms": 1781947074263.2417,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "bridge_dir",
+      "send",
+      "main"
+    ],
+    "imports_preview": [
+      "json",
+      "os",
+      "sys",
+      "time",
+      "uuid"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "live",
+      "bridge",
+      "dir",
+      "send",
+      "main"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "test-mcp-server.py",
+    "language": "python",
+    "kind": "source",
+    "size_bytes": 9165,
+    "line_count": 214,
+    "hash": "419937f04ded8288",
+    "mtime_ms": 1781948234900.946,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "prepare_pack_fixture",
+      "main",
+      "send",
+      "recv",
+      "tool_text",
+      "resource_text"
+    ],
+    "imports_preview": [
+      "json",
+      "os",
+      "shutil",
+      "subprocess",
+      "sys",
+      "tempfile"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "mcp",
+      "server",
+      "prepare",
+      "pack",
+      "fixture",
+      "main",
+      "send",
+      "recv",
+      "tool",
+      "text",
+      "resource"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "test-new-tools.py",
+    "language": "python",
+    "kind": "source",
+    "size_bytes": 11234,
+    "line_count": 264,
+    "hash": "ff1a6bacfa07605e",
+    "mtime_ms": 1781948234903.9438,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "_first_existing",
+      "Server",
+      "__init__",
+      "_send",
+      "_recv",
+      "request",
+      "initialize",
+      "call",
+      "close",
+      "record",
+      "find_extracted",
+      "test_archive_stats"
+    ],
+    "imports_preview": [
+      "json",
+      "os",
+      "shutil",
+      "subprocess",
+      "sys",
+      "tempfile"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "new",
+      "tools",
+      "first",
+      "existing",
+      "server",
+      "init",
+      "send",
+      "recv",
+      "request",
+      "initialize",
+      "call",
+      "close",
+      "record",
+      "find",
+      "extracted",
+      "archive"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "tools/annotate_tools.py",
+    "language": "python",
+    "kind": "source",
+    "size_bytes": 7869,
+    "line_count": 182,
+    "hash": "ac6fdebfbb14747d",
+    "mtime_ms": 1781948234908.948,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "cs",
+      "main",
+      "repl"
+    ],
+    "imports_preview": [
+      "re",
+      "sys",
+      "pathlib"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "tools",
+      "annotate",
+      "main",
+      "repl"
+    ]
+  },
+  {
+    "schema_version": 1,
+    "path": "validate-windows.py",
+    "language": "python",
+    "kind": "source",
+    "size_bytes": 77786,
+    "line_count": 1511,
+    "hash": "782e3e1b5b090e80",
+    "mtime_ms": 1782681628818.193,
+    "extraction": "structural",
+    "confidence": "EXTRACTED",
+    "top_symbols": [
+      "Server",
+      "__init__",
+      "_send",
+      "_recv",
+      "request",
+      "initialize",
+      "call",
+      "resource",
+      "listing",
+      "parallel_calls",
+      "close",
+      "_errdict"
+    ],
+    "imports_preview": [
+      "json",
+      "os",
+      "re",
+      "shutil",
+      "subprocess",
+      "sys",
+      "tempfile",
+      "time",
+      "glob"
+    ],
+    "signals": [
+      "source"
+    ],
+    "concepts": [
+      "validate",
+      "windows",
+      "server",
+      "init",
+      "send",
+      "recv",
+      "request",
+      "initialize",
+      "call",
+      "resource",
+      "listing",
+      "parallel",
+      "calls",
+      "close",
+      "errdict",
+      "record"
+    ]
+  }
+]

@@ -38,25 +38,18 @@ public static class SceneTools
     /// <summary>uint "none" sentinel used by scnNodeId/scnActorId/scnscreenplayItemId.</summary>
     internal const long NoneId = 4294967295L;
 
-    internal static string Err(string msg) => JsonSerializer.Serialize(new
-    {
-        ok = false,
-        status = "error",
-        summary = msg,
-        errors = new[] { msg },
-    }, JsonOpts);
+    internal static string Err(string msg) => ToolResult.Error(msg, JsonOpts);
 
     internal static string Result(string summary, IReadOnlyList<string> errors,
         IReadOnlyList<string> warnings, object? data = null)
-        => JsonSerializer.Serialize(new
-        {
-            ok = errors.Count == 0,
-            status = errors.Count == 0 ? "success" : "error",
+        => ToolResult.Create(
+            errors.Count == 0,
+            errors.Count == 0 ? "success" : "error",
             summary,
-            errors,
-            warnings,
-            data,
-        }, JsonOpts);
+            warnings: warnings,
+            errors: errors,
+            data: data,
+            options: JsonOpts);
 
     // ── inspect_scene ─────────────────────────────────────────────────────────
 

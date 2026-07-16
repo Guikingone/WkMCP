@@ -1,4 +1,8 @@
 using System.ComponentModel;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Runtime.Versioning;
 using System.Runtime.Loader;
 using System.Text;
 using System.Text.Json;
@@ -17,6 +21,9 @@ using WolvenKit.Modkit.RED4.Opus;
 using WolvenKit.Modkit.RED4.Tools;
 using WolvenKit.RED4.CR2W;
 using WolvenKit.RED4.CR2W.Archive;
+using WolvenKit.RED4.Archive.CR2W;
+using WolvenKit.RED4.Archive.IO;
+using WolvenKit.RED4.Types;
 
 // ════════════════════════════════════════════════════════════════════════
 // WkDaemon — persistent host for the WolvenKit libraries.
@@ -321,9 +328,29 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         if (o.ContainsKey("--all"))
         {
             var entries = loc.GetEntries().ToList();
-            logger.Info($"loc-resolve: {entries.Count} entry(ies) for {lang} (first 100)");
-            foreach (var e in entries.Take(100))
+            var filter = Opt(o, "--filter") ?? "";
+            var limit = int.TryParse(Opt(o, "--limit"), out var requestedLimit)
+                ? Math.Clamp(requestedLimit, 1, 5000) : 100;
+            var offset = int.TryParse(Opt(o, "--offset"), out var requestedOffset)
+                ? Math.Max(0, requestedOffset) : 0;
+            var filtered = entries.Where(e => string.IsNullOrEmpty(filter)
+                    || ((string?)e.SecondaryKey ?? "").Contains(filter, StringComparison.OrdinalIgnoreCase)
+                    || ((string?)e.MaleVariant ?? "").Contains(filter, StringComparison.OrdinalIgnoreCase)
+                    || ((string?)e.FemaleVariant ?? "").Contains(filter, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(e => e.PrimaryKey).ToList();
+            var page = filtered.Skip(offset).Take(limit).ToList();
+            logger.Info($"loc-resolve: {page.Count} of {filtered.Count} entry(ies) for {lang} (offset {offset}, limit {limit})");
+            foreach (var e in page)
                 logger.Info($"{e.PrimaryKey} | {e.SecondaryKey} = {e.MaleVariant}");
+            if (Opt(o, "--output") is { Length: > 0 } outputFile)
+            {
+                var full = Path.GetFullPath(outputFile);
+                Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+                var rows = new List<string> { "primaryKey,secondaryKey,maleVariant,femaleVariant" };
+                rows.AddRange(page.Select(e => $"{e.PrimaryKey},{EscapeCsv((string?)e.SecondaryKey ?? "")},{EscapeCsv((string?)e.MaleVariant ?? "")},{EscapeCsv((string?)e.FemaleVariant ?? "")}"));
+                await File.WriteAllLinesAsync(full, rows);
+                logger.Success($"loc-resolve output: {full}");
+            }
             return 0;
         }
 
@@ -338,6 +365,19 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
 
     // opus-import: imports .wav files (named by opus hash) → .opus repacked into
     // a mod folder, via OpusTools.ImportWavs (embedded opusenc encoder).
+    // Combines PNGs into 4K/1080 atlas images and writes inkTextureAtlas CR2W.
+    if (verb == "generate-inkatlas")
+    {
+        if (!OperatingSystem.IsWindows()) { logger.Error("generate-inkatlas requires Windows/System.Drawing"); return -1; }
+        var (pos, o) = ParseArgs(argv, 1);
+        if (pos.Count == 0) { logger.Error("generate-inkatlas: PNG folder missing"); return -1; }
+        return GenerateInkAtlas(logger, pos[0], Opt(o, "--mod-root"), Opt(o, "--raw-root"),
+            Opt(o, "--depot-path") ?? "", Opt(o, "--name") ?? "atlas",
+            int.TryParse(Opt(o, "--tile-width"), out var tw) ? tw : 0,
+            int.TryParse(Opt(o, "--tile-height"), out var th) ? th : 0,
+            o.ContainsKey("--overwrite"));
+    }
+
     if (verb == "opus-import")
     {
         var (pos, o) = ParseArgs(argv, 1);
@@ -472,42 +512,54 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
     // tweakdb-query: loads a tweakdb.bin and lists filtered records/flats.
     if (verb == "tweakdb-query")
     {
-        var rest = argv[1..];
-        if (rest.Length < 1)
+        var (pos, o) = ParseArgs(argv, 1);
+        if (pos.Count < 1)
         {
             logger.Error("tweakdb-query: tweakdb.bin path missing");
             return -1;
         }
         var tdb = provider.GetRequiredService<ITweakDBService>();
-        await EnsureTweakDbAsync(tdb, rest[0]);
+        await EnsureTweakDbAsync(tdb, pos[0]);
         if (!tdb.IsLoaded)
         {
-            logger.Error($"failed to load the TweakDB: {rest[0]}");
+            logger.Error($"failed to load the TweakDB: {pos[0]}");
             return -1;
         }
-        var filter = rest.Length > 1 ? rest[1] : "";
+        var filter = Opt(o, "--filter") ?? (pos.Count > 1 ? pos[1] : "");
+        var limit = int.TryParse(Opt(o, "--limit"), out var requestedLimit)
+            ? Math.Clamp(requestedLimit, 1, 5000) : 100;
+        var offset = int.TryParse(Opt(o, "--offset"), out var requestedOffset)
+            ? Math.Max(0, requestedOffset) : 0;
+        var outputFile = Opt(o, "--output");
 
-        // Hard cap on the daemon side to avoid saturating the LLM context; we
-        // peek one element beyond the cap to detect truncation.
-        const int cap = 100;
         var allRecords = TweakDBService.GetRecords()
             .Select(r => r.ToString() ?? "")
             .Where(s => s.Contains(filter, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(s => s).Take(cap + 1).ToList();
-        var recordsTruncated = allRecords.Count > cap;
-        var records = recordsTruncated ? allRecords.Take(cap).ToList() : allRecords;
+            .OrderBy(s => s).ToList();
+        var records = allRecords.Skip(offset).Take(limit).ToList();
+        var recordsTruncated = offset + records.Count < allRecords.Count;
         var allFlats = TweakDBService.GetFlats()
             .Select(flt => flt.ToString() ?? "")
             .Where(s => s.Contains(filter, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(s => s).Take(cap + 1).ToList();
-        var flatsTruncated = allFlats.Count > cap;
-        var flats = flatsTruncated ? allFlats.Take(cap).ToList() : allFlats;
+            .OrderBy(s => s).ToList();
+        var flats = allFlats.Skip(offset).Take(limit).ToList();
+        var flatsTruncated = offset + flats.Count < allFlats.Count;
+        if (!string.IsNullOrWhiteSpace(outputFile))
+        {
+            var full = Path.GetFullPath(outputFile);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            var rows = new List<string> { "kind,identifier" };
+            rows.AddRange(records.Select(x => $"record,{EscapeCsv(x)}"));
+            rows.AddRange(flats.Select(x => $"flat,{EscapeCsv(x)}"));
+            await File.WriteAllLinesAsync(full, rows);
+            logger.Success($"tweakdb-query output: {full}");
+        }
         // "+" marker read on the MCP side to expose a truncated field in the JSON output.
-        var advice = recordsTruncated || flatsTruncated ? " — refine the filter" : "";
+        var advice = recordsTruncated || flatsTruncated ? " — request the next offset or refine the filter" : "";
         logger.Info(
             $"{records.Count}{(recordsTruncated ? "+" : "")} record(s), " +
             $"{flats.Count}{(flatsTruncated ? "+" : "")} flat(s) — " +
-            $"filter \"{filter}\" (cap {cap}{advice})");
+            $"filter \"{filter}\" (offset {offset}, limit {limit}, totals {allRecords.Count}/{allFlats.Count}{advice})");
         foreach (var rec in records) logger.Info("record  " + rec);
         foreach (var flt in flats) logger.Info("flat    " + flt);
         return 0;
@@ -920,8 +972,11 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             return f.UnbundleTask(pos.Select(Fs).ToArray(), new UnbundleTaskOptions
             {
                 outpath = Dir(o, "--outpath"),
+                gamepath = Opt(o, "--gamepath"),
+                hash = Opt(o, "--hash"),
                 pattern = Opt(o, "--pattern"),
                 regex = Opt(o, "--regex"),
+                DEBUG_decompress = o.ContainsKey("--debug-decompress"),
             });
         }
 
@@ -939,14 +994,20 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             return f.UncookTask(pos.Select(Fs).ToArray(), new UncookTaskOptions
             {
                 outpath = Dir(o, "--outpath"),
+                gamepath = Dir(o, "--gamepath"),
+                raw = Dir(o, "--raw"),
                 pattern = Opt(o, "--pattern"),
                 regex = Opt(o, "--regex"),
                 uext = ParseUext(Opt(o, "--uext")),
+                hash = ulong.TryParse(Opt(o, "--hash"), out var uncookHash) ? uncookHash : 0,
                 unbundle = o.ContainsKey("--unbundle"),
+                forcebuffers = ParseCookedFormats(Opt(o, "--forcebuffers")),
                 serialize = o.ContainsKey("--serialize") ? true : null,
                 meshExporterType = met,
                 meshExportType = mxt,
+                meshExportMaterialRepo = Opt(o, "--mesh-export-material-repo"),
                 meshExportLodFilter = o.ContainsKey("--mesh-export-lod-filter") ? true : null,
+                meshExportExperimentalMergedExport = o.ContainsKey("--mesh-export-experimental-merged-export") ? true : null,
                 opusExportAll = o.ContainsKey("--opus-export-all") ? true : null,
                 opusHashes = opusHashes,
             });
@@ -955,10 +1016,14 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
         case "export":
         {
             var (pos, o) = ParseArgs(argv, 1);
+            if (o.ContainsKey("--configured"))
+                return ExportConfigured(provider, logger, pos.Select(Fs).ToArray(), o);
             return f.ExportTask(pos.Select(Fs).ToArray(), new ExportTaskOptions
             {
                 outpath = Dir(o, "--outpath"),
+                gamepath = Opt(o, "--gamepath"),
                 uext = ParseUext(Opt(o, "--uext")),
+                forcebuffers = ParseCookedFormats(Opt(o, "--forcebuffers")),
             });
         }
 
@@ -967,12 +1032,12 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
             var (pos, o) = ParseArgs(argv, 1);
             var importOut = Dir(o, "--outpath") ?? new DirectoryInfo(".");
             var importKeep = o.ContainsKey("--keep");
-            // --garment forces ImportGarmentSupport on the glTF importer (off by default
-            // in ImportTask): reads the GarmentSupport mesh data so clothing meshes get
-            // their cloth/garment parameters. Routed around ConsoleFunctions.ImportTask
-            // because that builds GltfImportArgs internally from defaults.
+            // Configuration options need a custom GlobalImportArgs instance; the stock
+            // ConsoleFunctions.ImportTask constructs its arguments from defaults.
             if (o.ContainsKey("--garment"))
-                return await ImportGarment(provider, logger, pos.Select(Fs).ToArray(), importOut, importKeep);
+                o["--garment-support"] = "true"; // backwards-compatible alias
+            if (o.ContainsKey("--configured") || o.ContainsKey("--garment"))
+                return await ImportConfigured(provider, logger, pos.Select(Fs).ToArray(), importOut, importKeep, o);
             return await f.ImportTask(pos.Select(Fs).ToArray(), importOut, importKeep);
         }
 
@@ -1038,6 +1103,262 @@ static async Task<int> Dispatch(IServiceProvider provider, CapturingLoggerServic
     }
 }
 
+static int ExportConfigured(IServiceProvider provider, CapturingLoggerService logger,
+    FileSystemInfo[] paths, Dictionary<string, string?> options)
+{
+    var outDir = Dir(options, "--outpath");
+    if (outDir is null) { logger.Error("export --configured: --outpath is required"); return -1; }
+    Directory.CreateDirectory(outDir.FullName);
+
+    using var scope = provider.CreateScope();
+    var sp = scope.ServiceProvider;
+    var mt = sp.GetRequiredService<IModTools>();
+    var am = sp.GetRequiredService<IArchiveManager>();
+    var gamePath = Opt(options, "--gamepath");
+    if (!string.IsNullOrWhiteSpace(gamePath))
+    {
+        var exe = ResolveGameExe(gamePath);
+        if (!exe.Exists) { logger.Error($"game executable not found: {exe.FullName}"); return -1; }
+        am.LoadGameArchives(exe);
+    }
+
+    var xbm = new XbmExportArgs();
+    var mesh = new MeshExportArgs();
+    var morph = new MorphTargetExportArgs();
+    var mlmask = new MlmaskExportArgs();
+    var anim = new AnimationExportArgs();
+    var general = new GeneralExportArgs();
+
+    bool SetBool(string key, Action<bool> setter)
+    {
+        var raw = Opt(options, key);
+        if (raw is null) return true;
+        if (!bool.TryParse(raw, out var value))
+        {
+            logger.Error($"{key}: expected true or false, got '{raw}'");
+            return false;
+        }
+        setter(value);
+        return true;
+    }
+
+    bool SetEnum<T>(string key, Action<T> setter) where T : struct, Enum
+    {
+        var raw = Opt(options, key);
+        if (raw is null) return true;
+        if (!Enum.TryParse<T>(raw, true, out var value))
+        {
+            logger.Error($"{key}: unknown {typeof(T).Name} value '{raw}'");
+            return false;
+        }
+        setter(value);
+        return true;
+    }
+
+    var uext = ParseUext(Opt(options, "--uext"));
+    if (uext is not null)
+    {
+        xbm.UncookExtension = uext.Value;
+        mlmask.UncookExtension = uext.Value;
+        mesh.MaterialUncookExtension = uext.Value;
+    }
+    var materialRepo = Opt(options, "--mesh-export-material-repo");
+    mesh.MaterialRepo = materialRepo;
+    general.MaterialRepositoryPath = materialRepo;
+
+    if (!SetEnum<MeshExporterType>("--mesh-exporter-type", v => mesh.MeshExporter = v)
+        || !SetEnum<MeshExportType>("--mesh-export-type", v => mesh.meshExportType = v)
+        || !SetBool("--mesh-lod-filter", v => mesh.LodFilter = v)
+        || !SetBool("--mesh-binary", v => mesh.isGLBinary = v)
+        || !SetBool("--mesh-materials", v => mesh.withMaterials = v)
+        || !SetBool("--mesh-garment", v => mesh.ExportGarmentSupport = v)
+        || !SetBool("--mesh-merged", v => mesh.ExperimentalMergedExport = v)
+        || !SetBool("--animation-binary", v => anim.IsBinary = v)
+        || !SetBool("--animation-additive-relative", v => anim.AdditiveRelativeToLocalTransform = v)
+        || !SetBool("--animation-root-motion", v => anim.incRootMotion = v)
+        || !SetBool("--morph-binary", v => morph.IsBinary = v)
+        || !SetBool("--morph-textures", v => morph.ExportTextures = v))
+        return -1;
+
+    var exportArgs = new GlobalExportArgs().Register(
+        general, xbm, mesh, morph, mlmask, new WemExportArgs(), anim);
+    var forceBuffers = ParseCookedFormats(Opt(options, "--forcebuffers"));
+    var exports = new List<(FileInfo File, DirectoryInfo BaseDir)>();
+    foreach (var path in paths)
+    {
+        if (path is FileInfo file && file.Exists)
+            exports.Add((file, file.Directory ?? new DirectoryInfo(".")));
+        else if (path is DirectoryInfo dir && dir.Exists)
+            exports.AddRange(dir.EnumerateFiles("*", SearchOption.AllDirectories).Select(file => (file, dir)));
+        else
+            logger.Warning($"export --configured skips missing path: {path.FullName}");
+    }
+
+    var errors = 0;
+    foreach (var (file, baseDir) in exports)
+    {
+        if (mt.Export(file, exportArgs, baseDir, outDir, forceBuffers))
+            logger.Success($"Successfully exported (configured) {file.FullName}");
+        else { logger.Error($"Failed to export {file.FullName}"); errors++; }
+    }
+    if (exports.Count == 0) return -1;
+    return errors > 0 ? 1 : 0;
+}
+
+[SupportedOSPlatform("windows")]
+static int GenerateInkAtlas(CapturingLoggerService logger, string pngFolder,
+    string? modRoot, string? rawRoot, string depotPath, string atlasName,
+    int tileWidth, int tileHeight, bool overwrite)
+{
+    if (!Directory.Exists(pngFolder)) { logger.Error($"PNG folder not found: {pngFolder}"); return -1; }
+    if (string.IsNullOrWhiteSpace(modRoot) || string.IsNullOrWhiteSpace(rawRoot))
+    { logger.Error("generate-inkatlas: --mod-root and --raw-root are required"); return -1; }
+    if (tileWidth < 0 || tileHeight < 0)
+    { logger.Error("generate-inkatlas: tile dimensions cannot be negative"); return -1; }
+    var pngFiles = Directory.EnumerateFiles(pngFolder, "*.png", SearchOption.TopDirectoryOnly)
+        .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+    if (pngFiles.Count == 0) { logger.Error("The source folder contains no PNG files."); return -1; }
+
+    atlasName = Path.GetFileNameWithoutExtension(atlasName);
+    var relativeDir = depotPath.Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
+    var modDir = Path.Combine(modRoot, relativeDir);
+    var rawDir = Path.Combine(rawRoot, relativeDir);
+    var atlasFile = Path.Combine(modDir, atlasName + ".inkatlas");
+    var imageFile = Path.Combine(rawDir, atlasName + ".png");
+    var image1080File = Path.Combine(rawDir, atlasName + "_1080.png");
+    if (!overwrite && new[] { atlasFile, imageFile, image1080File }.Any(File.Exists))
+    { logger.Error("Output already exists; pass --overwrite to replace the atlas files."); return -1; }
+
+    const int maxWidth = 2048;
+    var images = new List<AtlasSource>();
+    try
+    {
+        foreach (var file in pngFiles)
+        {
+            using var source = new Bitmap(file);
+            var (width, height) = ScaleToFit(source.Width, source.Height, tileWidth, tileHeight);
+            var paddedWidth = width + (width % 2);
+            var paddedHeight = height + (height % 2);
+            var bitmap = new Bitmap(paddedWidth, paddedHeight, PixelFormat.Format32bppArgb);
+            using (var graphics = Graphics.FromImage(bitmap))
+            {
+                graphics.Clear(Color.Transparent);
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.DrawImage(source, 0, 0, width, height);
+            }
+            images.Add(new AtlasSource(Path.GetFileNameWithoutExtension(file), bitmap, width, height));
+        }
+
+        var rows = new List<List<AtlasSource>>();
+        var row = new List<AtlasSource>();
+        var rowWidth = 0;
+        foreach (var image in images.OrderByDescending(x => x.Bitmap.Height))
+        {
+            if (row.Count > 0 && rowWidth + image.Bitmap.Width > maxWidth)
+            { rows.Add(row); row = new List<AtlasSource>(); rowWidth = 0; }
+            row.Add(image);
+            rowWidth += image.Bitmap.Width;
+        }
+        if (row.Count > 0) rows.Add(row);
+
+        var totalWidth = rows.Max(x => x.Sum(i => i.Bitmap.Width));
+        var totalHeight = rows.Sum(x => x.Max(i => i.Bitmap.Height));
+        totalWidth += totalWidth % 2;
+        totalHeight += totalHeight % 2;
+        var parts = new List<AtlasPartData>();
+        Directory.CreateDirectory(rawDir);
+        using (var combined = new Bitmap(totalWidth, totalHeight, PixelFormat.Format32bppArgb))
+        {
+            using (var graphics = Graphics.FromImage(combined))
+            {
+                graphics.Clear(Color.Transparent);
+                var y = 0;
+                foreach (var atlasRow in rows)
+                {
+                    var rowHeight = atlasRow.Max(x => x.Bitmap.Height);
+                    var x = 0;
+                    foreach (var image in atlasRow)
+                    {
+                        var top = y + ((rowHeight - image.Bitmap.Height) / 2);
+                        graphics.DrawImageUnscaled(image.Bitmap, x, top);
+                        parts.Add(new AtlasPartData(image.Name, x, top, image.ContentWidth, image.ContentHeight,
+                            (float)x / totalWidth, (float)top / totalHeight,
+                            (float)image.ContentWidth / totalWidth, (float)image.ContentHeight / totalHeight));
+                        x += image.Bitmap.Width;
+                    }
+                    y += rowHeight;
+                }
+            }
+            combined.Save(imageFile, ImageFormat.Png);
+            var halfWidth = Math.Max(2, totalWidth / 2 + ((totalWidth / 2) % 2));
+            var halfHeight = Math.Max(2, totalHeight / 2 + ((totalHeight / 2) % 2));
+            using var half = new Bitmap(halfWidth, halfHeight, PixelFormat.Format32bppArgb);
+            using (var graphics = Graphics.FromImage(half))
+            {
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.DrawImage(combined, 0, 0, halfWidth, halfHeight);
+            }
+            half.Save(image1080File, ImageFormat.Png);
+        }
+
+        var mappers = new CArray<inkTextureAtlasMapper>();
+        foreach (var part in parts)
+            mappers.Add(new inkTextureAtlasMapper
+            {
+                PartName = part.Name,
+                ClippingRectInPixels = new Rect
+                {
+                    Left = part.X, Top = part.Y,
+                    Right = part.X + part.Width, Bottom = part.Y + part.Height,
+                },
+                ClippingRectInUVCoords = new RectF
+                {
+                    Left = part.U, Top = part.V,
+                    Right = part.U + part.UWidth, Bottom = part.V + part.VHeight,
+                },
+            });
+        var depotDir = depotPath.Replace('/', '\\').Trim('\\');
+        var atlas = new inkTextureAtlas
+        {
+            ActiveTexture = WolvenKit.RED4.Types.Enums.inkTextureType.StaticTexture,
+            IsSingleTextureMode = true,
+            TextureResolution = WolvenKit.RED4.Types.Enums.inkETextureResolution.UltraHD_3840_2160,
+        };
+        atlas.Slots[0].Texture = new CResourceAsyncReference<CBitmapTexture>(
+            Path.Combine(depotDir, atlasName + ".xbm"), InternalEnums.EImportFlags.Soft);
+        atlas.Slots[0].Parts = mappers;
+        atlas.Slots[1].Texture = new CResourceAsyncReference<CBitmapTexture>(
+            Path.Combine(depotDir, atlasName + "_1080.xbm"), InternalEnums.EImportFlags.Soft);
+        atlas.Slots[1].Parts = mappers;
+        Directory.CreateDirectory(modDir);
+        using var fs = new FileStream(atlasFile, FileMode.Create, FileAccess.ReadWrite);
+        using var writer = new CR2WWriter(fs) { LoggerService = logger };
+        writer.WriteFile(new CR2WFile { RootChunk = atlas });
+        logger.Success($"Generated InkAtlas with {parts.Count} part(s): {atlasFile}");
+        logger.Info($"Atlas image: {imageFile}");
+        logger.Info($"1080 atlas image: {image1080File}");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        logger.Error($"generate-inkatlas failed: {ex.Message}");
+        return -1;
+    }
+    finally
+    {
+        foreach (var image in images) image.Bitmap.Dispose();
+    }
+}
+
+static (int Width, int Height) ScaleToFit(int width, int height, int maxWidth, int maxHeight)
+{
+    if (maxWidth <= 0 && maxHeight <= 0) return (width, height);
+    var widthScale = maxWidth > 0 ? (double)maxWidth / width : double.MaxValue;
+    var heightScale = maxHeight > 0 ? (double)maxHeight / height : double.MaxValue;
+    var scale = Math.Min(widthScale, heightScale);
+    return (Math.Max(1, (int)Math.Round(width * scale)), Math.Max(1, (int)Math.Round(height * scale)));
+}
+
 static string EscapeCsv(string v)
 {
     if (v.Contains(',') || v.Contains('"') || v.Contains('\n'))
@@ -1045,38 +1366,85 @@ static string EscapeCsv(string v)
     return v;
 }
 
-// Imports glTF mesh(es) with ImportGarmentSupport enabled. Mirrors the file branch of
-// ConsoleFunctions.ImportTaskInner but with a custom GltfImportArgs (the stock ImportTask
-// leaves garment support off). Each path is imported against its existing cooked file in
-// outDir (keep), the only mode where garment data has a target to merge into.
-static async Task<int> ImportGarment(IServiceProvider provider, CapturingLoggerService logger,
-    FileSystemInfo[] paths, DirectoryInfo outDir, bool keep)
+// Imports raw files with explicit XBM/glTF settings. Mirrors ConsoleFunctions.ImportTask
+// while keeping every supplied option deterministic instead of inheriting Modkit defaults.
+static async Task<int> ImportConfigured(IServiceProvider provider, CapturingLoggerService logger,
+    FileSystemInfo[] paths, DirectoryInfo outDir, bool keep, Dictionary<string, string?> options)
 {
-    if (paths.Length == 0) { logger.Error("import --garment: no input path"); return -1; }
+    if (paths.Length == 0) { logger.Error("import --configured: no input path"); return -1; }
     using var scope = provider.CreateScope();
     var mt = scope.ServiceProvider.GetRequiredService<IModTools>();
-    int errors = 0;
-    foreach (var fsi in paths)
+    var common = new CommonImportArgs { Keep = keep };
+    var xbm = new XbmImportArgs { Keep = keep };
+    var gltf = new GltfImportArgs { Keep = keep };
+
+    bool SetBool(string key, Action<bool> setter)
     {
-        if (fsi is not FileInfo file || !file.Exists)
+        var raw = Opt(options, key);
+        if (raw is null) return true;
+        if (!bool.TryParse(raw, out var value))
         {
-            logger.Warning($"import --garment skips (not a file): {fsi.FullName}");
-            errors++;
-            continue;
+            logger.Error($"{key}: expected true or false, got '{raw}'");
+            return false;
         }
-        var baseDir = file.Directory ?? new DirectoryInfo(".");
-        var rel = new RedRelativePath(baseDir, file.Name);
+        setter(value);
+        return true;
+    }
+
+    bool SetEnum<T>(string key, Action<T> setter) where T : struct, Enum
+    {
+        var raw = Opt(options, key);
+        if (raw is null) return true;
+        if (!Enum.TryParse<T>(raw, true, out var value))
+        {
+            logger.Error($"{key}: unknown {typeof(T).Name} value '{raw}'");
+            return false;
+        }
+        setter(value);
+        return true;
+    }
+
+    if (!SetEnum<WolvenKit.RED4.Types.Enums.GpuWrapApieTextureGroup>("--texture-group", v => xbm.TextureGroup = v)
+        || !SetEnum<WolvenKit.RED4.Types.Enums.ETextureRawFormat>("--raw-format", v => xbm.RawFormat = v)
+        || !SetEnum<WolvenKit.RED4.Types.Enums.ETextureCompression>("--compression", v => xbm.Compression = v)
+        || !SetBool("--generate-mipmaps", v => xbm.GenerateMipMaps = v)
+        || !SetBool("--streamable", v => xbm.IsStreamable = v)
+        || !SetBool("--premultiply-alpha", v => xbm.PremultiplyAlpha = v)
+        || !SetBool("--gamma", v => xbm.IsGamma = v)
+        || !SetBool("--garment-support", v => gltf.ImportGarmentSupport = v)
+        || !SetBool("--ignore-garment-uv", v => gltf.IgnoreGarmentSupportUVParam = v)
+        || !SetBool("--override-mesh-name", v => gltf.OverrideMeshNameWithNodeName = v)
+        || !SetBool("--import-materials", v => gltf.ImportMaterials = v)
+        || !SetBool("--material-only", v => gltf.ImportMaterialOnly = v)
+        || !SetBool("--fill-empty", v => gltf.FillEmpty = v)
+        || !SetBool("--force-compressed", v => gltf.ForceCompressedEncoding = v)
+        || !SetBool("--strip-local-transform", v => gltf.AdditiveStripLocalTransform = v)
+        || !SetEnum<SharpGLTF.Validation.ValidationMode>("--validation-mode", v => gltf.ValidationMode = v))
+        return -1;
+
+    var imports = new List<(FileInfo File, DirectoryInfo BaseDir)>();
+    foreach (var path in paths)
+    {
+        if (path is FileInfo file && file.Exists)
+            imports.Add((file, file.Directory ?? new DirectoryInfo(".")));
+        else if (path is DirectoryInfo dir && dir.Exists)
+            imports.AddRange(dir.EnumerateFiles("*", SearchOption.AllDirectories).Select(file => (file, dir)));
+        else
+            logger.Warning($"import --configured skips missing path: {path.FullName}");
+    }
+
+    int errors = 0;
+    foreach (var (file, baseDir) in imports)
+    {
+        var relative = Path.GetRelativePath(baseDir.FullName, file.FullName);
+        var rel = new RedRelativePath(baseDir, relative);
         var args = new GlobalImportArgs()
-            .Register(new CommonImportArgs(), new XbmImportArgs(), new GltfImportArgs());
-        args.Get<CommonImportArgs>().Keep = keep;
-        args.Get<XbmImportArgs>().Keep = keep;
-        var gltf = args.Get<GltfImportArgs>();
-        gltf.Keep = keep;
-        gltf.ImportGarmentSupport = true;
+            .Register(common, xbm, gltf, new MlmaskImportArgs { Keep = keep });
         if (await mt.Import(rel, args, outDir))
-            logger.Success($"Successfully imported (garment) {file.Name}");
+            logger.Success($"Successfully imported (configured) {relative}");
         else { logger.Error($"Failed to import {file.Name}"); errors++; }
     }
+    if (imports.Count == 0) return -1;
     return errors > 0 ? 1 : 0;
 }
 
@@ -1418,6 +1786,17 @@ static IArchiveManager LoadGameArchivesCached(IServiceProvider provider, FileInf
 static EUncookExtension? ParseUext(string? s)
     => Enum.TryParse<EUncookExtension>(s, ignoreCase: true, out var e) ? e : null;
 
+static ECookedFileFormat[]? ParseCookedFormats(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value)) return null;
+    var values = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(x => Enum.TryParse<ECookedFileFormat>(x, true, out var parsed) ? parsed : (ECookedFileFormat?)null)
+        .Where(x => x.HasValue)
+        .Select(x => x!.Value)
+        .ToArray();
+    return values.Length == 0 ? null : values;
+}
+
 static List<uint> ParseUintList(string? s)
 {
     var list = new List<uint>();
@@ -1454,15 +1833,19 @@ static class DaemonState
     // Boolean flags (no value) — immutable, shared across requests.
     public static readonly HashSet<string> BoolFlags = new()
     {
-        "--list", "--diff", "--wem", "--structured", "--keep",
+        "--list", "--diff", "--wem", "--structured", "--keep", "--all",
         "--unbundle", "--serialize", "--mesh-export-lod-filter",
-        "--opus-export-all",
+        "--opus-export-all", "--debug-decompress",
+        "--mesh-export-experimental-merged-export", "--configured", "--overwrite",
     };
 }
 
 sealed record DaemonRequest(int id, string[] argv);
 sealed record DaemonResponse(int id, int exit, string output);
 sealed record DaemonProgress(int id, string progress);
+sealed record AtlasSource(string Name, Bitmap Bitmap, int ContentWidth, int ContentHeight);
+sealed record AtlasPartData(string Name, int X, int Y, int Width, int Height,
+    float U, float V, float UWidth, float VHeight);
 
 // ════════════════════════════════════════════════════════════════════════
 // Shims — minimal implementations of WolvenKit's service interfaces.

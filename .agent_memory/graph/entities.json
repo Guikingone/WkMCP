@@ -1,0 +1,717 @@
+[
+  {
+    "id": "command:generated-from-files-present-in-the-repository",
+    "type": "command",
+    "name": "Generated from files present in the repository",
+    "summary": "Verification command from structured memory context.",
+    "first_seen_at": "2026-07-15T20:24:15.713Z",
+    "last_seen_at": "2026-07-16T21:16:38.221Z",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "command:generated-from-git-diff-and-refreshed-by-kage-pr-summarize-or-kage-propose-from-",
+    "type": "command",
+    "name": "Generated from git diff and refreshed by kage pr summarize or kage propose --from-diff",
+    "summary": "Verification command from structured memory context.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "command:generated-from-package-json-and-readme-md-when-present",
+    "type": "command",
+    "name": "Generated from package.json and README.md when present",
+    "summary": "Verification command from structured memory context.",
+    "first_seen_at": "2026-07-15T20:24:15.544Z",
+    "last_seen_at": "2026-07-16T21:29:57.112Z",
+    "evidence": [
+      "episode:1039748bb5c52755"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "command:wkdaemon-et-wkmcp-compilent-sans-avertissement-erreur-vers-c-tmp-364-tests-non-e",
+    "type": "command",
+    "name": "WkDaemon et WkMcp compilent sans avertissement/erreur vers C:\\tmp; 364 tests non-E2E réussissent; le daemon répond WolvenKit.Modkit 8.19.0.0; generate-inkatlas a produit un CR2W de 2 parts ensuite sérialisé en JSON avec succès; kage check depuis main: 0 dérive confirmée",
+    "summary": "Verification command from structured memory context.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "memory_type:decision",
+    "type": "memory_type",
+    "name": "decision",
+    "summary": "Kage memory type decision.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "memory_type:repo-map",
+    "type": "memory_type",
+    "name": "repo_map",
+    "summary": "Kage memory type repo_map.",
+    "first_seen_at": "2026-07-15T20:24:15.544Z",
+    "last_seen_at": "2026-07-16T21:29:57.112Z",
+    "evidence": [
+      "episode:1039748bb5c52755",
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "memory_type:workflow",
+    "type": "memory_type",
+    "name": "workflow",
+    "summary": "Kage memory type workflow.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "memory:repo-https-github-com-guikingone-wolvenkitmcp-decision-audit-wolvenkit-8-19-int-",
+    "type": "memory",
+    "name": "Audit WolvenKit 8.19 intégralement implémenté",
+    "aliases": [
+      "repo:https-github-com-guikingone-wolvenkitmcp:decision:audit-wolvenkit-8-19-int-gralement-impl-ment-1784237376301"
+    ],
+    "summary": "La branche feat/implement wolvenkit audit implémente le rapport docs/AUDIT WOLVENKIT MCP.md. Le daemon utilise WolvenKit 8.19.0; import mesh transmet GarmentSupport true/false explicitement et rejette keep=false sans bas",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ]
+  },
+  {
+    "id": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-overvi",
+    "type": "memory",
+    "name": "wolvenkit-mcp repo overview",
+    "aliases": [
+      "repo:https-github-com-guikingone-wolvenkitmcp:repo_map:wolvenkit-mcp-repo-overview-auto-overview"
+    ],
+    "summary": "README excerpt: WkMCP — an MCP server for Cyberpunk 2077 modding An MCP Model Context Protocol server that exposes WolvenKit's modding CLI cp77tools as 173 tools an agent Claude can call — so you steer Cyberpunk 2077 mod",
+    "first_seen_at": "2026-07-15T20:24:15.544Z",
+    "last_seen_at": "2026-07-16T21:29:57.112Z",
+    "evidence": [
+      "episode:1039748bb5c52755"
+    ]
+  },
+  {
+    "id": "memory:repo-https-github-com-guikingone-wolvenkitmcp-repo-map-wolvenkit-mcp-repo-struct",
+    "type": "memory",
+    "name": "wolvenkit-mcp repo structure",
+    "aliases": [
+      "repo:https-github-com-guikingone-wolvenkitmcp:repo_map:wolvenkit-mcp-repo-structure-auto-structure"
+    ],
+    "summary": "Detected repo structure: README.md, CLAUDE.md, AGENTS.md, .github/workflows, src. CI workflows: .github\\workflows\\ci.yml, .github\\workflows\\release.yml, .github\\workflows\\wolvenkit compat.yml. This packet is generated an",
+    "first_seen_at": "2026-07-15T20:24:15.713Z",
+    "last_seen_at": "2026-07-16T21:16:38.221Z",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ]
+  },
+  {
+    "id": "memory:repo-https-github-com-guikingone-wolvenkitmcp-workflow-change-memory-feat-implem",
+    "type": "memory",
+    "name": "Change memory: feat/implement-wolvenkit-audit",
+    "aliases": [
+      "repo:https-github-com-guikingone-wolvenkitmcp:workflow:change-memory-feat-implement-wolvenkit-audit"
+    ],
+    "summary": "Repo-local context for 23 changed repo paths on feat/implement-wolvenkit-audit.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ]
+  },
+  {
+    "id": "package:model-context-protocol",
+    "type": "package",
+    "name": "Model Context Protocol",
+    "summary": "Package or framework detected in repo memory.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "package:net-8",
+    "type": "package",
+    "name": ".NET 8",
+    "summary": "Package or framework detected in repo memory.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "package:system-drawing-common",
+    "type": "package",
+    "name": "System.Drawing.Common",
+    "summary": "Package or framework detected in repo memory.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "package:wolvenkit-modkit-8-19-0",
+    "type": "package",
+    "name": "WolvenKit.Modkit 8.19.0",
+    "summary": "Package or framework detected in repo memory.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:agent-md",
+    "type": "path",
+    "name": "AGENT.md",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:agents-md",
+    "type": "path",
+    "name": "AGENTS.md",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-15T20:24:15.713Z",
+    "last_seen_at": "2026-07-16T21:16:38.221Z",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:changelog-md",
+    "type": "path",
+    "name": "CHANGELOG.md",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:claude-md",
+    "type": "path",
+    "name": "CLAUDE.md",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-15T20:24:15.713Z",
+    "last_seen_at": "2026-07-16T21:16:38.221Z",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:docs-architecture-md",
+    "type": "path",
+    "name": "docs/ARCHITECTURE.md",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:docs-audit-wolvenkit-mcp-md",
+    "type": "path",
+    "name": "docs/AUDIT-WOLVENKIT-MCP.md",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8",
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:docs-http-transport-md",
+    "type": "path",
+    "name": "docs/HTTP_TRANSPORT.md",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:docs-tools-md",
+    "type": "path",
+    "name": "docs/TOOLS.md",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8",
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:github-workflows",
+    "type": "path",
+    "name": ".github/workflows",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-15T20:24:15.713Z",
+    "last_seen_at": "2026-07-16T21:16:38.221Z",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:gitignore",
+    "type": "path",
+    "name": ".gitignore",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:manifest-json",
+    "type": "path",
+    "name": "manifest.json",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:readme-md",
+    "type": "path",
+    "name": "README.md",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:1039748bb5c52755",
+      "episode:48147acab3cb4ec8",
+      "episode:69d416f2e706e6ea",
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src",
+    "type": "path",
+    "name": "src",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-15T20:24:15.713Z",
+    "last_seen_at": "2026-07-16T21:16:38.221Z",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkdaemon-program-cs",
+    "type": "path",
+    "name": "src/WkDaemon/Program.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8",
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkdaemon-wkdaemon-csproj",
+    "type": "path",
+    "name": "src/WkDaemon/WkDaemon.csproj",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8",
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-gameplayinspectiontools-cs",
+    "type": "path",
+    "name": "src/WkMcp/GameplayInspectionTools.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-livetools-cs",
+    "type": "path",
+    "name": "src/WkMcp/LiveTools.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-moddingtools-cs",
+    "type": "path",
+    "name": "src/WkMcp/ModdingTools.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-probetools-cs",
+    "type": "path",
+    "name": "src/WkMcp/ProbeTools.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-program-cs",
+    "type": "path",
+    "name": "src/WkMcp/Program.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-scenetools-cs",
+    "type": "path",
+    "name": "src/WkMcp/SceneTools.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-semanticinspectiontools-cs",
+    "type": "path",
+    "name": "src/WkMcp/SemanticInspectionTools.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8",
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-tests-auditimplementationtests-cs",
+    "type": "path",
+    "name": "src/WkMcp.Tests/AuditImplementationTests.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8",
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-tests-consistencytests-cs",
+    "type": "path",
+    "name": "src/WkMcp.Tests/ConsistencyTests.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-toolresult-cs",
+    "type": "path",
+    "name": "src/WkMcp/ToolResult.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8",
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-wolvenkitresources-cs",
+    "type": "path",
+    "name": "src/WkMcp/WolvenKitResources.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "path:src-wkmcp-wolvenkittools-cs",
+    "type": "path",
+    "name": "src/WkMcp/WolvenKitTools.cs",
+    "summary": "Repository path referenced by memory packets.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8",
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "repo:https-github-com-guikingone-wolvenkitmcp",
+    "type": "repo",
+    "name": "https-github-com-guikingone-wolvenkitmcp",
+    "summary": "Repository memory graph for wolvenkit-mcp.",
+    "first_seen_at": "2026-07-16T21:30:27.366Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "aliases": [],
+    "evidence": []
+  },
+  {
+    "id": "tag:audit-implementation",
+    "type": "tag",
+    "name": "audit-implementation",
+    "summary": "Topic tag audit-implementation.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:branch-feat-implement-wolvenkit-audit",
+    "type": "tag",
+    "name": "branch:feat-implement-wolvenkit-audit",
+    "summary": "Topic tag branch:feat-implement-wolvenkit-audit.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:change-memory",
+    "type": "tag",
+    "name": "change-memory",
+    "summary": "Topic tag change-memory.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:diff-proposal",
+    "type": "tag",
+    "name": "diff-proposal",
+    "summary": "Topic tag diff-proposal.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:index",
+    "type": "tag",
+    "name": "index",
+    "summary": "Topic tag index.",
+    "first_seen_at": "2026-07-15T20:24:15.713Z",
+    "last_seen_at": "2026-07-16T21:16:38.221Z",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:inkatlas",
+    "type": "tag",
+    "name": "inkatlas",
+    "summary": "Topic tag inkatlas.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:overview",
+    "type": "tag",
+    "name": "overview",
+    "summary": "Topic tag overview.",
+    "first_seen_at": "2026-07-15T20:24:15.544Z",
+    "last_seen_at": "2026-07-16T21:29:57.112Z",
+    "evidence": [
+      "episode:1039748bb5c52755"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:project-validation",
+    "type": "tag",
+    "name": "project-validation",
+    "summary": "Topic tag project-validation.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:repo",
+    "type": "tag",
+    "name": "repo",
+    "summary": "Topic tag repo.",
+    "first_seen_at": "2026-07-15T20:24:15.544Z",
+    "last_seen_at": "2026-07-16T21:29:57.112Z",
+    "evidence": [
+      "episode:1039748bb5c52755",
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:repo-local",
+    "type": "tag",
+    "name": "repo-local",
+    "summary": "Topic tag repo-local.",
+    "first_seen_at": "2026-07-16T21:30:19.382Z",
+    "last_seen_at": "2026-07-16T21:30:27.366Z",
+    "evidence": [
+      "episode:69d416f2e706e6ea"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:semantic-inspection",
+    "type": "tag",
+    "name": "semantic-inspection",
+    "summary": "Topic tag semantic-inspection.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:session-learning",
+    "type": "tag",
+    "name": "session-learning",
+    "summary": "Topic tag session-learning.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:structure",
+    "type": "tag",
+    "name": "structure",
+    "summary": "Topic tag structure.",
+    "first_seen_at": "2026-07-15T20:24:15.713Z",
+    "last_seen_at": "2026-07-16T21:16:38.221Z",
+    "evidence": [
+      "episode:6de60d901a64ef90"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:tool-contract",
+    "type": "tag",
+    "name": "tool-contract",
+    "summary": "Topic tag tool-contract.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  },
+  {
+    "id": "tag:wolvenkit-8-19",
+    "type": "tag",
+    "name": "wolvenkit-8.19",
+    "summary": "Topic tag wolvenkit-8.19.",
+    "first_seen_at": "2026-07-16T21:29:36.301Z",
+    "last_seen_at": "2026-07-16T21:29:48.739Z",
+    "evidence": [
+      "episode:48147acab3cb4ec8"
+    ],
+    "aliases": []
+  }
+]

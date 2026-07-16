@@ -2,6 +2,23 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — WolvenKit 8.19 audit implementation (168 -> 173 tools)
+
+Implements `docs/AUDIT-WOLVENKIT-MCP.md` end to end:
+
+- upgrades WolvenKit Modkit/Core/Common from 8.18.0 to stable 8.19.0;
+- fixes explicit GarmentSupport enable/disable semantics and rejects unsupported
+  direct mesh creation (`keep=false`) before daemon access;
+- adds configured texture, mesh, animation, morphtarget and generic export settings;
+- forwards missing unbundle/uncook/export hash, game-path, raw, force-buffer,
+  serialization, material-repository and merged-export options;
+- adds `validate_project`, `inspect_entity`, `inspect_animation`,
+  `inspect_streamingsector` and `generate_inkatlas`;
+- adds archive auto-discovery to `read_game_file`, pagination/CSV output to
+  `tweakdb_query`, and bulk pagination/CSV output to `loc_resolve`;
+- introduces a shared universal result builder and aligns live, scene, probe and
+  validation error responses with `{ok,status,summary,produced,warnings,errors,log}`.
+
 ## Unreleased — Coverage gaps: rig/garment import, loose Redscript & CET install (165 -> 168 tools)
 
 Closes the verified capability gaps from a 3-way audit (reflected WolvenKit 8.18.0 `ModTools`

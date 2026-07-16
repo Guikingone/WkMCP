@@ -103,8 +103,10 @@ public static partial class ModdingTools
                     fromType = typeOf.GetValueOrDefault(e.From),
                     toType = typeOf.GetValueOrDefault(e.To),
                 }),
+                produced = Array.Empty<string>(),
                 warnings,
                 errors = Array.Empty<string>(),
+                log = "",
             }, JsonOpts);
         }
         catch (Exception ex) { return Err($"Unreadable JSON: {ex.Message}"); }
@@ -266,8 +268,10 @@ public static partial class ModdingTools
                         totalQuantity = p.TotalQuantity,
                     }),
                 }),
+                produced = Array.Empty<string>(),
                 warnings,
                 errors = Array.Empty<string>(),
+                log = "",
             }, JsonOpts);
         }
         catch (Exception ex) { return Err($"Unreadable JSON: {ex.Message}"); }

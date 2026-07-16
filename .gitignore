@@ -26,3 +26,5 @@ native/build/
 
 # Claude
 .claude
+.agent_memory/indexes/
+.agent_memory/reports/

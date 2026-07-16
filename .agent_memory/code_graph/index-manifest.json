@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "project_dir": "C:\\Users\\Guillaume\\Downloads\\wolvenkit-mcp",
+  "repo_key": "https-github-com-guikingone-wolvenkitmcp",
+  "generated_at": "2026-07-16T21:30:39.300Z",
+  "mode": "structural",
+  "limits": {
+    "max_extract_file_bytes": 524288,
+    "max_calls": 50000,
+    "max_calls_per_file": 250
+  },
+  "coverage": {
+    "indexable_files": 99,
+    "indexed_files": 99,
+    "deferred_files": 0,
+    "ignored_files": 1045,
+    "coverage_percent": 100,
+    "complete": true
+  },
+  "cache": {
+    "hits": 99,
+    "misses": 0
+  },
+  "deferred_files": [],
+  "ignored_summary": {
+    "generated_vendor_or_cache": 9,
+    "unsupported_file_type": 1036
+  },
+  "fingerprint": "1a96375dfc1d95dcf391b40e412e95d53343a9c665094cf6d8b6c0a21011da5d"
+}

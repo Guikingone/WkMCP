@@ -2,7 +2,7 @@
 
 Exhaustive reference of the **tools**, **prompts** and **resources** exposed by the WkMCP server for Cyberpunk 2077 modding.
 
-> **Counts.** The server exposes **132 offline tools**, **11 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **168 tools** in total.
+> **Counts.** The server exposes **137 offline tools**, **11 prompts** and **4 resources** (figures confirmed by `tools/list`). To these are added **36 `live_*` tools** for the in-game live bridge — see [LIVE_BRIDGE.md](LIVE_BRIDGE.md) — for **173 tools** in total.
 
 ## Contents
 
@@ -12,7 +12,7 @@ Exhaustive reference of the **tools**, **prompts** and **resources** exposed by 
 - [9. REDscript scripts](#9-redscript-scripts-reds) · [10. Audio / low-level compression](#10-audio--low-level-compression) · [11. Localization](#11-localization) · [12. Mod writing / packing](#12-mod-writing--packing)
 - [13. REDmod](#13-redmod-post-16) · [14. Installation / uninstallation](#14-installation--uninstallation) · [15. Safety](#15-safety-backup--restore) · [16. In-game (launch / logs)](#16-in-game-launch--logs)
 - [17. Intelligence / workflow](#17-intelligence--workflow-high-level--moddingtools) · [18. Quest/codex journal](#18-questcodex-journal-journal) · [19. CR2W navigation & conflicts](#19-generic-cr2w-navigation-diagnostics--conflicts) · [20. Advanced creation / maintenance](#20-advanced-creation--maintenance)
-- [21. Asset inspection](#21-asset-inspection-materials--ui--rig--diff--nexus) · [22. Gameplay logic](#22-gameplay-logic-quest-phases--communities)
+- [21. Asset inspection](#21-asset-inspection-materials--ui--rig--diff--nexus) · [22. Gameplay logic](#22-gameplay-logic-quest-phases--communities) · [23. Project validation & semantic inspection](#23-project-validation--semantic-cr2w-inspection)
 - [MCP prompts (recipes)](#mcp-prompts-recipes) · [MCP resources](#mcp-resources)
 
 ## Result convention
@@ -76,12 +76,15 @@ Reverse lookup of TweakDB identifiers: a hash → the name of the identifier. Us
 | `hashes` | string[] | yes | One or more TweakDB identifier hashes (unsigned integers). |
 
 ### `tweakdb_query`
-Queries the TweakDB: loads a `tweakdb.bin` and lists the records and flats whose identifier contains the filter. Results capped at 100 records + 100 flats.
+Queries the TweakDB: loads a `tweakdb.bin` and lists a configurable page of records and flats whose identifier contains the filter.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `tweakdbPath` | string | yes | Path of a `tweakdb.bin` file. |
-| `filter` | string | no (default `""`) | Substring to search in identifiers (empty = all, 100 max). |
+| `filter` | string | no (default `""`) | Substring to search in identifiers (empty = all). |
+| `limit` | int | no (default `100`) | Page size per record/flat family, from 1 to 5000. |
+| `offset` | int | no (default `0`) | Zero-based offset per family. |
+| `outputFile` | string? | no | Optional CSV receiving the current page. |
 
 ---
 
@@ -264,7 +267,7 @@ Reads a game file in one call: extracts from the archive, converts to REDengine 
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `archivePath` | string | yes | Archive containing the desired file. |
+| `archivePath` | string | yes | Containing archive, archives folder, or game root; folders trigger automatic discovery. |
 | `gameFilePath` | string | yes | Internal path of the file within the archive. |
 
 ### `write_game_file`
@@ -512,13 +515,17 @@ Imports WAVs (named by opus hash) into repacked `.opus` in a mod folder — voic
 | `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `loc_resolve`
-Resolves a localization key (LocKey: uint64 hash or secondary text key) into its localized text. ⚠ EXPERIMENTAL (loads the game archives).
+Resolves one localization key, or returns a filtered/paginated bulk page. ⚠ EXPERIMENTAL (loads the game archives).
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `gamePath` | string | yes | Root folder of Cyberpunk 2077 (or path of the `.exe`). |
-| `key` | string | yes | Key to resolve: uint64 hash or secondary text key. |
+| `key` | string | no when `all=true` | Key to resolve: uint64 hash or secondary text key. |
 | `language` | string? | no (default `en_us`) | REDengine code: `en_us`, `fr_fr`, `de_de`, `jp_jp`... |
+| `all` | bool | no | Enable bulk mode. |
+| `filter` | string? | no | Bulk text/secondary-key filter. |
+| `limit` / `offset` | int | no | Bulk pagination (limit 1-5000). |
+| `outputFile` | string? | no | Optional CSV receiving the page. |
 
 ### `oodle_compress`
 Compresses a file with the Oodle Kraken codec.
@@ -589,6 +596,8 @@ Imports a raw image (png/dds/tga/bmp/jpg/tiff/cube) into a REDengine `.xbm`. ⚠
 | `rawPath` | string | yes | Raw image file (or a folder of images). |
 | `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.xbm`). |
 | `keep` | bool | no (default `false`) | Append to the existing `.xbm` instead of creating a fresh one (edit → reimport). |
+| `textureGroup` / `rawFormat` / `compression` | string? | no | Explicit WolvenKit texture import settings. |
+| `generateMipMaps`, `streamable`, `premultiplyAlpha`, `isGamma` | bool? | no | Optional explicit texture behavior. |
 | `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `import_mesh`
@@ -598,8 +607,10 @@ Imports a glTF (`.glb`/`.gltf`) mesh into a REDengine `.mesh`. `keep` defaults *
 |---|---|---|---|
 | `glbPath` | string | yes | `.glb`/`.gltf` file (or a folder). |
 | `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.mesh`). |
-| `keep` | bool | no (default `true`) | Append to the existing `.mesh` (preserves rig/LODs/materials). |
-| `garmentSupport` | bool | no (default `false`) | Import GarmentSupport (cloth/garment parameters) from the glTF — for apparel meshes that must drape/hide correctly. Off by default. |
+| `keep` | bool | no (default `true`) | Must remain true: direct mesh creation without a cooked base is not implemented upstream. |
+| `garmentSupport` | bool | no (default `true`) | Explicitly enable or disable GarmentSupport import. |
+| `ignoreGarmentUv`, `overrideMeshNames`, `importMaterials`, `materialOnly`, `fillEmpty` | bool? | no | Optional explicit glTF import settings. |
+| `validationMode` | string? | no | `Skip`, `TryFix` or `Strict`. |
 | `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `import_rig`
@@ -620,6 +631,9 @@ Imports a glTF (`.glb`/`.gltf`) animation into a REDengine `.anims`. `keep` defa
 | `glbPath` | string | yes | `.glb`/`.gltf` file (or a folder). |
 | `outputPath` | string | yes | Destination folder (for `keep`, the folder holding the original `.anims`). |
 | `keep` | bool | no (default `true`) | Append to the existing `.anims`. |
+| `forceCompressedEncoding` | bool? | no | Force compressed rather than preserved SIMD encoding. |
+| `stripAdditiveLocalTransform` | bool? | no | Strip additive local transforms. |
+| `validationMode` | string? | no | `Skip`, `TryFix` or `Strict`. |
 | `verbose` | bool | no (default `false`) | Returns the full log (debug). |
 
 ### `import_morphtarget`
@@ -1245,6 +1259,75 @@ scene and when — so you know which entry to retune or which character to swap.
 |---|---|---|---|
 | `communityOrJson` | string | yes | A `.community` file or its converted `.json`. |
 | `maxEntries` | int | no | Max entries listed (default `200`). `entryCount` always gives the real total. |
+
+---
+
+## 23. Project validation & semantic CR2W inspection
+
+### `validate_project`
+
+Scans a mod project recursively. It parses CR2W files, extracts `DepotPath` references,
+checks local project paths and—when `gamePath` is supplied—the base-game archive index.
+It also parses JSON/YAML/TweakXL/ArchiveXL files and checks REDscript brace balance.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `projectPath` | string | yes | Project/source root to scan recursively. |
+| `gamePath` | string? | no | Game root used to resolve base-game references. |
+| `maxFiles` | int | no (default `2000`) | Maximum CR2W files parsed, up to 10000. |
+| `maxResults` | int | no (default `1000`) | Maximum issue/reference rows returned. |
+
+### `inspect_entity`
+
+Summarizes an `.ent`: component names/types, appearances and referenced resources.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `entityOrJson` | string | yes | Extracted `.ent` or WolvenKit JSON. |
+| `maxResults` | int | no (default `250`) | Maximum component/reference rows. |
+
+### `inspect_animation`
+
+Summarizes an `.anims`: clips, durations, events, resource references and SIMD/root-motion signals.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `animsOrJson` | string | yes | Extracted `.anims` or WolvenKit JSON. |
+| `maxResults` | int | no (default `500`) | Maximum clip/event rows. |
+
+### `inspect_streamingsector`
+
+Produces a compact view of a `.streamingsector`: world-node histogram, transforms and resources.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `sectorOrJson` | string | yes | Extracted `.streamingsector` or WolvenKit JSON. |
+| `maxResults` | int | no (default `500`) | Maximum node/reference rows. |
+
+### `generate_inkatlas`
+
+Builds an InkAtlas headlessly from PNG parts. It emits the `.inkatlas` CR2W resource and
+4K/1080 PNG atlas images; import the PNGs with `import_texture` to create the referenced XBMs.
+This tool currently requires Windows/System.Drawing.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `pngFolder` | string | yes | Folder containing one PNG per atlas part. |
+| `modOutputRoot` | string | yes | Project mod/archive root for the `.inkatlas`. |
+| `rawOutputRoot` | string | yes | Project raw root for atlas PNGs. |
+| `depotPath` | string | yes | Relative depot folder. |
+| `atlasName` | string | yes | Simple output name without extension. |
+| `tileWidth` / `tileHeight` | int | no (default `0`) | Optional maximum tile dimensions. |
+| `overwrite` | bool | no | Replace existing outputs. |
+
+### Expanded WolvenKit 8.19 option parity
+
+The existing `extract_files`, `find_and_extract`, `uncook`, `cr2w_to_json`,
+`json_to_cr2w`, `export_files`, `export_animation`, `export_morphtarget`,
+`import_texture`, `import_mesh` and `import_anim` schemas now expose their applicable
+hash/game-path, pattern/regex, raw/force-buffer, material, mesh, texture, garment,
+validation, root-motion and SIMD/compression settings. The MCP `tools/list` schema is
+the authoritative parameter list for these expanded tools.
 
 ---
 

@@ -19,8 +19,8 @@ Claude ─MCP/JSON-RPC (stdio)─▶ WkMcp ─IPC stdio JSON─▶ WkDaemon ─�
 ```
 
 - **`src/WkMcp`** — the MCP host. It speaks MCP JSON-RPC to the client
-  (Claude) over stdio (or opt-in HTTP/Streamable), exposes **168 tools** (80 base +
-  51 workflow/inspection + 1 probe + 36 live), **11 prompts** and **4 resources**, and links *no*
+  (Claude) over stdio (or opt-in HTTP/Streamable), exposes **173 tools** (81 base +
+  55 workflow/inspection + 1 probe + 36 live), **11 prompts** and **4 resources**, and links *no*
   WolvenKit library. It drives the daemon over IPC.
 - **`src/WkDaemon`** — a persistent process that links the WolvenKit
   libraries (`WolvenKit.Modkit`, `WolvenKit.RED4.CR2W`, …) and `libkraken`/Oodle.
@@ -216,9 +216,9 @@ compute `produced`), `MatchesGlob`, `BuildCpmodprojXml`.
 ## 6. Guide: adding a new MCP tool
 
 A tool is a **static method** in a `[McpServerToolType]` class
-(`WolvenKitTools.cs` for the 77 base tools, `ModdingTools.cs` + its partials
-`AssetInspectionTools.cs` / `GameplayInspectionTools.cs` and `SceneTools.cs` for the
-51 high-level workflow / inspection tools, `ProbeTools.cs` for the 1 diagnostic probe
+(`WolvenKitTools.cs` for the 81 base tools, `ModdingTools.cs` + its partials
+`AssetInspectionTools.cs` / `GameplayInspectionTools.cs` / `SemanticInspectionTools.cs`
+and `SceneTools.cs` for the 55 high-level workflow / inspection tools, `ProbeTools.cs` for the 1 diagnostic probe
 tool, `LiveTools.cs` for the 36 live tools).
 **Registration is automatic via reflection**: `Program.cs` calls
 `.WithToolsFromAssembly()`, so there is nothing to register manually.

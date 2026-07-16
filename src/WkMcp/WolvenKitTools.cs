@@ -392,21 +392,27 @@ public static class WolvenKitTools
         return Structured($"Resolution of {hashes.Length} TweakDB identifier(s)", r);
     }
 
-    [McpServerTool(Name = "tweakdb_query", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Queries the Cyberpunk 2077 TweakDB: loads a tweakdb.bin file and " +
-                 "lists records and flats whose identifier contains the filter — to " +
-                 "discover the game's tuning identifiers. Results are capped " +
-                 "at 100 records + 100 flats; refine the filter if the truncated field says so.")]
+    [McpServerTool(Name = "tweakdb_query", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Queries the Cyberpunk 2077 TweakDB with configurable pagination. Loads a tweakdb.bin and lists records/flats whose identifier contains the filter; use offset for subsequent pages or outputFile for CSV output.")]
     public static async Task<string> TweakDbQuery(
         Cp77ToolsRunner runner,
         [Description("Path to a tweakdb.bin file (extracted from the game archives).")] string tweakdbPath,
-        [Description("Substring to search for in the identifiers (empty = all, 100 max).")] string filter = "",
+        [Description("Substring to search for in the identifiers (empty = all).")] string filter = "",
+        [Description("Maximum records and flats returned per page (1-5000).")] int limit = 100,
+        [Description("Zero-based offset applied independently to records and flats.")] int offset = 0,
+        [Description("Optional CSV file receiving the current page.")] string? outputFile = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(tweakdbPath))
             return Err($"TweakDB file not found: {tweakdbPath}");
 
-        var r = await runner.RunAsync(new[] { "tweakdb-query", tweakdbPath, filter }, ct);
+        if (limit is < 1 or > 5000) return Err("limit must be between 1 and 5000.");
+        if (offset < 0) return Err("offset cannot be negative.");
+        var args = new List<string> { "tweakdb-query", tweakdbPath, "--filter", filter,
+            "--limit", limit.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+        if (!string.IsNullOrWhiteSpace(outputFile)) { args.Add("--output"); args.Add(outputFile); }
+        var r = await runner.RunAsync(args, ct);
         var log = (r.Stdout + r.Stderr).Trim();
         var (recordsTruncated, flatsTruncated) = ParseTweakHeader(log);
         var truncated = recordsTruncated || flatsTruncated;
@@ -421,10 +427,14 @@ public static class WolvenKitTools
             status,
             summary = $"TweakDB — search \"{filter}\" in {tweakdbPath}" +
                       (truncated ? " (results truncated — refine the filter)" : ""),
-            produced = Array.Empty<string>(),
+            produced = !string.IsNullOrWhiteSpace(outputFile) && File.Exists(outputFile)
+                ? new[] { Path.GetFullPath(outputFile) } : Array.Empty<string>(),
             warnings = LogLines(log, "Warning"),
             errors = LogLines(log, "Error"),
             truncated = new { records = recordsTruncated, flats = flatsTruncated },
+            page = new { offset, limit, nextOffset = truncated ? offset + limit : (int?)null },
+            outputFile = !string.IsNullOrWhiteSpace(outputFile) && File.Exists(outputFile)
+                ? Path.GetFullPath(outputFile) : null,
             exitCode = r.ExitCode,
             log = Truncate(log, 12_000),
         }, JsonOpts);
@@ -726,6 +736,9 @@ public static class WolvenKitTools
         [Description("Destination folder for the extracted files.")] string outputPath,
         [Description("Optional glob filter, e.g. *.mesh")] string? pattern = null,
         [Description("Optional regex filter (alternative to glob).")] string? regex = null,
+        [Description("Optional depot hash or path to a text file containing one hash per line.")] string? hash = null,
+        [Description("Optional Cyberpunk 2077 root; lets Modkit load the base-game archives.")] string? gamePath = null,
+        [Description("Force decompression of buffers while extracting.")] bool debugDecompress = false,
         [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
@@ -736,6 +749,9 @@ public static class WolvenKitTools
         var args = new List<string> { "unbundle", archivePath, "--outpath", outputPath };
         if (!string.IsNullOrWhiteSpace(pattern)) { args.Add("--pattern"); args.Add(pattern); }
         if (!string.IsNullOrWhiteSpace(regex)) { args.Add("--regex"); args.Add(regex); }
+        if (!string.IsNullOrWhiteSpace(hash)) { args.Add("--hash"); args.Add(hash); }
+        if (!string.IsNullOrWhiteSpace(gamePath)) { args.Add("--gamepath"); args.Add(gamePath); }
+        if (debugDecompress) args.Add("--debug-decompress");
 
         return await WithSnapshot(outputPath,
             $"Extraction of {archivePath} → {outputPath}",
@@ -753,17 +769,23 @@ public static class WolvenKitTools
         [Description("Destination folder for the extracted files.")] string outputPath,
         [Description("Glob filter, e.g. *.mesh or *v_player*.ent.")] string? pattern = null,
         [Description("Regex filter (alternative to glob).")] string? regex = null,
+        [Description("Optional depot hash or path to a text file containing hashes.")] string? hash = null,
+        [Description("Optional Cyberpunk 2077 root; loads base-game archives in addition to the folder.")] string? gamePath = null,
+        [Description("Force decompression of buffers while extracting.")] bool debugDecompress = false,
         [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
         if (!Directory.Exists(archivesFolder)) return Err($"Archives folder not found: {archivesFolder}");
-        if (string.IsNullOrWhiteSpace(pattern) && string.IsNullOrWhiteSpace(regex))
-            return Err("Provide a pattern or regex (refusing to extract every archive wholesale).");
+        if (string.IsNullOrWhiteSpace(pattern) && string.IsNullOrWhiteSpace(regex) && string.IsNullOrWhiteSpace(hash))
+            return Err("Provide a pattern, regex or hash (refusing to extract every archive wholesale).");
 
         var args = new List<string> { "unbundle", archivesFolder, "--outpath", outputPath };
         if (!string.IsNullOrWhiteSpace(pattern)) { args.Add("--pattern"); args.Add(pattern); }
         if (!string.IsNullOrWhiteSpace(regex)) { args.Add("--regex"); args.Add(regex); }
+        if (!string.IsNullOrWhiteSpace(hash)) { args.Add("--hash"); args.Add(hash); }
+        if (!string.IsNullOrWhiteSpace(gamePath)) { args.Add("--gamepath"); args.Add(gamePath); }
+        if (debugDecompress) args.Add("--debug-decompress");
 
         return await WithSnapshot(outputPath,
             $"Find+extract '{pattern ?? regex}' across {archivesFolder} → {outputPath}",
@@ -783,6 +805,15 @@ public static class WolvenKitTools
         [Description("Mesh export type: MeshOnly, WithRig, Multimesh (default: WithMaterials).")] string? meshExportType = null,
         [Description("Mesh exporter: Default, Experimental, REDmod.")] string? meshExporterType = null,
         [Description("Filters the mesh export LODs (reduces noise).")] bool meshExportLodFilter = false,
+        [Description("Optional regex filter (alternative to glob).")] string? regex = null,
+        [Description("Optional Cyberpunk 2077 root; loads all base-game archives.")] string? gamePath = null,
+        [Description("Separate folder for raw converted outputs.")] string? rawOutputPath = null,
+        [Description("Uncook a single depot hash (0/empty = all matches).")] string? hash = null,
+        [Description("Also retain the unbundled cooked files.")] bool unbundle = false,
+        [Description("Cooked extensions to force to raw buffers, e.g. mesh,xbm.")] string[]? forceBuffers = null,
+        [Description("Also serialize uncooked CR2W files to JSON.")] bool serialize = false,
+        [Description("Material repository used by mesh exports.")] string? materialRepository = null,
+        [Description("Enable WolvenKit's experimental merged-mesh export.")] bool experimentalMergedExport = false,
         [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
@@ -792,10 +823,19 @@ public static class WolvenKitTools
 
         var args = new List<string> { "uncook", archivePath, "--outpath", outputPath };
         if (!string.IsNullOrWhiteSpace(pattern)) { args.Add("--pattern"); args.Add(pattern); }
+        if (!string.IsNullOrWhiteSpace(regex)) { args.Add("--regex"); args.Add(regex); }
         if (!string.IsNullOrWhiteSpace(textureFormat)) { args.Add("--uext"); args.Add(textureFormat); }
         if (!string.IsNullOrWhiteSpace(meshExportType)) { args.Add("--mesh-export-type"); args.Add(meshExportType); }
         if (!string.IsNullOrWhiteSpace(meshExporterType)) { args.Add("--mesh-exporter-type"); args.Add(meshExporterType); }
         if (meshExportLodFilter) args.Add("--mesh-export-lod-filter");
+        if (!string.IsNullOrWhiteSpace(gamePath)) { args.Add("--gamepath"); args.Add(gamePath); }
+        if (!string.IsNullOrWhiteSpace(rawOutputPath)) { args.Add("--raw"); args.Add(rawOutputPath); }
+        if (!string.IsNullOrWhiteSpace(hash)) { args.Add("--hash"); args.Add(hash); }
+        if (unbundle) args.Add("--unbundle");
+        if (forceBuffers is { Length: > 0 }) { args.Add("--forcebuffers"); args.Add(string.Join(',', forceBuffers)); }
+        if (serialize) args.Add("--serialize");
+        if (!string.IsNullOrWhiteSpace(materialRepository)) { args.Add("--mesh-export-material-repo"); args.Add(materialRepository); }
+        if (experimentalMergedExport) args.Add("--mesh-export-experimental-merged-export");
 
         return await WithSnapshot(outputPath,
             $"Extraction + conversion: {archivePath} → {outputPath}",
@@ -811,15 +851,19 @@ public static class WolvenKitTools
         Cp77ToolsRunner runner,
         [Description("Path of a CR2W file, or a folder containing some.")] string path,
         [Description("Destination folder for the JSON files.")] string outputPath,
+        [Description("Optional glob filter when path is a folder.")] string? pattern = null,
+        [Description("Optional regex filter when path is a folder.")] string? regex = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
             return Err($"Path not found: {path}");
 
+        var args = new List<string> { "convert", "serialize", path, "--outpath", outputPath };
+        if (!string.IsNullOrWhiteSpace(pattern)) { args.Add("--pattern"); args.Add(pattern); }
+        if (!string.IsNullOrWhiteSpace(regex)) { args.Add("--regex"); args.Add(regex); }
         return await WithSnapshot(outputPath,
             $"Serialization CR2W → JSON: {path} → {outputPath}",
-            () => runner.RunAsync(
-                new[] { "convert", "serialize", path, "--outpath", outputPath }, ct));
+            () => runner.RunAsync(args, ct));
     }
 
     [McpServerTool(Name = "json_to_cr2w", ReadOnly = false, Destructive = false, Idempotent = true)]
@@ -829,15 +873,19 @@ public static class WolvenKitTools
         Cp77ToolsRunner runner,
         [Description("Path of a JSON file, or a folder containing some.")] string path,
         [Description("Destination folder for the CR2W files.")] string outputPath,
+        [Description("Optional glob filter when path is a folder.")] string? pattern = null,
+        [Description("Optional regex filter when path is a folder.")] string? regex = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
             return Err($"Path not found: {path}");
 
+        var args = new List<string> { "convert", "deserialize", path, "--outpath", outputPath };
+        if (!string.IsNullOrWhiteSpace(pattern)) { args.Add("--pattern"); args.Add(pattern); }
+        if (!string.IsNullOrWhiteSpace(regex)) { args.Add("--regex"); args.Add(regex); }
         return await WithSnapshot(outputPath,
             $"Deserialization JSON → CR2W: {path} → {outputPath}",
-            () => runner.RunAsync(
-                new[] { "convert", "deserialize", path, "--outpath", outputPath }, ct));
+            () => runner.RunAsync(args, ct));
     }
 
     [McpServerTool(Name = "set_texture_format", ReadOnly = false, Destructive = true, Idempotent = true)]
@@ -971,6 +1019,16 @@ public static class WolvenKitTools
         [Description("Path of a REDengine file, or a folder containing some.")] string path,
         [Description("Destination folder for the raw files.")] string outputPath,
         [Description("Image format for textures: png, dds, tga, bmp or jpg.")] string? textureFormat = null,
+        [Description("Optional Cyberpunk 2077 root, required for mesh material resolution.")] string? gamePath = null,
+        [Description("Cooked extensions to force to raw buffers, e.g. mesh,xbm.")] string[]? forceBuffers = null,
+        [Description("Mesh exporter: Default, Experimental or REDmod.")] string? meshExporterType = null,
+        [Description("Mesh export type: MeshOnly, WithRig or Multimesh.")] string? meshExportType = null,
+        [Description("Filter lower-quality mesh LODs.")] bool? meshLodFilter = null,
+        [Description("Export meshes as binary GLB (true) or textual glTF (false).")] bool? meshBinary = null,
+        [Description("Include mesh materials.")] bool? withMaterials = null,
+        [Description("Include GarmentSupport data in mesh exports.")] bool? garmentSupport = null,
+        [Description("Enable experimental merged-mesh export.")] bool? mergedMesh = null,
+        [Description("Material repository path for mesh export.")] string? materialRepository = null,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken ct = default)
     {
@@ -979,6 +1037,22 @@ public static class WolvenKitTools
 
         var args = new List<string> { "export", path, "--outpath", outputPath };
         if (!string.IsNullOrWhiteSpace(textureFormat)) { args.Add("--uext"); args.Add(textureFormat); }
+        if (!string.IsNullOrWhiteSpace(gamePath)) { args.Add("--gamepath"); args.Add(gamePath); }
+        if (forceBuffers is { Length: > 0 }) { args.Add("--forcebuffers"); args.Add(string.Join(',', forceBuffers)); }
+        var configured = !string.IsNullOrWhiteSpace(meshExporterType)
+            || !string.IsNullOrWhiteSpace(meshExportType)
+            || meshLodFilter is not null || meshBinary is not null || withMaterials is not null
+            || garmentSupport is not null || mergedMesh is not null
+            || !string.IsNullOrWhiteSpace(materialRepository);
+        if (configured) args.Add("--configured");
+        if (!string.IsNullOrWhiteSpace(meshExporterType)) { args.Add("--mesh-exporter-type"); args.Add(meshExporterType); }
+        if (!string.IsNullOrWhiteSpace(meshExportType)) { args.Add("--mesh-export-type"); args.Add(meshExportType); }
+        AddOptionalBool(args, "--mesh-lod-filter", meshLodFilter);
+        AddOptionalBool(args, "--mesh-binary", meshBinary);
+        AddOptionalBool(args, "--mesh-materials", withMaterials);
+        AddOptionalBool(args, "--mesh-garment", garmentSupport);
+        AddOptionalBool(args, "--mesh-merged", mergedMesh);
+        if (!string.IsNullOrWhiteSpace(materialRepository)) { args.Add("--mesh-export-material-repo"); args.Add(materialRepository); }
 
         return await WithSnapshot(outputPath,
             $"Export REDengine → raw: {path} → {outputPath}",
@@ -994,15 +1068,22 @@ public static class WolvenKitTools
         Cp77ToolsRunner runner,
         [Description("Path of a .anims file (or a folder containing some).")] string path,
         [Description("Destination folder for the produced .glb files.")] string outputPath,
+        [Description("Export binary GLB (true) or textual glTF (false).")] bool isBinary = true,
+        [Description("Make additive animations relative to each joint's local transform.")] bool additiveRelativeToLocalTransform = true,
+        [Description("Include root translations/root motion.")] bool includeRootMotion = false,
         [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
             return Err($"Path not found: {path}");
 
+        var args = new List<string> { "export", path, "--outpath", outputPath, "--configured",
+            "--animation-binary", isBinary ? "true" : "false",
+            "--animation-additive-relative", additiveRelativeToLocalTransform ? "true" : "false",
+            "--animation-root-motion", includeRootMotion ? "true" : "false" };
         return await WithSnapshot(outputPath,
             $"Export animation (.anims) → glTF: {path} → {outputPath}",
-            () => runner.RunAsync(new[] { "export", path, "--outpath", outputPath }, ct), verbose);
+            () => runner.RunAsync(args, ct), verbose);
     }
 
     [McpServerTool(Name = "export_morphtarget", ReadOnly = false, Destructive = false, Idempotent = true)]
@@ -1013,15 +1094,20 @@ public static class WolvenKitTools
         Cp77ToolsRunner runner,
         [Description("Path of a .morphtarget file (or a folder containing some).")] string path,
         [Description("Destination folder for the produced .glb files.")] string outputPath,
+        [Description("Export binary GLB (true) or textual glTF (false).")] bool isBinary = true,
+        [Description("Also export the morphtarget textures as PNG files.")] bool exportTextures = false,
         [Description("If true, returns the full log (no truncation) — for debugging.")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(path) && !Directory.Exists(path))
             return Err($"Path not found: {path}");
 
+        var args = new List<string> { "export", path, "--outpath", outputPath, "--configured",
+            "--morph-binary", isBinary ? "true" : "false",
+            "--morph-textures", exportTextures ? "true" : "false" };
         return await WithSnapshot(outputPath,
             $"Export morphtarget → glTF: {path} → {outputPath}",
-            () => runner.RunAsync(new[] { "export", path, "--outpath", outputPath }, ct), verbose);
+            () => runner.RunAsync(args, ct), verbose);
     }
 
     [McpServerTool(Name = "export_mlmask", ReadOnly = false, Destructive = false, Idempotent = true)]
@@ -1148,25 +1234,50 @@ public static class WolvenKitTools
     // ── Direct read / write of a game file ────────────────────
 
     [McpServerTool(Name = "read_game_file", ReadOnly = true, Destructive = false, Idempotent = true)]
-    [Description("Reads a game file in a single call: extracts the file from the archive, " +
+    [Description("Reads a game file in a single call: discovers its archive when given an archives folder/game root, extracts it, " +
                  "converts it to REDengine JSON and returns its content — instead of chaining " +
                  "extract_files then cr2w_to_json. The full JSON is also written to disk " +
                  "(jsonFile field), to read separately if the returned content is truncated.")]
     public static async Task<string> ReadGameFile(
         Cp77ToolsRunner runner,
-        [Description("Path to the .archive file containing the wanted file.")] string archivePath,
+        [Description("Path to the containing .archive, an archives folder, or the Cyberpunk 2077 game root.")] string archivePath,
         [Description("Internal path of the file within the archive (e.g. base\\gameplay\\...\\x.ent). " +
                      "Locate it if needed with find_in_archives.")] string gameFilePath,
         CancellationToken ct = default)
     {
-        if (!File.Exists(archivePath))
-            return Err($"Archive not found: {archivePath}");
+        string resolvedArchive;
+        if (File.Exists(archivePath))
+        {
+            resolvedArchive = Path.GetFullPath(archivePath);
+        }
+        else if (Directory.Exists(archivePath))
+        {
+            var gameContent = Path.Combine(archivePath, "archive", "pc", "content");
+            var searchRoot = Directory.Exists(gameContent) ? gameContent : archivePath;
+            var wanted = gameFilePath.Replace('/', '\\');
+            resolvedArchive = "";
+            foreach (var archive in Directory.EnumerateFiles(searchRoot, "*.archive", SearchOption.AllDirectories)
+                         .OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                var (entries, _, _) = await runner.GetArchiveListingAsync(archive, ct);
+                if (!entries.Any(e => string.Equals(e.Replace('/', '\\'), wanted, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                resolvedArchive = Path.GetFullPath(archive);
+                break;
+            }
+            if (resolvedArchive.Length == 0)
+                return Err($"File not found in archives under {searchRoot}: {gameFilePath}");
+        }
+        else
+        {
+            return Err($"Archive, archives folder or game root not found: {archivePath}");
+        }
 
         // DETERMINISTIC work folder per (archive, file): re-reading the same
         // file rewrites it to the same place instead of accumulating a GUID folder per
         // call (leak). jsonFile remains readable after the call as documented.
         var work = Path.Combine(Path.GetTempPath(), "wkmcp-read",
-                                StableHash(archivePath + "|" + gameFilePath));
+                                StableHash(resolvedArchive + "|" + gameFilePath));
         // Wipe any prior extraction first: the folder is reused per (archive,file),
         // so a stale *.json from an earlier call (e.g. the archive changed, or this
         // extraction yields nothing) must not be picked up by FirstOrDefault below.
@@ -1178,7 +1289,7 @@ public static class WolvenKitTools
         Directory.CreateDirectory(jsonDir);
 
         var ext = await runner.RunAsync(
-            new[] { "unbundle", archivePath, "--outpath", rawDir, "--pattern", gameFilePath }, ct);
+            new[] { "unbundle", resolvedArchive, "--outpath", rawDir, "--pattern", gameFilePath }, ct);
         var extracted = Directory
             .EnumerateFiles(rawDir, "*", SearchOption.AllDirectories).FirstOrDefault();
         if (extracted is null)
@@ -1197,13 +1308,16 @@ public static class WolvenKitTools
                 ok = true,
                 status = "success",
                 summary = $"File extracted (non-CR2W type: not converted to JSON): {gameFilePath}",
+                produced = new[] { extracted },
+                warnings = LogLines(log, "Warning"),
+                errors = LogLines(log, "Error"),
+                log = Truncate(log, 12_000),
+                archivePath = resolvedArchive,
                 gameFilePath,
                 rawFile = extracted,
                 jsonFile = (string?)null,
                 truncated = false,
                 content = (string?)null,
-                warnings = LogLines(log, "Warning"),
-                errors = LogLines(log, "Error"),
             }, JsonOpts);
 
         var content = await File.ReadAllTextAsync(jsonFile, ct);
@@ -1214,12 +1328,15 @@ public static class WolvenKitTools
             status = "success",
             summary = $"Game file read: {gameFilePath}"
                       + (truncated ? " (content truncated — read jsonFile in full)" : ""),
+            produced = new[] { extracted, jsonFile },
+            warnings = LogLines(log, "Warning"),
+            errors = LogLines(log, "Error"),
+            log = Truncate(log, 12_000),
+            archivePath = resolvedArchive,
             gameFilePath,
             jsonFile,
             truncated,
             content = truncated ? content[..ReadContentCap] : content,
-            warnings = LogLines(log, "Warning"),
-            errors = LogLines(log, "Error"),
         }, JsonOpts);
     }
 
@@ -1389,7 +1506,7 @@ public static class WolvenKitTools
             () => runner.RunAsync(args, ct), verbose);
     }
 
-    [McpServerTool(Name = "loc_resolve", ReadOnly = true, Destructive = false, Idempotent = true)]
+    [McpServerTool(Name = "loc_resolve", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Resolves a localization key (LocKey: uint64 hash or text secondary key) into " +
                  "its localized text (masculine/feminine variants), via the game on-screens — " +
                  "without loading the whole TweakDB. ⚠ EXPERIMENTAL: loads the game archives " +
@@ -1397,14 +1514,34 @@ public static class WolvenKitTools
     public static async Task<string> LocResolve(
         Cp77ToolsRunner runner,
         [Description("Root folder of the Cyberpunk 2077 installation (or path to the .exe).")] string gamePath,
-        [Description("Key to resolve: uint64 hash (e.g. 12345) or text secondary key.")] string key,
+        [Description("Key to resolve: uint64 hash or text secondary key. Empty when all=true.")] string key = "",
         [Description("Language (REDengine code: en_us, fr_fr, de_de, jp_jp...). Default: en_us.")] string? language = null,
+        [Description("Return a page of localization entries instead of resolving one key.")] bool all = false,
+        [Description("Optional text/secondary-key filter in bulk mode.")] string? filter = null,
+        [Description("Maximum bulk entries returned (1-5000).")] int limit = 100,
+        [Description("Zero-based bulk offset.")] int offset = 0,
+        [Description("Optional CSV file receiving the bulk page.")] string? outputFile = null,
         CancellationToken ct = default)
     {
-        var args = new List<string> { "loc-resolve", gamePath, "--key", key };
+        if (limit is < 1 or > 5000) return Err("limit must be between 1 and 5000.");
+        if (offset < 0) return Err("offset cannot be negative.");
+        if (!all && string.IsNullOrWhiteSpace(key)) return Err("Provide key, or set all=true for bulk resolution.");
+        var args = new List<string> { "loc-resolve", gamePath };
+        if (all) args.Add("--all");
+        else { args.Add("--key"); args.Add(key); }
         if (!string.IsNullOrWhiteSpace(language)) { args.Add("--lang"); args.Add(language); }
+        if (all)
+        {
+            args.Add("--limit"); args.Add(limit.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            args.Add("--offset"); args.Add(offset.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (!string.IsNullOrWhiteSpace(filter)) { args.Add("--filter"); args.Add(filter); }
+            if (!string.IsNullOrWhiteSpace(outputFile)) { args.Add("--output"); args.Add(outputFile); }
+        }
         var r = await runner.RunAsync(args, ct);
-        return Structured($"LocKey resolution '{key}' ({language ?? "en_us"})", r);
+        return Structured(all
+            ? $"Localization page ({language ?? "en_us"}, offset {offset}, limit {limit})"
+            : $"LocKey resolution '{key}' ({language ?? "en_us"})", r,
+            !string.IsNullOrWhiteSpace(outputFile) && File.Exists(outputFile) ? [Path.GetFullPath(outputFile)] : null);
     }
 
     [McpServerTool(Name = "oodle_compress", ReadOnly = false, Destructive = false, Idempotent = true)]
@@ -1493,6 +1630,54 @@ public static class WolvenKitTools
             () => runner.RunAsync(args, ct), verbose);
     }
 
+    [McpServerTool(Name = "generate_inkatlas", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Builds a headless WolvenKit InkAtlas from a folder of PNG icons: emits the .inkatlas CR2W plus 4K and 1080 atlas PNGs. Import the two PNGs with import_texture to create the referenced XBM files.")]
+    public static async Task<string> GenerateInkAtlas(
+        Cp77ToolsRunner runner,
+        [Description("Folder containing the source PNG parts (top level, one part per file).")] string pngFolder,
+        [Description("Project mod/archive root where the .inkatlas is written.")] string modOutputRoot,
+        [Description("Project raw root where atlas PNGs are written.")] string rawOutputRoot,
+        [Description("Relative depot folder, e.g. base/gameplay/gui/widgets/my_mod.")] string depotPath,
+        [Description("Atlas file name without extension.")] string atlasName,
+        [Description("Optional maximum tile width; 0 preserves source width.")] int tileWidth = 0,
+        [Description("Optional maximum tile height; 0 preserves source height.")] int tileHeight = 0,
+        [Description("Replace existing atlas outputs.")] bool overwrite = false,
+        [Description("If true, returns the full daemon log.")] bool verbose = false,
+        CancellationToken ct = default)
+    {
+        if (!OperatingSystem.IsWindows()) return Err("generate_inkatlas currently requires Windows/System.Drawing.");
+        if (!Directory.Exists(pngFolder)) return Err($"PNG folder not found: {pngFolder}");
+        if (!Directory.EnumerateFiles(pngFolder, "*.png").Any()) return Err("The source folder contains no PNG files.");
+        if (string.IsNullOrWhiteSpace(atlasName) || Path.GetFileName(atlasName) != atlasName)
+            return Err("atlasName must be a simple file name without directories.");
+        if (Path.IsPathRooted(depotPath) || depotPath.Split('/', '\\').Any(p => p == ".."))
+            return Err("depotPath must be a safe relative depot folder.");
+        if (tileWidth < 0 || tileHeight < 0) return Err("Tile dimensions cannot be negative.");
+
+        var relative = depotPath.Replace('/', Path.DirectorySeparatorChar);
+        var name = Path.GetFileNameWithoutExtension(atlasName);
+        var expected = new[]
+        {
+            Path.GetFullPath(Path.Combine(modOutputRoot, relative, name + ".inkatlas")),
+            Path.GetFullPath(Path.Combine(rawOutputRoot, relative, name + ".png")),
+            Path.GetFullPath(Path.Combine(rawOutputRoot, relative, name + "_1080.png")),
+        };
+        var args = new List<string>
+        {
+            "generate-inkatlas", pngFolder,
+            "--mod-root", modOutputRoot,
+            "--raw-root", rawOutputRoot,
+            "--depot-path", depotPath,
+            "--name", name,
+            "--tile-width", tileWidth.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--tile-height", tileHeight.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+        if (overwrite) args.Add("--overwrite");
+        var result = await runner.RunAsync(args, ct);
+        return Structured($"InkAtlas generation: {name} ({Directory.EnumerateFiles(pngFolder, "*.png").Count()} part(s))",
+            result, expected.Where(File.Exists).ToArray(), verbose);
+    }
+
     /// <summary>Raw input extensions WolvenKit imports as a texture (.xbm).</summary>
     internal static readonly HashSet<string> TextureRawExt = new(StringComparer.OrdinalIgnoreCase)
     { ".png", ".dds", ".tga", ".bmp", ".jpg", ".jpeg", ".tiff", ".cube" };
@@ -1503,6 +1688,13 @@ public static class WolvenKitTools
         var ext = Path.GetExtension(path);
         return allowed.Contains(ext) ? null
             : $"Not a {kind} raw file: '{ext}' (expected one of {string.Join(", ", allowed)}).";
+    }
+
+    private static void AddOptionalBool(List<string> args, string option, bool? value)
+    {
+        if (value is null) return;
+        args.Add(option);
+        args.Add(value.Value ? "true" : "false");
     }
 
     [McpServerTool(Name = "import_texture", ReadOnly = false, Destructive = false, Idempotent = true)]
@@ -1516,13 +1708,27 @@ public static class WolvenKitTools
         [Description("Path to a raw image file (or a folder of images).")] string rawPath,
         [Description("Destination folder (for keep, the folder holding the original .xbm).")] string outputPath,
         [Description("Append to the existing .xbm instead of creating a fresh one (edit→reimport).")] bool keep = false,
+        [Description("Texture group, e.g. TEXG_Generic_Color, TEXG_Generic_Normal or TEXG_Generic_UI.")] string? textureGroup = null,
+        [Description("Raw texture format, e.g. TRF_TrueColor or TRF_HDRFloat.")] string? rawFormat = null,
+        [Description("Compression, e.g. TCM_QualityColor, TCM_Normalmap, TCM_DXTAlpha or TCM_None.")] string? compression = null,
+        [Description("Generate mip maps. Null keeps the WolvenKit default.")] bool? generateMipMaps = null,
+        [Description("Mark the texture as streamable. Usually false for UI/fonts/LUTs.")] bool? streamable = null,
+        [Description("Create transparency from the alpha channel.")] bool? premultiplyAlpha = null,
+        [Description("Treat the input as sRGB/gamma color rather than data.")] bool? isGamma = null,
         [Description("If true, returns the full log (no truncation).")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(rawPath) && !Directory.Exists(rawPath)) return Err($"Path not found: {rawPath}");
         if (BadExt(rawPath, TextureRawExt, "texture") is { } e) return Err(e);
-        var args = new List<string> { "import", rawPath, "--outpath", outputPath };
+        var args = new List<string> { "import", rawPath, "--outpath", outputPath, "--configured" };
         if (keep) args.Add("--keep");
+        if (!string.IsNullOrWhiteSpace(textureGroup)) { args.Add("--texture-group"); args.Add(textureGroup); }
+        if (!string.IsNullOrWhiteSpace(rawFormat)) { args.Add("--raw-format"); args.Add(rawFormat); }
+        if (!string.IsNullOrWhiteSpace(compression)) { args.Add("--compression"); args.Add(compression); }
+        AddOptionalBool(args, "--generate-mipmaps", generateMipMaps);
+        AddOptionalBool(args, "--streamable", streamable);
+        AddOptionalBool(args, "--premultiply-alpha", premultiplyAlpha);
+        AddOptionalBool(args, "--gamma", isGamma);
         return await WithSnapshot(outputPath,
             $"Texture import → .xbm: {rawPath} → {outputPath}" + (keep ? " (keep)" : ""),
             () => runner.RunAsync(args, ct), verbose);
@@ -1533,23 +1739,37 @@ public static class WolvenKitTools
                  "re-imported against the original (keep=true, default): the rig/bones, LODs and " +
                  "material slots come from the existing .mesh in outputPath, so export it first " +
                  "(export_files / uncook with WithRig), edit in Blender keeping the bone names, then " +
-                 "import_mesh here. Set keep=false only for a brand-new mesh. Set garmentSupport=true " +
-                 "for clothing meshes that carry GarmentSupport data (cloth/garment parameters) — off " +
-                 "by default, so enable it when re-importing apparel that must drape/hide correctly.")]
+                 "import_mesh here. Direct creation without a cooked base mesh is not implemented, so " +
+                 "keep=false is rejected. GarmentSupport is enabled by default as in WolvenKit 8.19; " +
+                 "set garmentSupport=false explicitly for meshes that must not import garment data.")]
     public static async Task<string> ImportMesh(
         Cp77ToolsRunner runner,
         [Description("Path to a .glb/.gltf file (or a folder).")] string glbPath,
         [Description("Destination folder (for keep, the folder holding the original .mesh).")] string outputPath,
         [Description("Append to the existing .mesh (default true — preserves rig/LODs/materials).")] bool keep = true,
-        [Description("Import GarmentSupport (cloth/garment parameters) from the glTF — for apparel meshes.")] bool garmentSupport = false,
+        [Description("Import GarmentSupport data from the glTF; defaults to WolvenKit's enabled behavior.")] bool garmentSupport = true,
+        [Description("Ignore the GarmentSupport UV parameter to avoid the vanilla seam bug.")] bool? ignoreGarmentUv = null,
+        [Description("Use glTF node/object names as submesh names.")] bool? overrideMeshNames = null,
+        [Description("Import the sibling Material.json into the mesh.")] bool? importMaterials = null,
+        [Description("Import only Material.json, leaving geometry unchanged.")] bool? materialOnly = null,
+        [Description("Preserve empty submesh slots with placeholder data.")] bool? fillEmpty = null,
+        [Description("glTF validation mode: Skip, TryFix or Strict.")] string? validationMode = null,
         [Description("If true, returns the full log (no truncation).")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(glbPath) && !Directory.Exists(glbPath)) return Err($"Path not found: {glbPath}");
         if (BadExt(glbPath, new(StringComparer.OrdinalIgnoreCase) { ".glb", ".gltf" }, "glTF mesh") is { } e) return Err(e);
-        var args = new List<string> { "import", glbPath, "--outpath", outputPath };
+        if (!keep)
+            return Err("WolvenKit cannot create a new mesh directly without a cooked base mesh; use keep=true with the original .mesh in outputPath.");
+        var args = new List<string> { "import", glbPath, "--outpath", outputPath, "--configured" };
         if (keep) args.Add("--keep");
-        if (garmentSupport) args.Add("--garment");
+        args.Add("--garment-support"); args.Add(garmentSupport ? "true" : "false");
+        AddOptionalBool(args, "--ignore-garment-uv", ignoreGarmentUv);
+        AddOptionalBool(args, "--override-mesh-name", overrideMeshNames);
+        AddOptionalBool(args, "--import-materials", importMaterials);
+        AddOptionalBool(args, "--material-only", materialOnly);
+        AddOptionalBool(args, "--fill-empty", fillEmpty);
+        if (!string.IsNullOrWhiteSpace(validationMode)) { args.Add("--validation-mode"); args.Add(validationMode); }
         return await WithSnapshot(outputPath,
             $"Mesh import → .mesh: {glbPath} → {outputPath}"
                 + (keep ? " (keep)" : "") + (garmentSupport ? " (garment)" : ""),
@@ -1565,13 +1785,19 @@ public static class WolvenKitTools
         [Description("Path to a .glb/.gltf file (or a folder).")] string glbPath,
         [Description("Destination folder (for keep, the folder holding the original .anims).")] string outputPath,
         [Description("Append to the existing .anims (default true — preserves the skeleton binding).")] bool keep = true,
+        [Description("Force compressed encoding instead of preserving SIMD when applicable.")] bool? forceCompressedEncoding = null,
+        [Description("Strip local transforms from additive animations on import.")] bool? stripAdditiveLocalTransform = null,
+        [Description("glTF validation mode: Skip, TryFix or Strict.")] string? validationMode = null,
         [Description("If true, returns the full log (no truncation).")] bool verbose = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(glbPath) && !Directory.Exists(glbPath)) return Err($"Path not found: {glbPath}");
         if (BadExt(glbPath, new(StringComparer.OrdinalIgnoreCase) { ".glb", ".gltf" }, "glTF animation") is { } e) return Err(e);
-        var args = new List<string> { "import", glbPath, "--outpath", outputPath };
+        var args = new List<string> { "import", glbPath, "--outpath", outputPath, "--configured" };
         if (keep) args.Add("--keep");
+        AddOptionalBool(args, "--force-compressed", forceCompressedEncoding);
+        AddOptionalBool(args, "--strip-local-transform", stripAdditiveLocalTransform);
+        if (!string.IsNullOrWhiteSpace(validationMode)) { args.Add("--validation-mode"); args.Add(validationMode); }
         return await WithSnapshot(outputPath,
             $"Animation import → .anims: {glbPath} → {outputPath}" + (keep ? " (keep)" : ""),
             () => runner.RunAsync(args, ct), verbose);
@@ -4615,48 +4841,28 @@ public static class WolvenKitTools
                      || log.Contains("Unhandled", StringComparison.OrdinalIgnoreCase)
                 ? "error" : "success";
 
-        var result = new
-        {
-            ok = status is "success" or "partial",
+        return ToolResult.Create(
+            status is "success" or "partial",
             status,
             summary,
-            produced = produced ?? (IReadOnlyList<string>)Array.Empty<string>(),
+            produced,
             warnings,
             errors,
-            exitCode = r.ExitCode,
-            log = verbose ? log : Truncate(log, 12_000),
-        };
-        return JsonSerializer.Serialize(result, JsonOpts);
+            verbose ? log : Truncate(log, 12_000),
+            r.ExitCode,
+            options: JsonOpts);
     }
 
     /// <summary>JSON result for a cancelled/timed-out call — same shape as Err so
     /// the agent never sees a raw OperationCanceledException leak out of a tool.</summary>
     private static string Cancelled(string op)
-        => JsonSerializer.Serialize(new
-        {
-            ok = false,
-            status = "cancelled",
-            summary = $"{op} was cancelled or timed out before completion.",
-            produced = Array.Empty<string>(),
-            warnings = Array.Empty<string>(),
-            errors = new[] { "cancelled" },
-            exitCode = -1,
-            log = "",
-        }, JsonOpts);
+        => ToolResult.Create(false, "cancelled",
+            $"{op} was cancelled or timed out before completion.",
+            errors: ["cancelled"], exitCode: -1, options: JsonOpts);
 
     /// <summary>JSON failure result — for argument validation errors.</summary>
     private static string Err(string summary)
-        => JsonSerializer.Serialize(new
-        {
-            ok = false,
-            status = "error",
-            summary,
-            produced = Array.Empty<string>(),
-            warnings = Array.Empty<string>(),
-            errors = new[] { summary },
-            exitCode = -1,
-            log = "",
-        }, JsonOpts);
+        => ToolResult.Error(summary, JsonOpts);
 
     /// <summary>Extracts the messages from the log lines of a given level
     /// ("[ 0: Warning ] - message" → "message").</summary>

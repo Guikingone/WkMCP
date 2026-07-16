@@ -1,0 +1,114 @@
+[
+  {
+    "id": "episode:1039748bb5c52755",
+    "kind": "memory_packet",
+    "packet_id": "repo:https-github-com-guikingone-wolvenkitmcp:repo_map:wolvenkit-mcp-repo-overview-auto-overview",
+    "source_refs": [
+      {
+        "kind": "file",
+        "path": "README.md"
+      }
+    ],
+    "observed_at": "2026-07-16T21:29:57.112Z",
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "summary": "README excerpt: WkMCP — an MCP server for Cyberpunk 2077 modding An MCP Model Context Protocol server that exposes WolvenKit's modding CLI cp77tools as 173 tools an agent Claude can call — so you steer Cyberpunk 2077 mod"
+  },
+  {
+    "id": "episode:48147acab3cb4ec8",
+    "kind": "memory_packet",
+    "packet_id": "repo:https-github-com-guikingone-wolvenkitmcp:decision:audit-wolvenkit-8-19-int-gralement-impl-ment-1784237376301",
+    "source_refs": [
+      {
+        "kind": "explicit_capture",
+        "captured_at": "2026-07-16T21:29:36.301Z"
+      }
+    ],
+    "observed_at": "2026-07-16T21:29:48.739Z",
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "summary": "La branche feat/implement wolvenkit audit implémente le rapport docs/AUDIT WOLVENKIT MCP.md. Le daemon utilise WolvenKit 8.19.0; import mesh transmet GarmentSupport true/false explicitement et rejette keep=false sans bas"
+  },
+  {
+    "id": "episode:69d416f2e706e6ea",
+    "kind": "memory_packet",
+    "packet_id": "repo:https-github-com-guikingone-wolvenkitmcp:workflow:change-memory-feat-implement-wolvenkit-audit",
+    "source_refs": [
+      {
+        "kind": "git_diff",
+        "branch": "feat/implement-wolvenkit-audit",
+        "head": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+        "merge_base": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+        "changed_files": [
+          ".agent_memory/packets/code_explanation-audit-2026-des-outils-mcp-wolvenkit-38abee16.md",
+          ".agent_memory/packets/decision-audit-wolvenkit-8-19-int-gralement-impl-ment-48147aca.md",
+          ".agent_memory/packets/repo_map-wolvenkit-mcp-repo-overview-1039748b.md",
+          ".agent_memory/packets/repo_map-wolvenkit-mcp-repo-structure-6de60d90.md",
+          ".agent_memory/packets/workflow-change-memory-main-070d94aa.md",
+          ".gitattributes",
+          ".gitignore",
+          "AGENT.md",
+          "AGENTS.md",
+          "CHANGELOG.md",
+          "CLAUDE.md",
+          "README.md",
+          "docs/ARCHITECTURE.md",
+          "docs/AUDIT-WOLVENKIT-MCP.md",
+          "docs/HTTP_TRANSPORT.md",
+          "docs/TOOLS.md",
+          "manifest.json",
+          "src/WkDaemon/Program.cs",
+          "src/WkDaemon/WkDaemon.csproj",
+          "src/WkMcp.Tests/AuditImplementationTests.cs",
+          "src/WkMcp.Tests/ConsistencyTests.cs",
+          "src/WkMcp/GameplayInspectionTools.cs",
+          "src/WkMcp/LiveTools.cs",
+          "src/WkMcp/ModdingTools.cs",
+          "src/WkMcp/ProbeTools.cs",
+          "src/WkMcp/Program.cs",
+          "src/WkMcp/SceneTools.cs",
+          "src/WkMcp/SemanticInspectionTools.cs",
+          "src/WkMcp/ToolResult.cs",
+          "src/WkMcp/WolvenKitResources.cs",
+          "src/WkMcp/WolvenKitTools.cs"
+        ],
+        "summary_path": ".agent_memory\\review\\branch-summary-feat-implement-wolvenkit-audit.json"
+      }
+    ],
+    "observed_at": "2026-07-16T21:30:27.366Z",
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "summary": "Repo-local context for 23 changed repo paths on feat/implement-wolvenkit-audit."
+  },
+  {
+    "id": "episode:6de60d901a64ef90",
+    "kind": "memory_packet",
+    "packet_id": "repo:https-github-com-guikingone-wolvenkitmcp:repo_map:wolvenkit-mcp-repo-structure-auto-structure",
+    "source_refs": [
+      {
+        "kind": "file",
+        "path": "README.md"
+      },
+      {
+        "kind": "file",
+        "path": "CLAUDE.md"
+      },
+      {
+        "kind": "file",
+        "path": "AGENTS.md"
+      },
+      {
+        "kind": "file",
+        "path": ".github/workflows"
+      },
+      {
+        "kind": "file",
+        "path": "src"
+      }
+    ],
+    "observed_at": "2026-07-16T21:16:38.221Z",
+    "branch": "feat/implement-wolvenkit-audit",
+    "commit": "6f6be2fb74f3c4786fc49c205af4104e32ae27c2",
+    "summary": "Detected repo structure: README.md, CLAUDE.md, AGENTS.md, .github/workflows, src. CI workflows: .github\\workflows\\ci.yml, .github\\workflows\\release.yml, .github\\workflows\\wolvenkit compat.yml. This packet is generated an"
+  }
+]

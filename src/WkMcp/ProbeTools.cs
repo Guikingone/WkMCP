@@ -31,17 +31,7 @@ public static class ProbeTools
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    private static string Err(string summary) => JsonSerializer.Serialize(new
-    {
-        ok = false,
-        status = "error",
-        summary,
-        produced = Array.Empty<string>(),
-        warnings = Array.Empty<string>(),
-        errors = new[] { summary },
-        exitCode = -1,
-        log = "",
-    }, JsonOpts);
+    private static string Err(string summary) => ToolResult.Error(summary, JsonOpts);
 
     // ── Crash-signal knowledge base ───────────────────────────────────────────
     // Markers that strongly indicate a real crash (kept tight to avoid false
@@ -332,6 +322,7 @@ public static class ProbeTools
             summary = $"Probe: {verdict.State} — game {(gameRunning ? "running" : "not running")}, " +
                       $"bridge {(bs.Connected ? $"connected ({bs.Transport})" : "offline")}; " +
                       $"{verdict.Issues.Count} issue(s)" + (suspectedCrash ? ", recent crash suspected" : "") + ".",
+            produced = Array.Empty<string>(),
             gamePath,
             verdict = new
             {
@@ -395,6 +386,7 @@ public static class ProbeTools
             live = liveSection,
             warnings,
             errors = Array.Empty<string>(),
+            log = "",
         }, JsonOpts);
     }
 }
