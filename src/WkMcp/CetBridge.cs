@@ -53,6 +53,7 @@ public sealed class CetBridge : IDisposable
     private readonly int _port;
     private readonly string _transportPref; // "tcp" | "file"
     private readonly string? _bridgeDirEnv;
+    private volatile string? _lastBridgeDir; // derived from the last gamePath a live_* call passed
     private readonly TimeSpan _timeout;
 
     private readonly object _startLock = new();
@@ -244,7 +245,7 @@ public sealed class CetBridge : IDisposable
         var dir = ResolveBridgeDir(gamePath);
         if (dir == null)
             return new BridgeResponse(id, false, null,
-                "Bridge not connected (TCP) and mod folder unknown: pass `gamePath`, or set " +
+                "Bridge not connected (TCP) and mod folder unknown: pass `gamePath` (once is enough), or set " +
                 "CET_BRIDGE_DIR, or install RedSocket for the TCP transport.", false, "file");
         if (!Directory.Exists(dir))
             return new BridgeResponse(id, false, null,
@@ -342,13 +343,14 @@ public sealed class CetBridge : IDisposable
     }
 
     /// <summary>CETBridge mod folder: CET_BRIDGE_DIR otherwise derived from gamePath
-    /// (&lt;game&gt;/bin/x64/plugins/cyber_engine_tweaks/mods/CETBridge).</summary>
+    /// (&lt;game&gt;/bin/x64/plugins/cyber_engine_tweaks/mods/CETBridge). The last gamePath
+    /// seen is remembered, so later live_* calls without one still reach the file transport.</summary>
     internal string? ResolveBridgeDir(string? gamePath)
     {
         if (_bridgeDirEnv != null) return _bridgeDirEnv;
         if (!string.IsNullOrWhiteSpace(gamePath))
-            return Path.Combine(gamePath, "bin", "x64", "plugins", "cyber_engine_tweaks", "mods", "CETBridge");
-        return null;
+            _lastBridgeDir = Path.Combine(gamePath, "bin", "x64", "plugins", "cyber_engine_tweaks", "mods", "CETBridge");
+        return _lastBridgeDir;
     }
 
     public void Dispose()

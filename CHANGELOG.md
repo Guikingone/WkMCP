@@ -36,6 +36,13 @@ stable. 9.1.0 is the latest stable fallback, but it does not support 2.5.
   - `live_nearby_entities` ran `ipairs` over the boolean that `GetTargetParts` returns first (CET
     returns `(ok, parts)`), so it always failed. It now reads the parts list, and lists each entity
     once instead of once per component.
+  - `live_nearby_entities` now searches the complete targeting set, not just the visible one
+    (`TSQ_ALL` tests `Visible` only: 8 vs 49 entities within 40 m on 2.5), and skips the player,
+    which the complete set includes. Its `type` comes from
+    the class hierarchy first (`IsA`), so devices such as `VendingMachine` and `SecurityTurret`
+    report `Device` instead of `Unknown`. An empty result now returns `entities: []`, not `{}`.
+  - The file transport remembers the last `gamePath` passed to a `live_*` tool, so later calls
+    no longer fail with "not connected" when they omit it.
 
 ## Unreleased — Coverage gaps: rig/garment import, loose Redscript & CET install (165 -> 168 tools)
 

@@ -768,7 +768,9 @@ function handlers.get_nearby_entities(args)
     local count = 0
 
     local ok, err = pcall(function()
-        local searchQuery = Game['TSQ_ALL;']()
+        -- TSQ_ALL only tests the Visible set; Complete also finds entities out of view.
+        local searchQuery = TargetSearchQuery.new()
+        searchQuery.testedSet = TargetingSet.Complete
         searchQuery.maxDistance = radius
 
         local playerPos = player:GetWorldPosition()
@@ -779,7 +781,8 @@ function handlers.get_nearby_entities(args)
         if type(parts) ~= "table" then return end
 
         -- An entity has one target part per component: list each entity once.
-        local seen = {}
+        -- The Complete set includes the player itself, so skip it up front.
+        local seen = { [tostring(player:GetEntityID().hash)] = true }
 
         for _, targetPart in ipairs(parts) do
             if count >= limit then break end
@@ -795,13 +798,20 @@ function handlers.get_nearby_entities(args)
                 local entityType = "Unknown"
                 local className = NameToString(entity:GetClassName())
 
-                if string.find(className, "NPC") or string.find(className, "Puppet") then
+                -- Class hierarchy first: device classes (VendingMachine, SecurityTurret...)
+                -- don't carry "Device" in their name. Name matching stays as a fallback.
+                local function isA(cls)
+                    local isOk, res = pcall(function() return entity:IsA(cls) end)
+                    return isOk and res == true
+                end
+
+                if isA("ScriptedPuppet") or string.find(className, "NPC") or string.find(className, "Puppet") then
                     entityType = "NPC"
-                elseif string.find(className, "Vehicle") or string.find(className, "vehicle") then
+                elseif isA("vehicleBaseObject") or string.find(className, "Vehicle") or string.find(className, "vehicle") then
                     entityType = "Vehicle"
-                elseif string.find(className, "Item") or string.find(className, "item") then
+                elseif isA("gameItemObject") or string.find(className, "Item") or string.find(className, "item") then
                     entityType = "Item"
-                elseif string.find(className, "Device") or string.find(className, "device") then
+                elseif isA("Device") or string.find(className, "Device") or string.find(className, "device") then
                     entityType = "Device"
                 end
 
