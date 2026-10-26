@@ -15,8 +15,8 @@ dotnet test  src/WkMcp.Tests -c Release # includes an MCP E2E smoke test
 
 Build/test in **`-c Release`**: a running server instance locks the Debug DLL.
 
-Reference toolchain: .NET 8; `ModelContextProtocol` 1.4.0 (+ AspNetCore);
-`WolvenKit.Modkit` 8.18.0; `YamlDotNet` 16.3.0; `cp77tools` = WolvenKit.CLI 8.18.0
+Reference toolchain: .NET 10; `ModelContextProtocol` 1.4.0 (+ AspNetCore);
+`WolvenKit.Modkit` 10.0.0-beta.1; `YamlDotNet` 16.3.0; `cp77tools` = WolvenKit.CLI 10.0.0-beta.1
 (fallback).
 
 ## The anti-drift contract (do not break it)

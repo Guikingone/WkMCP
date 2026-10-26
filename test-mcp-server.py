@@ -25,7 +25,7 @@ if hasattr(sys.stdout, "reconfigure"):
 HERE = os.path.dirname(os.path.abspath(__file__))
 SERVER_DLL = os.environ.get(
     "WKMCP_DLL",
-    os.path.join(HERE, "src", "WkMcp", "bin", "Debug", "net8.0", "WkMcp.dll"))
+    os.path.join(HERE, "src", "WkMcp", "bin", "Debug", "net10.0", "WkMcp.dll"))
 # dotnet: from PATH (Windows, Linux), otherwise Homebrew macOS fallback.
 DOTNET = (os.environ.get("WKMCP_DOTNET")
           or shutil.which("dotnet")

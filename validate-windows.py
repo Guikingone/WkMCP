@@ -32,7 +32,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SERVER_DLL = os.environ.get("WKMCP_DLL") or os.path.join(
-    HERE, "src", "WkMcp", "bin", "Debug", "net8.0", "WkMcp.dll")
+    HERE, "src", "WkMcp", "bin", "Debug", "net10.0", "WkMcp.dll")
 DOTNET = os.environ.get("WKMCP_DOTNET") or shutil.which("dotnet") or "dotnet"
 
 GAME = (sys.argv[1] if len(sys.argv) > 1

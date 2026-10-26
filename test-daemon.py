@@ -23,7 +23,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DAEMON = os.path.join(HERE, "src", "WkDaemon", "bin", "Debug", "net8.0", "WkDaemon.dll")
+DAEMON = os.path.join(HERE, "src", "WkDaemon", "bin", "Debug", "net10.0", "WkDaemon.dll")
 DOTNET = (os.environ.get("WKMCP_DOTNET")
           or shutil.which("dotnet")
           or "/opt/homebrew/opt/dotnet@8/libexec/dotnet")

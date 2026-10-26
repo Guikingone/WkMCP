@@ -2,6 +2,35 @@
 
 Dates are those of the development sessions.
 
+## Unreleased — WolvenKit 10.0.0-beta.1 / Cyberpunk 2.5 (168 -> 168 tools)
+
+Bumps the daemon from WolvenKit 8.18.0 to **10.0.0-beta.1**, the first WolvenKit release with
+(early) Cyberpunk **2.5** support. **This is a prerelease**: expect to bump to 10.0.0 once it's
+stable. 9.1.0 is the latest stable fallback, but it does not support 2.5.
+
+- **.NET 10 everywhere.** WolvenKit 9.0+ ships `lib/net10.0` only, so the daemon moves to
+  `net10.0` (the host and tests already had). CI, release and the weekly compat workflow now set
+  up the .NET 10 SDK. `build-mcpb.ps1`, the Python smoke scripts and the docs point at `bin/<cfg>/net10.0`.
+  Users need the **.NET 10** runtime/SDK, and `WolvenKit.CLI --version 10.0.0-beta.1` for the fallback.
+- **Daemon:** no code changes needed. The API the daemon uses is unchanged: a reflection diff of
+  8.18.0 vs 10.0.0-beta.1 found only additions (e.g. `GltfImportArgs.ForceCompressedEncoding`), and
+  `ConsoleFunctions.ImportTask`/`ImportTaskInner` decompile identically, so the `import --garment`
+  replica still matches. The native payload (`kraken.dll`, `DirectXTexNet`) is byte-identical, at
+  the same package paths.
+- **Game types:** 10.0 removes 13 RED4 types and 120 properties (mostly UI controllers, console
+  render blobs, and the old `worldInstancedMeshNode` buffer fields) and adds 425 types and
+  1930 properties. None of the removed names are used by the host or the daemon.
+- **`scaffold_scene`** now writes `GameVersion: 2500` in the CR2W JSON header, matching
+  WolvenKit 10's `JsonHeader` default (was 2310). `WKitJsonVersion` stays `0.0.9`.
+- Daemon lookup (`Cp77ToolsRunner`) and `McpE2ETests` now derive the `bin/<cfg>/<tfm>` folder from
+  their own output directory, instead of hard-coding `net8.0`.
+- `wolvenkit-compat.yml` now also tracks prereleases when the repo pins one, so it doesn't
+  "upgrade" to the older 9.1.0 stable.
+- Upstream behavior changes picked up on the way (8.18.1 → 10.0.0-beta.1): mesh import/export
+  now preserves bone rotations and recomputes `boneRigMatrices` (8.19; very old bone exports
+  may need re-exporting); opus export no longer skips the last pak or misplaces `.wav` files
+  (9.0); `build` packs the source `archive` subfolder (9.0).
+
 ## Unreleased — Coverage gaps: rig/garment import, loose Redscript & CET install (165 -> 168 tools)
 
 Closes the verified capability gaps from a 3-way audit (reflected WolvenKit 8.18.0 `ModTools`

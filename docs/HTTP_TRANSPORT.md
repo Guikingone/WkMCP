@@ -36,7 +36,7 @@ and the `CetBridge` live bridge are identical in stdio and in HTTP.
 $env:WKMCP_TRANSPORT = "http"
 $env:WKMCP_HTTP_URL   = "http://127.0.0.1:3001"
 $env:WKMCP_HTTP_TOKEN = "a-long-random-secret"
-dotnet src\WkMcp\bin\Release\net8.0\WkMcp.dll
+dotnet src\WkMcp\bin\Release\net10.0\WkMcp.dll
 ```
 
 Connect Claude Code to it:
@@ -117,7 +117,7 @@ unauthenticated MCP to the Internet. Also restrict network access (firewall/ACL/
   hand or as a service with the env variables above.
 - **Running as a service** — on Windows, [NSSM](https://nssm.cc) wraps the DLL
   launch as a Windows Service (`nssm install WkMcp dotnet.exe
-  src\WkMcp\bin\Release\net8.0\WkMcp.dll`, then set the three
+  src\WkMcp\bin\Release\net10.0\WkMcp.dll`, then set the three
   `WKMCP_*` env variables in the service environment); on Linux, a
   `systemd` unit with `Environment=` lines for the same variables.
 - **Stateless** mode: no server-side session (the server pushes no notifications) —

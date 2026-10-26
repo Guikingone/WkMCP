@@ -26,10 +26,10 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Setup .NET 8
+      - name: Setup .NET 10
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Resolve pinned vs latest WolvenKit version
         id: ver
@@ -39,8 +39,10 @@ jobs:
           $cur = [regex]::Match((Get-Content $csproj -Raw),
                    'WolvenKit\.Modkit"\s+Version="([^"]+)"').Groups[1].Value
           $idx = Invoke-RestMethod "https://api.nuget.org/v3-flatcontainer/wolvenkit.modkit/index.json"
-          $latest = ($idx.versions | Where-Object { $_ -notmatch '-' } |
-                       Sort-Object { [version]$_ } | Select-Object -Last 1)
+          # NuGet's flat-container index is SemVer-ordered. Track stables only, unless the
+          # repo already pins a prerelease (then a newer prerelease or stable is "latest").
+          $candidates = if ($cur -match '-') { $idx.versions } else { $idx.versions | Where-Object { $_ -notmatch '-' } }
+          $latest = $candidates | Select-Object -Last 1
           if (-not $latest) { $latest = $cur }   # fall back to pinned if NuGet has no stable
           "current=$cur"   | Out-File -Append $env:GITHUB_OUTPUT
           "latest=$latest" | Out-File -Append $env:GITHUB_OUTPUT
