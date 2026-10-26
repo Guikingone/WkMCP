@@ -26,7 +26,7 @@ This guide targets **Windows** (the end-to-end validated platform, with Cyberpun
    folder, for example:
    `C:\Program Files (x86)\Steam\steamapps\common\Cyberpunk 2077`.
    In this guide, we call it `<GAME>`.
-3. **.NET 8 SDK (or higher)** — https://dotnet.microsoft.com/download
+3. **.NET 10 SDK (or higher)** — https://dotnet.microsoft.com/download
 4. **WolvenKit CLI**:
    ```powershell
    dotnet tool install -g WolvenKit.CLI
@@ -57,7 +57,7 @@ dotnet build src\WkMcp
 ```
 
 At the end, the server is located at:
-`src\WkMcp\bin\Debug\net8.0\WkMcp.dll`
+`src\WkMcp\bin\Debug\net10.0\WkMcp.dll`
 
 ### 2.2 How it works (in brief)
 
@@ -85,7 +85,7 @@ Edit `%APPDATA%\Claude\claude_desktop_config.json`:
   "mcpServers": {
     "wolvenkit": {
       "command": "dotnet",
-      "args": ["C:\\path\\to\\wkmcp\\src\\WkMcp\\bin\\Debug\\net8.0\\WkMcp.dll"]
+      "args": ["C:\\path\\to\\wkmcp\\src\\WkMcp\\bin\\Debug\\net10.0\\WkMcp.dll"]
     }
   }
 }
@@ -96,7 +96,7 @@ Replace the path with yours, then **restart Claude Desktop**.
 ### 3.2 Claude Code
 
 ```powershell
-claude mcp add wolvenkit -s user -- dotnet "C:\path\to\wkmcp\src\WkMcp\bin\Debug\net8.0\WkMcp.dll"
+claude mcp add wolvenkit -s user -- dotnet "C:\path\to\wkmcp\src\WkMcp\bin\Debug\net10.0\WkMcp.dll"
 ```
 
 No `DOTNET_ROOT` variable is needed on Windows.

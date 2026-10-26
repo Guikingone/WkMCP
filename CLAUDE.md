@@ -21,7 +21,7 @@ These complement AGENT.md; they don't repeat it.
   `ConsistencyTests` (reflection total + citations) plus the fact that `WithToolsFromAssembly`
   registers every `[McpServerTool]` automatically. State clearly that E2E was skipped and why.
 - **WolvenKit API recon.** When you need a real Modkit signature/behavior, use the reflection +
-  `ICSharpCode.Decompiler` approach from AGENT.md against `src/WkDaemon/bin/Release/net8.0`. Build a
+  `ICSharpCode.Decompiler` approach from AGENT.md against `src/WkDaemon/bin/Release/net10.0`. Build a
   throwaway helper under your scratch dir; don't add temp projects to the repo.
 - **Second opinions.** The user runs models locally via Ollama (e.g. `glm-5.2:cloud`,
   `kimi-k2.7-code:cloud`). The `:cloud` models are slow to first token — run them with

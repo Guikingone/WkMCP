@@ -404,7 +404,9 @@ function handlers.teleport(args)
 
     local ok, err = pcall(function()
         local pos = Vector4.new(args.x, args.y, args.z, 1.0)
-        local angle = player:GetWorldOrientation():IsValid() and player:GetWorldOrientation() or EulerAngles.new(0, 0, 0):ToQuat()
+        -- Teleport takes EulerAngles; keep the player's heading when it can be read.
+        local yawOk, yaw = pcall(function() return player:GetWorldYaw() end)
+        local angle = EulerAngles.new(0, 0, yawOk and yaw or 0)
         Game.GetTeleportationFacility():Teleport(player, pos, angle)
     end)
 
@@ -766,31 +768,50 @@ function handlers.get_nearby_entities(args)
     local count = 0
 
     local ok, err = pcall(function()
-        local searchQuery = Game['TSQ_ALL;']()
+        -- TSQ_ALL only tests the Visible set; Complete also finds entities out of view.
+        local searchQuery = TargetSearchQuery.new()
+        searchQuery.testedSet = TargetingSet.Complete
         searchQuery.maxDistance = radius
 
         local playerPos = player:GetWorldPosition()
-        local found = Game.GetTargetingSystem():GetTargetParts(player, searchQuery)
+        -- CET returns the out parameter after the bool: (ok, parts).
+        local found, parts = Game.GetTargetingSystem():GetTargetParts(player, searchQuery)
+        if type(found) == "table" then parts = found end
 
-        if not found then return end
+        if type(parts) ~= "table" then return end
 
-        for _, targetPart in ipairs(found) do
+        -- An entity has one target part per component: list each entity once.
+        -- The Complete set includes the player itself, so skip it up front.
+        local seen = { [tostring(player:GetEntityID().hash)] = true }
+
+        for _, targetPart in ipairs(parts) do
             if count >= limit then break end
 
             pcall(function()
                 local entity = targetPart:GetComponent():GetEntity()
                 if not entity then return end
 
+                local id = tostring(entity:GetEntityID().hash)
+                if seen[id] then return end
+                seen[id] = true
+
                 local entityType = "Unknown"
                 local className = NameToString(entity:GetClassName())
 
-                if string.find(className, "NPC") or string.find(className, "Puppet") then
+                -- Class hierarchy first: device classes (VendingMachine, SecurityTurret...)
+                -- don't carry "Device" in their name. Name matching stays as a fallback.
+                local function isA(cls)
+                    local isOk, res = pcall(function() return entity:IsA(cls) end)
+                    return isOk and res == true
+                end
+
+                if isA("ScriptedPuppet") or string.find(className, "NPC") or string.find(className, "Puppet") then
                     entityType = "NPC"
-                elseif string.find(className, "Vehicle") or string.find(className, "vehicle") then
+                elseif isA("vehicleBaseObject") or string.find(className, "Vehicle") or string.find(className, "vehicle") then
                     entityType = "Vehicle"
-                elseif string.find(className, "Item") or string.find(className, "item") then
+                elseif isA("gameItemObject") or string.find(className, "Item") or string.find(className, "item") then
                     entityType = "Item"
-                elseif string.find(className, "Device") or string.find(className, "device") then
+                elseif isA("Device") or string.find(className, "Device") or string.find(className, "device") then
                     entityType = "Device"
                 end
 

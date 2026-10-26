@@ -20,7 +20,7 @@ Components
 2. WolvenKit daemon — GPL-3.0
    Files: `src/WkDaemon/`.
    The daemon links the WolvenKit libraries (`WolvenKit.Modkit`,
-   `WolvenKit.Core`, `WolvenKit.Common` 8.18.0), which are GPL-3.0. Linking them
+   `WolvenKit.Core`, `WolvenKit.Common` 10.0.0-beta.1), which are GPL-3.0. Linking them
    makes the daemon a GPL-3.0 work. It runs as a separate process; the
    MIT-licensed MCP server talks to it only over an IPC protocol and is therefore
    not combined with the GPL code into a single work.

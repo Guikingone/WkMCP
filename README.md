@@ -7,7 +7,7 @@ query and patch the TweakDB, create/pack/install mods, export meshes and texture
 lint REDscript, diagnose a broken install, and even drive a **running** game live.
 
 **Status: stable v2.0.0 · Windows.** Built on the official `ModelContextProtocol`
-SDK 1.4.0 and [WolvenKit](https://github.com/WolvenKit/WolvenKit) 8.18.0; validated end-to-end on Windows 11 with a real
+SDK 1.4.0 and [WolvenKit](https://github.com/WolvenKit/WolvenKit) 10.0.0-beta.1 (Cyberpunk 2077 2.5); validated end-to-end on Windows 11 with a real
 Cyberpunk 2077 install.
 
 ## Highlights
@@ -23,20 +23,20 @@ Cyberpunk 2077 install.
 
 ## Quickstart (Windows, ~5 min)
 
-1. **Prerequisites.** Windows 10/11, the **.NET 8 SDK** (<https://dotnet.microsoft.com/download>), the **WolvenKit CLI** (`dotnet tool install -g WolvenKit.CLI`), and Cyberpunk 2077 installed (its root folder is written `<GAME>` below).
+1. **Prerequisites.** Windows 10/11, the **.NET 10 SDK** (<https://dotnet.microsoft.com/download>), the **WolvenKit CLI** (`dotnet tool install -g WolvenKit.CLI --version 10.0.0-beta.1`), and Cyberpunk 2077 installed (its root folder is written `<GAME>` below).
 2. **Build** — the daemon first (its build deploys `kraken.dll` and `DirectXTexNet.dll`), then the server:
    ```powershell
    dotnet build src\WkDaemon
    dotnet build src\WkMcp
    ```
-   The server is at `src\WkMcp\bin\Debug\net8.0\WkMcp.dll`.
+   The server is at `src\WkMcp\bin\Debug\net10.0\WkMcp.dll`.
 3. **Wire it to Claude Desktop** — edit `%APPDATA%\Claude\claude_desktop_config.json`:
    ```json
    {
      "mcpServers": {
        "wolvenkit": {
          "command": "dotnet",
-         "args": ["C:\\path\\to\\wkmcp\\src\\WkMcp\\bin\\Debug\\net8.0\\WkMcp.dll"]
+         "args": ["C:\\path\\to\\wkmcp\\src\\WkMcp\\bin\\Debug\\net10.0\\WkMcp.dll"]
        }
      }
    }
@@ -63,7 +63,7 @@ Cyberpunk 2077 install.
 
 The Quickstart above is the standard path. In detail:
 
-1. Install the **.NET 8 SDK** or higher — <https://dotnet.microsoft.com/download>.
+1. Install the **.NET 10 SDK** or higher — <https://dotnet.microsoft.com/download>.
 2. Install the WolvenKit CLI: `dotnet tool install -g WolvenKit.CLI` (puts `cp77tools` in `~\.dotnet\tools\`).
 3. Build the **daemon then the server** — the daemon build automatically deploys the Windows native binaries (`kraken.dll` for Oodle, `DirectXTexNet.dll` for textures):
    ```powershell
@@ -83,7 +83,7 @@ No `DOTNET_ROOT` is needed on Windows. On Windows, `cp77tools` also handles text
   "mcpServers": {
     "wolvenkit": {
       "command": "dotnet",
-      "args": ["C:\\path\\to\\wkmcp\\src\\WkMcp\\bin\\Debug\\net8.0\\WkMcp.dll"]
+      "args": ["C:\\path\\to\\wkmcp\\src\\WkMcp\\bin\\Debug\\net10.0\\WkMcp.dll"]
     }
   }
 }
@@ -94,7 +94,7 @@ Restart Claude Desktop after editing.
 **Claude Code:**
 
 ```powershell
-claude mcp add wolvenkit -s user -- dotnet "C:\path\to\wkmcp\src\WkMcp\bin\Debug\net8.0\WkMcp.dll"
+claude mcp add wolvenkit -s user -- dotnet "C:\path\to\wkmcp\src\WkMcp\bin\Debug\net10.0\WkMcp.dll"
 ```
 
 Optional environment variables go in the `"env"` block (Desktop) or via `-e VAR=value` (`claude mcp add`) — see [Configuration](#configuration-environment-variables).
@@ -162,7 +162,7 @@ Readable data addressed by URI that the client can consult or attach to context.
 
 ## Architecture
 
-C# / .NET 8 MCP server. Tool calls go through a **persistent WolvenKit daemon**: the expensive load of the hash database (~6 s) is paid once at daemon startup; subsequent calls cost only a few milliseconds. If the daemon is unavailable, each call falls back to a `cp77tools` subprocess (functional, but ~6 s/call).
+C# / .NET 10 MCP server. Tool calls go through a **persistent WolvenKit daemon**: the expensive load of the hash database (~6 s) is paid once at daemon startup; subsequent calls cost only a few milliseconds. If the daemon is unavailable, each call falls back to a `cp77tools` subprocess (functional, but ~6 s/call).
 
 ```
 Claude ─MCP/JSON-RPC─▶ WkMcp ─IPC stdio─▶ WkDaemon ─▶ WolvenKit libs + libkraken
@@ -233,7 +233,7 @@ More in [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (§10 troubleshooting) and [doc
 
 ```
 wkmcp/
-├── src/WkMcp/         C# / .NET 8 MCP server (168 tools, 11 prompts, 4 resources)
+├── src/WkMcp/         C# / .NET 10 MCP server (168 tools, 11 prompts, 4 resources)
 │   ├── Program.cs            Host + stdio/http transport + DI + daemon warmup
 │   ├── Cp77ToolsRunner.cs    Drives the daemon (pipelined IPC, LRU cache, cp77tools fallback)
 │   ├── WolvenKitTools.cs     77 base MCP tools + helpers

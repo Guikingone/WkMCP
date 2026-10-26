@@ -230,3 +230,54 @@ public class CoerceTweakValueTests
     public void IntHintParsesExactValue()
         => Assert.Equal(5L, LiveTools.CoerceTweakValue("5", "Int"));
 }
+
+/// <summary>Empty Lua tables come back as <c>{}</c>; list fields must still be JSON arrays.</summary>
+public class EmptyObjectAsArrayTests
+{
+    private static BridgeResponse R(string? result, bool ok = true) => new("id", ok, result, null, false, "tcp");
+
+    [Fact]
+    public void EmptyObjectBecomesEmptyArray()
+    {
+        var r = LiveTools.EmptyObjectAsArray(R("{\"radius\":40,\"count\":0,\"entities\":{}}"), "entities");
+        using var doc = JsonDocument.Parse(r.Result!);
+        Assert.Equal(JsonValueKind.Array, doc.RootElement.GetProperty("entities").ValueKind);
+        Assert.Equal(0, doc.RootElement.GetProperty("entities").GetArrayLength());
+        Assert.Equal(40, doc.RootElement.GetProperty("radius").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("{\"entities\":[]}")]
+    [InlineData("{\"entities\":[{\"type\":\"NPC\"}]}")]
+    [InlineData("{\"count\":0}")]   // key absent
+    [InlineData("not json")]
+    public void OtherResultsUnchanged(string result)
+        => Assert.Equal(result, LiveTools.EmptyObjectAsArray(R(result), "entities").Result);
+
+    [Fact]
+    public void ErrorResponseUnchanged()
+    {
+        var r = R("{\"entities\":{}}", ok: false);
+        Assert.Same(r, LiveTools.EmptyObjectAsArray(r, "entities"));
+    }
+}
+
+/// <summary>The bridge folder is remembered from the last gamePath, so later calls can omit it.</summary>
+public class ResolveBridgeDirTests
+{
+    [Fact]
+    public void LastGamePathIsRemembered()
+    {
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CET_BRIDGE_DIR")))
+            return; // CET_BRIDGE_DIR overrides gamePath entirely
+
+        using var bridge = new CetBridge();
+        Assert.Null(bridge.ResolveBridgeDir(null));
+
+        var game = Path.Combine(Path.GetTempPath(), "fake-game");
+        var expected = Path.Combine(game, "bin", "x64", "plugins", "cyber_engine_tweaks", "mods", "CETBridge");
+        Assert.Equal(expected, bridge.ResolveBridgeDir(game));
+        Assert.Equal(expected, bridge.ResolveBridgeDir(null));
+        Assert.Equal(expected, bridge.ResolveBridgeDir("  "));
+    }
+}

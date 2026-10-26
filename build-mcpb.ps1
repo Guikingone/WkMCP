@@ -7,7 +7,7 @@
   expected by the MCPB format (manifest.json + server/ + daemon/) and produces
   dist/wkmcp.mcpb (a ZIP archive).
 
-  The .mcpb assumes a .NET 8+ runtime and `dotnet` on the PATH of the target
+  The .mcpb assumes a .NET 10+ runtime and `dotnet` on the PATH of the target
   machine (Windows). The Windows native binaries (kraken.dll, DirectXTexNet.dll,
   opus-tools) are deployed by the daemon build and included as-is.
 
@@ -22,7 +22,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
-$tfm = "net8.0"
+$tfm = "net10.0"
 
 Write-Host "==> Build daemon ($Configuration)..."
 dotnet build (Join-Path $root "src\WkDaemon") -c $Configuration --nologo

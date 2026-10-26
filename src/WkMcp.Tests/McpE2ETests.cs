@@ -19,11 +19,11 @@ public class McpE2ETests : IDisposable
 
     public McpE2ETests()
     {
-        // .../WkMcp.Tests/bin/<cfg>/net8.0 → .../WkMcp/bin/<cfg>/net8.0
+        // .../WkMcp.Tests/bin/<cfg>/<tfm> → .../WkMcp/bin/<cfg>/<tfm>
         var baseDir = new DirectoryInfo(AppContext.BaseDirectory);
         var config = baseDir.Parent!.Name;
         var src = baseDir.Parent!.Parent!.Parent!.Parent!;
-        var serverDll = Path.Combine(src.FullName, "WkMcp", "bin", config, "net8.0", "WkMcp.dll");
+        var serverDll = Path.Combine(src.FullName, "WkMcp", "bin", config, baseDir.Name, "WkMcp.dll");
         Assert.True(File.Exists(serverDll), $"Server not compiled: {serverDll} (build WkMcp first)");
 
         var psi = new ProcessStartInfo
