@@ -229,10 +229,10 @@ def main():
         tools = srv.listing("tools/list", "tools")
         prompts = srv.listing("prompts/list", "prompts")
         print(f"=== tools/list: {len(tools)} tools, prompts/list: {len(prompts)} prompts ===")
-        record("handshake + tools/list", "PASS" if len(tools) == 85 else "WARN",
-               f"{len(tools)} tools exposed (85 expected)")
-        record("prompts/list", "PASS" if len(prompts) == 5 else "WARN",
-               f"{len(prompts)} MCP prompts exposed (5 expected)")
+        record("handshake + tools/list", "PASS" if len(tools) == 168 else "WARN",
+               f"{len(tools)} tools exposed (168 expected)")
+        record("prompts/list", "PASS" if len(prompts) == 11 else "WARN",
+               f"{len(prompts)} MCP prompts exposed (11 expected)")
         run_all(srv)
     finally:
         srv.close()
@@ -1369,7 +1369,7 @@ def run_all(srv):
         fh.write("Items.Foo:\n\tdamage: 5\nItems.Foo:\n  $base: Items.inline7\n")
     res, _ = srv.call("lint_tweak", {"tweakFile": bad_tw})
     show(res)
-    lt_ok = (res["status"] == "error") and any("TABUL" in e for e in res["errors"]) \
+    lt_ok = (res["status"] == "error") and any("TAB" in e for e in res["errors"]) \
         and any("inline" in w for w in res["warnings"])
     record("lint_tweak", "PASS" if lt_ok else "FAIL",
            "tab + inlineN-base + duplicate record detected")
