@@ -404,7 +404,9 @@ function handlers.teleport(args)
 
     local ok, err = pcall(function()
         local pos = Vector4.new(args.x, args.y, args.z, 1.0)
-        local angle = player:GetWorldOrientation():IsValid() and player:GetWorldOrientation() or EulerAngles.new(0, 0, 0):ToQuat()
+        -- Teleport takes EulerAngles; keep the player's heading when it can be read.
+        local yawOk, yaw = pcall(function() return player:GetWorldYaw() end)
+        local angle = EulerAngles.new(0, 0, yawOk and yaw or 0)
         Game.GetTeleportationFacility():Teleport(player, pos, angle)
     end)
 
@@ -770,16 +772,25 @@ function handlers.get_nearby_entities(args)
         searchQuery.maxDistance = radius
 
         local playerPos = player:GetWorldPosition()
-        local found = Game.GetTargetingSystem():GetTargetParts(player, searchQuery)
+        -- CET returns the out parameter after the bool: (ok, parts).
+        local found, parts = Game.GetTargetingSystem():GetTargetParts(player, searchQuery)
+        if type(found) == "table" then parts = found end
 
-        if not found then return end
+        if type(parts) ~= "table" then return end
 
-        for _, targetPart in ipairs(found) do
+        -- An entity has one target part per component: list each entity once.
+        local seen = {}
+
+        for _, targetPart in ipairs(parts) do
             if count >= limit then break end
 
             pcall(function()
                 local entity = targetPart:GetComponent():GetEntity()
                 if not entity then return end
+
+                local id = tostring(entity:GetEntityID().hash)
+                if seen[id] then return end
+                seen[id] = true
 
                 local entityType = "Unknown"
                 local className = NameToString(entity:GetClassName())

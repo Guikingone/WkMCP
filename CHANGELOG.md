@@ -30,6 +30,12 @@ stable. 9.1.0 is the latest stable fallback, but it does not support 2.5.
   now preserves bone rotations and recomputes `boneRigMatrices` (8.19; very old bone exports
   may need re-exporting); opus export no longer skips the last pak or misplaces `.wav` files
   (9.0); `build` packs the source `archive` subfolder (9.0).
+- **CETBridge fixes, found while verifying live on 2.5:**
+  - `live_teleport` called `IsValid()` on a quaternion (no such method) and passed a quaternion to
+    `Teleport`, which takes `EulerAngles`. It now passes `EulerAngles` that keep the player's yaw.
+  - `live_nearby_entities` ran `ipairs` over the boolean that `GetTargetParts` returns first (CET
+    returns `(ok, parts)`), so it always failed. It now reads the parts list, and lists each entity
+    once instead of once per component.
 
 ## Unreleased — Coverage gaps: rig/garment import, loose Redscript & CET install (165 -> 168 tools)
 
