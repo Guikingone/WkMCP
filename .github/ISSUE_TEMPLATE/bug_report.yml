@@ -20,7 +20,7 @@ body:
     id: platform
     attributes:
       label: Platform / runtime
-      placeholder: "Windows 11, .NET 8, transport: stdio | http"
+      placeholder: "Windows 11, .NET 10, transport: stdio | http"
     validations:
       required: true
   - type: textarea

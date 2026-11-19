@@ -89,6 +89,7 @@ warns if an edit did not survive — verify those in the GUI/in-game.
 
 - Fully offline; no game install required. (A real-scene smoke test runs when
   `WKMCP_TEST_SCENE` points at a `cr2w_to_json` output.)
-- The node-type knowledge is pinned to WolvenKit 8.18 (14 concrete `scn*` node types). New
+- The node-type knowledge is pinned to WolvenKit 8.18 (14 concrete `scn*` node types; the `scn*`
+  types and properties are unchanged through 10.0.0-beta.1). New
   node types added by a future game/WolvenKit version still appear in `inspect_scene` /
   `scene_graph` (by `$type`) — only type-specific niceties would need an update.

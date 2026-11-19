@@ -8,9 +8,9 @@ Engineering guide for AI agents (and humans) working in this repo. Vendor-neutra
 ## What this is
 
 **WkMCP** is an [MCP](https://modelcontextprotocol.io) server that exposes the
-WolvenKit 8.18.0 modding toolkit for **Cyberpunk 2077** as tools an LLM agent can call
+WolvenKit 10.0.0-beta.1 modding toolkit for **Cyberpunk 2077** as tools an LLM agent can call
 (read/write game files, TweakDB, pack/install mods, export/import art, lint REDscript,
-diagnose installs, and drive a *running* game live). C# / .NET 8, Windows-first.
+diagnose installs, and drive a *running* game live). C# / .NET 10, Windows-first.
 
 **Current surface: 168 tools (132 offline + 36 `live_*`), 11 prompts, 4 resources.**
 These numbers are computed by reflection (see *Tool-count discipline*) — never trust a
@@ -72,7 +72,7 @@ dotnet build src/WkMcp
 dotnet test  src/WkMcp.Tests
 ```
 
-Run the server (stdio): `dotnet src/WkMcp/bin/Debug/net8.0/WkMcp.dll`.
+Run the server (stdio): `dotnet src/WkMcp/bin/Debug/net10.0/WkMcp.dll`.
 HTTP mode and security: see `docs/HTTP_TRANSPORT.md`. Env vars (`WKMCP_*`) are documented
 in `Cp77ToolsRunner.cs` and `manifest.json` (legacy `WOLVENKIT_*` names still honored).
 
@@ -167,9 +167,9 @@ the exported file name** (`foo.rig.glb` → `TypeFromFileExt`). Garment support 
 ### Discovering the WolvenKit API (reflection / decompilation)
 
 There is no vendored WolvenKit source. To learn a real signature or behavior, reflect/decompile the
-NuGet DLLs (resolve deps from `src/WkDaemon/bin/Release/net8.0`):
+NuGet DLLs (resolve deps from `src/WkDaemon/bin/Release/net10.0`):
 
-- **Signatures**: a throwaway .NET 8 console using `System.Reflection.MetadataLoadContext` +
+- **Signatures**: a throwaway .NET 10 console using `System.Reflection.MetadataLoadContext` +
   `System.Reflection.PathAssemblyResolver` pointed at the daemon's `bin`. (PowerShell 5.1 / .NET
   Framework lacks `MetadataLoadContext` — use a `dotnet run` helper.)
 - **Behavior** (how a method dispatches): decompile with the `ICSharpCode.Decompiler` NuGet

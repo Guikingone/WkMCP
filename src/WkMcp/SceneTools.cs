@@ -991,7 +991,7 @@ public static class SceneTools
         };
         return new JsonObject
         {
-            ["Header"] = new JsonObject { ["WKitJsonVersion"] = "0.0.9", ["GameVersion"] = 2310, ["DataType"] = "CR2W" },
+            ["Header"] = new JsonObject { ["WKitJsonVersion"] = "0.0.9", ["GameVersion"] = 2500, ["DataType"] = "CR2W" },
             ["Data"] = new JsonObject { ["Version"] = 195, ["BuildVersion"] = 0, ["RootChunk"] = rootChunk },
         };
     }

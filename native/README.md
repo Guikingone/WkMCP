@@ -5,7 +5,7 @@ Rebuild of the native Oodle (Kraken) library used by WolvenKit —
 
 ## Why
 
-The `WolvenKit.CLI` 8.18.0 NuGet package ships a `libkraken.dylib` that is
+The `WolvenKit.CLI` NuGet package (8.18.0 through 10.0.0-beta.1: the binary is unchanged) ships a `libkraken.dylib` that is
 **x86_64 only**, with **mangled C++ symbols** (`__Z17Kraken_Decompress...`).
 WolvenKit's .NET P/Invoke (`[DllImport("kraken")]`) therefore cannot load it on
 Apple Silicon — any `cp77tools` command that touches compression crashes:
@@ -51,11 +51,11 @@ and `Kraken_Compress`.
 Copy the dylib to the RID location expected by .NET, next to `WolvenKit.CLI.dll`:
 
 ```
-<pkg>/tools/net8.0/any/runtimes/osx-arm64/native/libkraken.dylib
+<pkg>/tools/<tfm>/any/runtimes/osx-arm64/native/libkraken.dylib
 ```
 
 where `<pkg>` is e.g. `~/.dotnet/tools/.store/wolvenkit.cli/<version>/wolvenkit.cli/<version>`.
-The broken x86_64 binary in `tools/net8.0/any/` is left untouched: the .NET resolver
+The broken x86_64 binary in `tools/<tfm>/any/` is left untouched: the .NET resolver
 picks `runtimes/osx-arm64/native/` first for an arm64 process.
 
 ## Validated

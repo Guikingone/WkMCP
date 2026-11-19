@@ -176,8 +176,8 @@ round-trip) · `create_mod_project` · MCP handshake · daemon (~ms latency) ·
 
 ## 1. Installation (Windows)
 
-- [ ] .NET 8+ SDK installed — https://dotnet.microsoft.com/download
-- [ ] `dotnet tool install -g WolvenKit.CLI`
+- [ ] .NET 10+ SDK installed — https://dotnet.microsoft.com/download
+- [ ] `dotnet tool install -g WolvenKit.CLI --version 10.0.0-beta.1`
 - [ ] `wkmcp` project retrieved on the machine
 - [ ] `dotnet build src\WkDaemon`
 - [ ] `dotnet build src\WkMcp`
@@ -188,7 +188,7 @@ round-trip) · `create_mod_project` · MCP handshake · daemon (~ms latency) ·
 
 - [ ] `python test-daemon.py` → "Daemon ready", `hash` in ~1 ms, `pack` OK
   - ⚠️ If the daemon **fails to start** on a `kraken` error: copy `kraken.dll`
-    from `%USERPROFILE%\.dotnet\tools\.store\wolvenkit.cli\<version>\...\tools\net8.0\any\kraken.dll`
+    from `%USERPROFILE%\.dotnet\tools\.store\wolvenkit.cli\<version>\...\tools\net10.0\any\kraken.dll`
     next to `WkDaemon.dll` (the NuGet package does not always provide it)
 - [ ] `python test-mcp-server.py` → "21 tools", handshake OK
 

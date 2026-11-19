@@ -21,7 +21,7 @@ to every GitHub Release:
     https://github.com/Guikingone/WkMCP/releases/latest
 
 Install it in Claude Desktop: Settings -> Extensions (Developer Mode) -> install
-the .mcpb. Requires Windows + the .NET 8 runtime. Full instructions and the
+the .mcpb. Requires Windows + the .NET 10 runtime. Full instructions and the
 build-from-source path are in the repository README.
 
 --------------------------------------------------------------------------------

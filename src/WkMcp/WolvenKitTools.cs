@@ -58,7 +58,7 @@ public static class WolvenKitTools
     {
         if (!runner.ToolExists)
             return Err($"cp77tools not found: {runner.ToolPath}. " +
-                       "Install with: dotnet tool install -g WolvenKit.CLI");
+                       "Install with: dotnet tool install -g WolvenKit.CLI --version 10.0.0-beta.1");
 
         var r = await runner.RunAsync(new[] { "--version" }, ct);
         var (hits, misses, entries) = runner.CacheStats;

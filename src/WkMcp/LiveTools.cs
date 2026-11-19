@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Server;
 
 namespace WkMcp;
@@ -40,6 +41,25 @@ public static class LiveTools
         error = r.Ok ? null : (r.Error ?? "unknown error"),
         timedOut = r.TimedOut,
     }, JsonOpts);
+
+    /// <summary>Lua can't tell an empty array from an empty object, and CETBridge's serializer.lua writes
+    /// every empty table as <c>{}</c>. Rewrites the top-level list <paramref name="key"/> to <c>[]</c> in that
+    /// case (done here, not in the mod, so it also holds for older installed copies of the mod).</summary>
+    internal static BridgeResponse EmptyObjectAsArray(BridgeResponse r, string key)
+    {
+        if (!r.Ok || string.IsNullOrEmpty(r.Result)) return r;
+        try
+        {
+            if (JsonNode.Parse(r.Result) is JsonObject obj
+                && obj[key] is JsonObject { Count: 0 })
+            {
+                obj[key] = new JsonArray();
+                return r with { Result = obj.ToJsonString() };
+            }
+        }
+        catch (JsonException) { /* not JSON: leave as-is */ }
+        return r;
+    }
 
     private const string GamePathDesc =
         "Root folder of the Cyberpunk 2077 installation. Optional: not needed with TCP transport " +
@@ -177,7 +197,8 @@ public static class LiveTools
         [Description("Filter by entity type (optional).")] string? type = null,
         [Description("Max number of entities (default 20).")] int limit = 20,
         [Description(GamePathDesc)] string? gamePath = null, CancellationToken ct = default)
-        => Wrap("Nearby entities", await bridge.QueryAsync("get_nearby_entities", new { radius, type, limit }, gamePath, ct));
+        => Wrap("Nearby entities", EmptyObjectAsArray(
+            await bridge.QueryAsync("get_nearby_entities", new { radius, type, limit }, gamePath, ct), "entities"));
 
     [McpServerTool(Name = "live_scanner", ReadOnly = true, Destructive = false, Idempotent = true)]
     [Description("Detailed info on the entity currently targeted by the player (like a scan): type, name, health, level, faction.")]

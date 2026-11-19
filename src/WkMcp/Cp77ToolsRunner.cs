@@ -607,7 +607,7 @@ public sealed class Cp77ToolsRunner : IDisposable
         {
             return new CliResult(-1, "",
                 $"cp77tools not found: {_cp77tools}\n" +
-                "Install with: dotnet tool install -g WolvenKit.CLI " +
+                "Install with: dotnet tool install -g WolvenKit.CLI --version 10.0.0-beta.1 " +
                 "(or set the WKMCP_CP77TOOLS variable).", false);
         }
 
@@ -678,11 +678,12 @@ public sealed class Cp77ToolsRunner : IDisposable
         // Default: sibling project wkmcp/src/WkDaemon, same configuration.
         try
         {
-            var net8 = new DirectoryInfo(AppContext.BaseDirectory);   // .../WkMcp/bin/<cfg>/net8.0
-            var config = net8.Parent?.Name ?? "Debug";
-            var src = net8.Parent?.Parent?.Parent?.Parent;            // .../src
+            // Host and daemon share a TFM, so reuse the host's folder name (net10.0).
+            var tfm = new DirectoryInfo(AppContext.BaseDirectory);    // .../WkMcp/bin/<cfg>/<tfm>
+            var config = tfm.Parent?.Name ?? "Debug";
+            var src = tfm.Parent?.Parent?.Parent?.Parent;             // .../src
             if (src is not null)
-                return Path.Combine(src.FullName, "WkDaemon", "bin", config, "net8.0",
+                return Path.Combine(src.FullName, "WkDaemon", "bin", config, tfm.Name,
                     "WkDaemon.dll");
         }
         catch { /* fallback below */ }

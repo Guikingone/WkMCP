@@ -60,9 +60,10 @@ process; the WolvenKit daemon is not involved).
 | `CET_BRIDGE_TIMEOUT_MS` | `5000` | Maximum delay of a request. |
 
 The tools' `gamePath` parameter serves the file fallback (locating the mod); it is useless
-in TCP. In pure TCP, you can therefore omit it.
+in TCP. In pure TCP, you can therefore omit it. With the file transport, passing it **once**
+is enough: the server remembers the last `gamePath` it was given for later `live_*` calls.
 
-## Tools (35)
+## Tools (36)
 
 Every tool accepts an optional `gamePath` (string) — the root folder of the
 Cyberpunk 2077 installation. It is **only** used by the file transport to locate the
@@ -93,7 +94,7 @@ parameters only.
 | `live_active_effects` `RO` `I` | — | Active status effects (ID, remaining duration, stacks). |
 | `live_appearance` `RO` `I` | — | Current appearance (appearance name + customization). |
 | `live_vehicles` `RO` `I` | — | Vehicles owned (garage): names + TweakDBID. |
-| `live_nearby_entities` `RO` `I` | `radius` (double, default 20) — search radius in meters. `type` (string?) — NPC/Vehicle/Item/Device. `limit` (int, default 20) — max entities. | Entities near the player (name, type, distance, position). |
+| `live_nearby_entities` `RO` `I` | `radius` (double, default 20) — search radius in meters. `type` (string?) — NPC/Vehicle/Item/Device. `limit` (int, default 20) — max entities. | Entities near the player (name, type, distance, position), including ones out of view. Each entity is listed once; `entities` is always an array. |
 | `live_scanner` `RO` `I` | — | Detail on the targeted entity, like a scan (type, name, health, level, faction). |
 
 ### Player & world mutation
